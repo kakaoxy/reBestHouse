@@ -1,7 +1,9 @@
 <template>
-  <div v-bind="$attrs">
+  <div class="crud-table">
     <QueryBar v-if="$slots.queryBar" mb-30 @search="handleSearch" @reset="handleReset">
-      <slot name="queryBar" />
+      <template #default>
+        <slot name="queryBar" />
+      </template>
     </QueryBar>
 
     <n-data-table
@@ -64,7 +66,7 @@ const props = defineProps({
    * ! 约定接口入参出参
    * * 分页模式需约定分页接口入参
    *    @page_size 分页参数：一页展示多少条，默认10
-   *    @page   分页参数：页码，默认1
+   *    @page   分页参数：���码，默认1
    */
   getData: {
     type: Function,

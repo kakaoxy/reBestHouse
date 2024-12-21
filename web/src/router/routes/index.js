@@ -140,4 +140,11 @@ Object.keys(modules).forEach((key) => {
 // 加载 views 下每个模块的 index.vue 文件
 const vueModules = import.meta.glob('@/views/**/index.vue')
 
+import house from './modules/house'
+
+export default [
+  house,
+  // 其他现有路由...
+]
+
 export { asyncRoutes, vueModules }
