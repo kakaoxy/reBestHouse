@@ -3,6 +3,8 @@ import httpx
 import pytest
 from datetime import datetime
 import json
+from app.models import Community
+from app.api.v1.house.community import get_communities
 
 # 测试配置
 BASE_URL = "http://localhost:9999/api/v1/house"
@@ -227,6 +229,34 @@ async def test_ershoufang_crud():
             f"{BASE_URL}/communities/{community_id}",
             headers=headers
         )
+
+@pytest.mark.asyncio
+async def test_get_communities_by_city():
+    # 创建测试数据
+    await Community.create(
+        name="测试北京",
+        city="beijing",
+        region="测试区域",
+        area="测试商圈"
+    )
+    await Community.create(
+        name="测试上海",
+        city="shanghai",
+        region="测试区域",
+        area="测试商圈"
+    )
+
+    # 测试北京筛选
+    result = await get_communities(city="beijing", page=1, page_size=10)
+    items = result.data["items"]
+    assert len(items) == 1
+    assert items[0]["city"] == "beijing"
+
+    # 测试上海筛选
+    result = await get_communities(city="shanghai", page=1, page_size=10)
+    items = result.data["items"]
+    assert len(items) == 1
+    assert items[0]["city"] == "shanghai"
 
 async def main():
     """运行所有测试"""

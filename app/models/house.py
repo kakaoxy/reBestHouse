@@ -4,21 +4,33 @@ from tortoise.models import Model
 class Community(Model):
     id = fields.IntField(pk=True)
     name = fields.CharField(max_length=100, null=False, description='小区名称')
-    region = fields.CharField(max_length=50, null=True, description='区域')
-    area = fields.CharField(max_length=50, null=True, description='商圈')
+    city = fields.CharField(max_length=50, null=False, default='shanghai', description='城市')
+    region = fields.CharField(max_length=50, null=False, default='', description='区域')
+    area = fields.CharField(max_length=50, null=False, default='', description='商圈')
     address = fields.CharField(max_length=200, null=True, description='地址')
     building_type = fields.CharField(max_length=50, null=True, description='建筑类型')
-    property_rights = fields.CharField(max_length=50, null=True, description='交易权属')
+    property_rights = fields.CharField(max_length=100, null=True, description='交易权属')
     total_houses = fields.IntField(null=True, description='房屋总数')
     building_year = fields.IntField(null=True, description='建筑年代')
     created_at = fields.DatetimeField(auto_now_add=True, description='创建时间')
     updated_at = fields.DatetimeField(auto_now=True, description='更新时间')
 
-    # 反向关系
-    houses: fields.ReverseRelation["Ershoufang"]
-
     class Meta:
         table = "community"
+        table_description = "小区信息表"
+
+    async def save(self, *args, **kwargs):
+        # 确保保存时城市值是小写的
+        if self.city:
+            self.city = self.city.lower()
+        await super().save(*args, **kwargs)
+
+    @classmethod
+    async def create(cls, **kwargs):
+        # 确保创建时城市值是小写的
+        if 'city' in kwargs:
+            kwargs['city'] = kwargs['city'].lower()
+        return await super().create(**kwargs)
 
 class Ershoufang(Model):
     id = fields.IntField(pk=True)

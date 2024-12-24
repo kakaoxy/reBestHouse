@@ -11,19 +11,11 @@ const CITY_OPTIONS = [
   { label: '广州', value: 'guangzhou' }
 ]
 
-const LAYOUT_OPTIONS = [
-  { label: '一房', value: '一房' },
-  { label: '二房', value: '二房' },
-  { label: '三房', value: '三房' },
-  { label: '四房', value: '四房' },
-  { label: '其他', value: '其他' }
-]
-
 const ORIENTATION_OPTIONS = [
-  { label: '朝南', value: '朝南' },
-  { label: '朝东', value: '朝东' },
-  { label: '朝西', value: '朝西' },
-  { label: '朝北', value: '朝北' },
+  { label: '南', value: '朝南' },
+  { label: '北', value: '朝北' },
+  { label: '东', value: '朝东' },
+  { label: '西', value: '朝西' },
   { label: '南北', value: '南北' }
 ]
 
@@ -34,13 +26,13 @@ const FLOOR_OPTIONS = [
 ]
 
 const AREA_OPTIONS = [
-  { label: '50m²以下', value: [0, 50] },
-  { label: '50-70m²', value: [50, 70] },
-  { label: '70-90m²', value: [70, 90] },
-  { label: '90-110m²', value: [90, 110] },
-  { label: '110-130m²', value: [110, 130] },
-  { label: '130-150m²', value: [130, 150] },
-  { label: '150m²以上', value: [150, 999999] }
+  { label: '50以下', value: [0, 50] },
+  { label: '50-70', value: [50, 70] },
+  { label: '70-90', value: [70, 90] },
+  { label: '90-110', value: [90, 110] },
+  { label: '110-130', value: [110, 130] },
+  { label: '130-150', value: [130, 150] },
+  { label: '150以上', value: [150, 999999] }
 ]
 
 export function useErshoufangCRUD(api) {
@@ -349,11 +341,9 @@ export function useErshoufangCRUD(api) {
     handleAreaChange,
     handleReset,
     CITY_OPTIONS,
-    LAYOUT_OPTIONS,
     ORIENTATION_OPTIONS,
     FLOOR_OPTIONS,
     AREA_OPTIONS,
-    // 导出新增的方法和状态
     showModal,
     modalTitle,
     formParams,

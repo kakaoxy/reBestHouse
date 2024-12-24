@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from tortoise.expressions import Q
+from tortoise import Tortoise
 
 from app.api import api_router
 from app.controllers.api import api_controller
@@ -23,8 +24,10 @@ from app.core.exceptions import (
 )
 from app.log import logger
 from app.models.admin import Api, Menu, Role
+from app.models.house import Community
 from app.schemas.menus import MenuType
 from app.settings.config import settings
+from app.settings import TORTOISE_ORM
 
 from .middlewares import BackGroundTaskMiddleware, HttpAuditLogMiddleware
 
@@ -182,21 +185,34 @@ async def init_apis():
 
 
 async def init_db():
-    command = Command(tortoise_config=settings.TORTOISE_ORM)
+    """初始化数据库"""
     try:
-        await command.init_db(safe=True)
-    except FileExistsError:
-        pass
-
-    await command.init()
-    try:
-        await command.migrate()
-    except AttributeError:
-        logger.warning("unable to retrieve model history from database, model history will be created from scratch")
-        shutil.rmtree("migrations")
-        await command.init_db(safe=True)
-
-    await command.upgrade(run_in_transaction=True)
+        # 初始化 Tortoise
+        await Tortoise.init(config=TORTOISE_ORM)
+        
+        # 生成数据库表
+        await Tortoise.generate_schemas()
+        
+        # 确保 community 表存在
+        await Tortoise.get_connection("default").execute_script("""
+            CREATE TABLE IF NOT EXISTS "community" (
+                "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                "name" VARCHAR(100) NOT NULL,
+                "city" VARCHAR(50) NOT NULL DEFAULT 'beijing',
+                "region" VARCHAR(50) NOT NULL DEFAULT '',
+                "area" VARCHAR(50) NOT NULL DEFAULT '',
+                "address" VARCHAR(200),
+                "building_type" VARCHAR(50),
+                "property_rights" VARCHAR(100),
+                "total_houses" INTEGER,
+                "building_year" INTEGER
+            );
+        """)
+    except Exception as e:
+        logger.error(f"Database initialization error: {e}")
+        raise
 
 
 async def init_roles():

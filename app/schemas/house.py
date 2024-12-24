@@ -1,33 +1,45 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from tortoise.contrib.pydantic import pydantic_model_creator
 from app.models.house import Community, Ershoufang
 
 # Community Schemas
 class CommunityBase(BaseModel):
-    name: str = Field(..., description='小区名称')
-    region: Optional[str] = Field(None, description='区域')
-    area: Optional[str] = Field(None, description='商圈')
-    address: Optional[str] = Field(None, description='地址')
-    building_type: Optional[str] = Field(None, description='建筑类型')
-    property_rights: Optional[str] = Field(None, description='交易权属')
-    total_houses: Optional[int] = Field(None, description='房屋总数')
-    building_year: Optional[int] = Field(None, description='建筑年代')
+    name: str
+    city: str
+    region: str
+    area: str
+    address: Optional[str] = None
+    building_type: Optional[str] = None
+    property_rights: Optional[str] = None
+    total_houses: Optional[int] = None
+    building_year: Optional[int] = None
 
 class CommunityCreate(CommunityBase):
     pass
 
 class CommunityUpdate(CommunityBase):
-    name: Optional[str] = Field(None, description='小区名称')
+    pass
 
 class CommunityInDB(CommunityBase):
     id: int
-    created_at: datetime
-    updated_at: datetime
 
     class Config:
         from_attributes = True
+
+class CommunityList(BaseModel):
+    items: List[CommunityInDB]
+    total: int
+    page: int
+    page_size: int
+
+# 保留原有的响应模型
+CommunityResponse = pydantic_model_creator(
+    Community,
+    name="CommunityResponse",
+    exclude=("houses",)  # 排除反向关系字段
+)
 
 # Ershoufang Schemas
 class ErshoufangBase(BaseModel):
@@ -61,20 +73,19 @@ class ErshoufangCreate(BaseModel):
     region: Optional[str] = None
     area: Optional[str] = None
     layout: str
-    floor_number: int  # 所在楼层
-    total_floors: int  # 总层高
+    floor_number: int
+    total_floors: int
     orientation: Optional[str] = None
     size: float
     total_price: float
     data_source: str
-    city: str = 'shanghai'  # 添加默认值
-    # ... 其他字段保持不变 ...
+    city: str = 'shanghai'
 
 class ErshoufangUpdate(ErshoufangBase):
     community_id: Optional[int] = Field(None, description='小区ID')
     total_price: Optional[float] = Field(None, description='房源总价')
     data_source: Optional[str] = Field(None, description='数据来源')
-    city: Optional[str] = Field('shanghai', description='城市')  # 添加默认值
+    city: Optional[str] = Field('shanghai', description='城市')
 
 class ErshoufangInDB(ErshoufangBase):
     id: int
@@ -85,12 +96,6 @@ class ErshoufangInDB(ErshoufangBase):
         from_attributes = True
 
 # Response Models
-CommunityResponse = pydantic_model_creator(
-    Community,
-    name="CommunityResponse",
-    exclude=("houses",)  # 排除反向关系字段
-)
-
 ErshoufangResponse = pydantic_model_creator(
     Ershoufang,
     name="ErshoufangResponse",

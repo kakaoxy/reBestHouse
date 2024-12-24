@@ -1,27 +1,18 @@
 <template>
   <CommonPage>
     <n-card :bordered="false" class="proCard">
-      <!-- 城市选择器 -->
+      <!-- 顶部操作栏 -->
       <n-space vertical :size="16">
         <n-space justify="space-between" align="center">
-          <n-select
-            v-model:value="cityStore.currentCity"
-            :options="cityStore.CITY_OPTIONS"
-            style="width: 120px"
-            @update:value="handleCityChange"
-          />
-          <n-button type="primary" @click="handleAdd">
-            <template #icon>
-              <TheIcon icon="material-symbols:add" />
-            </template>
-            新增房源
-          </n-button>
-        </n-space>
-
-        <!-- 搜索区域 -->
-        <n-space vertical :size="16">
-          <!-- 搜索框和按钮 -->
-          <n-space align="center">
+          <n-space align="center" :size="8">
+            <!-- 城市选择器 -->
+            <n-select
+              v-model:value="cityStore.currentCity"
+              :options="cityStore.CITY_OPTIONS"
+              style="width: 120px"
+              @update:value="handleCityChange"
+            />
+            <!-- 搜索框和按钮组 -->
             <n-input
               v-model:value="queryParams.search_keyword"
               type="text"
@@ -42,16 +33,26 @@
               重置
             </n-button>
           </n-space>
+          <!-- 新增按钮 -->
+          <n-button type="primary" @click="handleAdd">
+            <template #icon>
+              <TheIcon icon="material-symbols:add" />
+            </template>
+            新增房源
+          </n-button>
+        </n-space>
 
-          <!-- 第二行：户型和朝向 -->
+        <!-- 筛选条件 -->
+        <n-space vertical :size="12">
+          <!-- 户型和朝向在同一行 -->
           <n-space align="center" justify="start">
             <span class="label">户型：</span>
             <n-button-group>
               <n-button
-                v-for="layout in LAYOUT_OPTIONS"
+                v-for="layout in CUSTOM_LAYOUT_OPTIONS"
                 :key="layout.value"
-                :type="queryParams.layout === layout.value ? 'primary' : 'default'"
-                @click="handleLayoutChange(layout.value)"
+                :type="queryParams.layout === layout.dbValue ? 'primary' : 'default'"
+                @click="handleLayoutChange(layout.dbValue)"
               >
                 {{ layout.label }}
               </n-button>
@@ -70,7 +71,7 @@
             </n-button-group>
           </n-space>
 
-          <!-- 第三行：楼层和面积 -->
+          <!-- 楼层和面积在同一行 -->
           <n-space align="center" justify="start">
             <span class="label">楼层：</span>
             <n-button-group>
@@ -84,7 +85,7 @@
               </n-button>
             </n-button-group>
 
-            <span class="label" style="margin-left: 24px">面积：</span>
+            <span class="label" style="margin-left: 24px; white-space: nowrap">面积(m²)：</span>
             <n-button-group>
               <n-button
                 v-for="area in AREA_OPTIONS"
@@ -145,6 +146,21 @@ const api = {
   delete: (id) => request.delete(`/house/ershoufangs/${id}`)
 }
 
+// 修改户型选项定义 - 移到这里
+const CUSTOM_LAYOUT_OPTIONS = [
+  { label: '一房', value: '一房', dbValue: '1室1厅' },
+  { label: '二房', value: '二房', dbValue: '2室1厅' },
+  { label: '三房', value: '三房', dbValue: '3室1厅' },
+  { label: '四房', value: '四房', dbValue: '4室1厅' },
+  { label: '其他', value: '其他', dbValue: '其他' }
+]
+
+// 修改户型筛选处理函数
+const handleLayoutChange = (dbValue) => {
+  queryParams.layout = queryParams.layout === dbValue ? null : dbValue
+  loadData()
+}
+
 // 使用 CRUD 函数
 const {
   loading,
@@ -156,13 +172,11 @@ const {
   handlePageChange,
   handlePageSizeChange,
   handleSorterChange,
-  handleLayoutChange,
   handleOrientationChange,
   handleFloorChange,
   handleAreaChange,
   handleReset,
   CITY_OPTIONS,
-  LAYOUT_OPTIONS,
   ORIENTATION_OPTIONS,
   FLOOR_OPTIONS,
   AREA_OPTIONS,
@@ -235,6 +249,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.n-space {
+  width: 100%;
+}
+
 .n-button-group {
   display: flex;
   flex-wrap: wrap;
@@ -247,9 +265,10 @@ onMounted(() => {
 
 .label {
   display: inline-block;
-  width: 50px;
+  min-width: 50px;
   text-align: right;
   margin-right: 8px;
+  white-space: nowrap;
 }
 
 .mt-4 {
