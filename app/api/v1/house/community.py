@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Query
 from app.models import Community
 from app.schemas.base import BaseResp
-from app.schemas.house import CommunityCreate, CommunityList
+from app.schemas.house import CommunityCreate, CommunityUpdate, CommunityList
 from tortoise.expressions import Q
 
 router = APIRouter()

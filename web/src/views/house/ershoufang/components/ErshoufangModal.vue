@@ -26,7 +26,7 @@
         <n-form-item label="小区" path="community_name">
           <n-select
             v-model:value="localFormValue.community_id"
-            :options="communityOptions"
+            :options="filteredCommunityOptions"
             placeholder="请选择小区"
             filterable
             clearable
@@ -212,10 +212,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { useMessage } from 'naive-ui'
 import { request } from '@/utils'
 import { useCityStore } from '@/stores/city'
+import { useCommunityStore } from '@/stores/community'
 
 const props = defineProps({
   show: Boolean,
@@ -257,37 +258,54 @@ const DATA_SOURCE_OPTIONS = [
 // 添加日期格式
 const dateFormat = 'yyyy-MM-dd'
 
-// 加载小区选项
+const communityStore = useCommunityStore()
+
+// 获取小区列表
 const loadCommunityOptions = async () => {
   try {
-    const res = await request.get('/house/communities')
-    if (res.code === 200 && res.data) {
+    const res = await request.get('/house/communities', {
+      params: {
+        city: communityStore.currentCity,
+        page_size: 1000  // 获取足够多的小区数据
+      }
+    })
+    if (res.code === 200) {
       communityOptions.value = res.data.items.map(item => ({
-        label: item.name,
+        label: `${item.name} (${item.region})`,
         value: item.id,
+        city: item.city,
         region: item.region,
         area: item.area
       }))
+      console.log('Loaded community options:', communityOptions.value)
     }
   } catch (error) {
     console.error('Failed to load communities:', error)
   }
 }
 
-// 修改小区选择处理函数
-const handleCommunityChange = async (communityId) => {
-  if (!communityId) {
+// 根据当前城市过滤小区选项
+const filteredCommunityOptions = computed(() => {
+  return communityOptions.value.filter(option => 
+    option.city === communityStore.currentCity
+  )
+})
+
+// 处理小区选择变化
+const handleCommunityChange = (communityId) => {
+  if (communityId) {
+    const selectedCommunity = communityOptions.value.find(opt => opt.value === communityId)
+    if (selectedCommunity) {
+      localFormValue.community_name = selectedCommunity.label.split(' (')[0]
+      localFormValue.region = selectedCommunity.region
+      localFormValue.area = selectedCommunity.area
+      localFormValue.city = selectedCommunity.city
+    }
+  } else {
     // 清空相关字段
     localFormValue.community_name = ''
     localFormValue.region = ''
     localFormValue.area = ''
-    return
-  }
-  const community = communityOptions.value.find(item => item.value === communityId)
-  if (community) {
-    localFormValue.community_name = community.label
-    localFormValue.region = community.region
-    localFormValue.area = community.area
   }
 }
 
@@ -415,6 +433,13 @@ watch(() => props.formValue.layout, (newLayout) => {
     }
   }
 }, { immediate: true })
+
+// 监听表单显示状态
+watch(() => props.show, (newVal) => {
+  if (newVal) {
+    loadCommunityOptions()
+  }
+})
 
 onMounted(() => {
   loadCommunityOptions()

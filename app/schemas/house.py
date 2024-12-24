@@ -20,7 +20,16 @@ class CommunityCreate(CommunityBase):
     pass
 
 class CommunityUpdate(CommunityBase):
-    pass
+    id: Optional[int] = None
+    name: Optional[str] = None
+    city: Optional[str] = None
+    region: Optional[str] = None
+    area: Optional[str] = None
+    address: Optional[str] = None
+    building_type: Optional[str] = None
+    property_rights: Optional[str] = None
+    total_houses: Optional[int] = None
+    building_year: Optional[int] = None
 
 class CommunityInDB(CommunityBase):
     id: int

@@ -4,7 +4,6 @@ import pytest
 from datetime import datetime
 import json
 from app.models import Community
-from app.api.v1.house.community import get_communities
 
 # 测试配置
 BASE_URL = "http://localhost:9999/api/v1/house"
@@ -232,6 +231,9 @@ async def test_ershoufang_crud():
 
 @pytest.mark.asyncio
 async def test_get_communities_by_city():
+    token = await get_token()
+    headers = {"token": token}
+    
     # 创建测试数据
     await Community.create(
         name="测试北京",
@@ -247,16 +249,28 @@ async def test_get_communities_by_city():
     )
 
     # 测试北京筛选
-    result = await get_communities(city="beijing", page=1, page_size=10)
-    items = result.data["items"]
-    assert len(items) == 1
-    assert items[0]["city"] == "beijing"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{BASE_URL}/communities",
+            params={"city": "beijing"},
+            headers=headers
+        )
+        result = response.json()
+        assert response.status_code == 200
+        assert len(result["data"]["items"]) == 1
+        assert result["data"]["items"][0]["city"] == "beijing"
 
     # 测试上海筛选
-    result = await get_communities(city="shanghai", page=1, page_size=10)
-    items = result.data["items"]
-    assert len(items) == 1
-    assert items[0]["city"] == "shanghai"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{BASE_URL}/communities",
+            params={"city": "shanghai"},
+            headers=headers
+        )
+        result = response.json()
+        assert response.status_code == 200
+        assert len(result["data"]["items"]) == 1
+        assert result["data"]["items"][0]["city"] == "shanghai"
 
 async def main():
     """运行所有测试"""
