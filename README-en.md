@@ -1,190 +1,102 @@
-<p align="center">
-  <a href="https://github.com/mizhexiaoxiao/vue-fastapi-admin">
-    <img alt="Vue FastAPI Admin Logo" width="200" src="https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/logo.svg">
-  </a>
-</p>
+# Vue FastAPI Admin - Property Management System
 
-<h1 align="center">vue-fastapi-admin</h1>
+A modern property management system based on Vue 3 and FastAPI.
 
-English | [简体中文](./README.md)
+## Features
 
-vue-fastapi-admin is a modern front-end and back-end separation development platform that combines FastAPI, Vue3, and Naive UI. It incorporates RBAC (Role-Based Access Control) management, dynamic routing, and JWT (JSON Web Token) authentication, making it ideal for rapid development of small to medium-sized applications and also serves as a valuable learning resource.
+- 🏠 Community Management
+  - Filter communities by city
+  - Maintain community basic information
+  - Support multi-city data management
 
-### Features
-- **Popular Tech Stack**: The backend is developed with the high-performance asynchronous framework FastAPI using Python 3.11, while the front-end is powered by cutting-edge technologies such as Vue3 and Vite, complemented by the efficient package manager, pnpm.
-- **Code Standards**: The project is equipped with various plugins for code standardization and quality control, ensuring consistency and enhancing team collaboration efficiency.
-- **Dynamic Routing**: Backend dynamic routing combined with the RBAC model allows for fine-grained control of menus and routing.
-- **JWT Authentication**: User identity verification and authorization are handled through JWT, enhancing the application's security.
-- **Granular Permission Control**: Implements detailed permission management including button and interface level controls, ensuring different roles and users have appropriate permissions.
+- 🏢 Second-hand Housing Management
+  - Property information entry and management
+  - Multi-dimensional filtering by community, price, area, etc.
+  - Automatic unit price calculation
 
-### Live Demo
-- URL: http://139.9.100.77:9999
-- Username: admin
-- Password: 123456
+- 👥 User Permission Management
+  - Role-based access control
+  - Complete user management functionality
+  - Operation audit logging
 
-### Screenshots
+## Tech Stack
 
-#### Login Page
-![Login Page](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/login.jpg)
+### Backend
+- FastAPI
+- Tortoise ORM
+- SQLite
+- Python 3.8+
 
-#### Workbench
-![Workbench](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/workbench.jpg)
+### Frontend
+- Vue 3
+- Naive UI
+- Pinia
+- Vue Router
 
-#### User Management
-![User Management](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/user.jpg)
+## Quick Start
 
-#### Role Management
-![Role Management](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/role.jpg)
+### Backend Setup
 
-#### Menu Management
-![Menu Management](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/menu.jpg)
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows use: venv\Scripts\activate
 
-#### API Management
-![API Management](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/api.jpg)
+# Install dependencies
+pip install -r requirements.txt
 
-### Quick Start
-Please follow the instructions below for installation and configuration:
+# Initialize database
+python fix_db.py
 
-#### Method 1：dockerhub pull image
-
-```sh
-docker pull mizhexiaoxiao/vue-fastapi-admin:latest 
-docker run -d --restart=always --name=vue-fastapi-admin -p 9999:80 mizhexiaoxiao/vue-fastapi-admin
+# Start server
+uvicorn app.main:app --host 0.0.0.0 --port 9999 --reload
 ```
 
-#### Method 2: Build Image Using Dockerfile
-##### Install Docker
+### Frontend Setup
 
-```sh
-yum install -y docker-ce
-systemctl start docker
-```
-
-##### Build the Image
-
-```sh
-git clone https://github.com/mizhexiaoxiao/vue-fastapi-admin.git
-cd vue-fastapi-admin
-docker build --no-cache . -t vue-fastapi-admin
-```
-
-##### Start the Container
-
-```sh
-docker run -d --restart=always --name=vue-fastapi-admin -p 9999:80 vue-fastapi-admin
-```
-
-##### Access the Service
-
-http://localhost:9999
-
-username：admin
-
-password：123456
-
-### Local Setup
-#### Backend
-The backend service requires the following environment:
-- Python 3.11
-- [Poetry](https://python-poetry.org/docs/#installing-with-the-official-installer)
-
-1. Create a Python virtual environment:
-```sh
-poetry shell
-```
-2. Install project dependencies:
-```sh
-poetry install
-```
-3. Start the backend service:
-```sh
-make run
-```
-The backend service is now running, and you can visit http://localhost:9999/docs to view the API documentation.
-
-#### Frontend
-The frontend project requires a Node.js environment (recommended version 18.8.0 or higher).
-- node v18.8.0+
-
-1. Navigate to the frontend project directory:
-```sh
+```bash
 cd web
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
 
-2. Install project dependencies (pnpm is recommended: https://pnpm.io/zh/installation)
-```sh
-npm i -g pnpm # If pnpm is already installed, skip this step
-pnpm i # Or use npm i
-```
-
-3. Start the frontend development server:
-```sh
-pnpm dev
-```
-
-### Directory Structure Explanation
+## Project Structure
 
 ```
-├── app                   // Application directory
-│   ├── api               // API interface directory
-│   │   └── v1            // Version 1 of the API interfaces
-│   │       ├── apis      // API-related interfaces
-│   │       ├── base      // Base information interfaces
-│   │       ├── menus     // Menu related interfaces
-│   │       ├── roles     // Role related interfaces
-│   │       └── users     // User related interfaces
-│   ├── controllers       // Controllers directory
-│   ├── core              // Core functionality module
-│   ├── log               // Log directory
-│   ├── models            // Data models directory
-│   ├── schemas           // Data schema/structure definitions
-│   ├── settings          // Configuration settings directory
-│   └── utils             // Utilities directory
-├── deploy                // Deployment related directory
-│   └── sample-picture    // Sample picture directory
-└── web                   // Front-end web directory
-    ├── build             // Build scripts and configuration directory
-    │   ├── config        // Build configurations
-    │   ├── plugin        // Build plugins
-    │   └── script        // Build scripts
-    ├── public            // Public resources directory
-    │   └── resource      // Public resource files
-    ├── settings          // Front-end project settings
-    └── src               // Source code directory
-        ├── api           // API interface definitions
-        ├── assets        // Static resources directory
-        │   ├── images    // Image resources
-        │   ├── js        // JavaScript files
-        │   └── svg       // SVG vector files
-        ├── components    // Components directory
-        │   ├── common    // Common components
-        │   ├── icon      // Icon components
-        │   ├── page      // Page components
-        │   ├── query-bar // Query bar components
-        │   └── table     // Table components
-        ├── composables   // Composable functionalities
-        ├── directives    // Directives directory
-        ├── layout        // Layout directory
-        │   └── components // Layout components
-        ├── router        // Routing directory
-        │   ├── guard     // Route guards
-        │   └── routes    // Route definitions
-        ├── store         // State management (pinia)
-        │   └── modules   // State modules
-        ├── styles        // Style files directory
-        ├── utils         // Utilities directory
-        │   ├── auth      // Authentication related utilities
-        │   ├── common    // Common utilities
-        │   ├── http      // Encapsulated axios
-        │   └── storage   // Encapsulated localStorage and sessionStorage
-        └── views         // Views/Pages directory
-            ├── error-page // Error pages
-            ├── login      // Login page
-            ├── profile    // Profile page
-            ├── system     // System management page
-            └── workbench  // Workbench page
+.
+├── app/                    # Backend code
+│   ├── api/               # API routes
+│   ├── models/            # Data models
+│   ├── schemas/           # Data validation
+│   └── core/             # Core functionality
+├── web/                   # Frontend code
+│   ├── src/              
+│   │   ├── views/        # Page components
+│   │   ├── components/   # Common components
+│   │   ├── stores/       # State management
+│   │   └── api/         # API calls
+└── tests/                # Test code
 ```
 
-### Visitors Count
+## Development Guide
 
-<img align="left" src = "https://profile-counter.glitch.me/vue-fastapi-admin/count.svg" alt="Loading">
+1. Adding a New Community:
+   - Select city
+   - Fill in community basic information
+   - Submit and save
+
+2. Adding a New Property:
+   - Select the community
+   - Fill in property details
+   - System automatically calculates unit price
+
+## License
+
+[MIT License](LICENSE)
