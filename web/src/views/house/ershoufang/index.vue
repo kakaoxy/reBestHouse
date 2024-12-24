@@ -1,26 +1,34 @@
 <template>
   <CommonPage>
     <n-card :bordered="false" class="proCard">
-      <!-- 搜索区域 -->
+      <!-- 城市选择器 -->
       <n-space vertical :size="16">
-        <!-- 第一行：搜索框和按钮 -->
         <n-space justify="space-between" align="center">
+          <n-select
+            v-model:value="cityStore.currentCity"
+            :options="cityStore.CITY_OPTIONS"
+            style="width: 120px"
+            @update:value="handleCityChange"
+          />
+          <n-button type="primary" @click="handleAdd">
+            <template #icon>
+              <TheIcon icon="material-symbols:add" />
+            </template>
+            新增房源
+          </n-button>
+        </n-space>
+
+        <!-- 搜索区域 -->
+        <n-space vertical :size="16">
+          <!-- 搜索框和按钮 -->
           <n-space align="center">
-            <!-- 城市和搜索组合 -->
-            <n-space align="center" :size="4">
-              <n-select
-                v-model:value="queryParams.city"
-                :options="CITY_OPTIONS"
-                style="width: 100px"
-              />
-              <n-input
-                v-model:value="queryParams.search_keyword"
-                type="text"
-                placeholder="输入小区名称搜索"
-                style="width: 200px"
-                clearable
-              />
-            </n-space>
+            <n-input
+              v-model:value="queryParams.search_keyword"
+              type="text"
+              placeholder="输入小区名称搜索"
+              style="width: 200px"
+              clearable
+            />
             <n-button type="primary" @click="loadData">
               <template #icon>
                 <TheIcon icon="material-symbols:search" />
@@ -34,67 +42,60 @@
               重置
             </n-button>
           </n-space>
-          <!-- 新增按钮右对齐 -->
-          <n-button type="primary" @click="handleAdd">
-            <template #icon>
-              <TheIcon icon="material-symbols:add" />
-            </template>
-            新增房源
-          </n-button>
-        </n-space>
 
-        <!-- 第二行：户型和朝向 -->
-        <n-space align="center" justify="start">
-          <span class="label">户型：</span>
-          <n-button-group>
-            <n-button
-              v-for="layout in LAYOUT_OPTIONS"
-              :key="layout.value"
-              :type="queryParams.layout === layout.value ? 'primary' : 'default'"
-              @click="handleLayoutChange(layout.value)"
-            >
-              {{ layout.label }}
-            </n-button>
-          </n-button-group>
+          <!-- 第二行：户型和朝向 -->
+          <n-space align="center" justify="start">
+            <span class="label">户型：</span>
+            <n-button-group>
+              <n-button
+                v-for="layout in LAYOUT_OPTIONS"
+                :key="layout.value"
+                :type="queryParams.layout === layout.value ? 'primary' : 'default'"
+                @click="handleLayoutChange(layout.value)"
+              >
+                {{ layout.label }}
+              </n-button>
+            </n-button-group>
 
-          <span class="label" style="margin-left: 24px">朝向：</span>
-          <n-button-group>
-            <n-button
-              v-for="orientation in ORIENTATION_OPTIONS"
-              :key="orientation.value"
-              :type="queryParams.orientation === orientation.value ? 'primary' : 'default'"
-              @click="handleOrientationChange(orientation.value)"
-            >
-              {{ orientation.label }}
-            </n-button>
-          </n-button-group>
-        </n-space>
+            <span class="label" style="margin-left: 24px">朝向：</span>
+            <n-button-group>
+              <n-button
+                v-for="orientation in ORIENTATION_OPTIONS"
+                :key="orientation.value"
+                :type="queryParams.orientation === orientation.value ? 'primary' : 'default'"
+                @click="handleOrientationChange(orientation.value)"
+              >
+                {{ orientation.label }}
+              </n-button>
+            </n-button-group>
+          </n-space>
 
-        <!-- 第三行：楼层和面积 -->
-        <n-space align="center" justify="start">
-          <span class="label">楼层：</span>
-          <n-button-group>
-            <n-button
-              v-for="floor in FLOOR_OPTIONS"
-              :key="floor.value"
-              :type="queryParams.floor === floor.value ? 'primary' : 'default'"
-              @click="handleFloorChange(floor.value)"
-            >
-              {{ floor.label }}
-            </n-button>
-          </n-button-group>
+          <!-- 第三行：楼层和面积 -->
+          <n-space align="center" justify="start">
+            <span class="label">楼层：</span>
+            <n-button-group>
+              <n-button
+                v-for="floor in FLOOR_OPTIONS"
+                :key="floor.value"
+                :type="queryParams.floor === floor.value ? 'primary' : 'default'"
+                @click="handleFloorChange(floor.value)"
+              >
+                {{ floor.label }}
+              </n-button>
+            </n-button-group>
 
-          <span class="label" style="margin-left: 24px">面积：</span>
-          <n-button-group>
-            <n-button
-              v-for="area in AREA_OPTIONS"
-              :key="area.label"
-              :type="queryParams.size_range === area.value ? 'primary' : 'default'"
-              @click="handleAreaChange(area.value)"
-            >
-              {{ area.label }}
-            </n-button>
-          </n-button-group>
+            <span class="label" style="margin-left: 24px">面积：</span>
+            <n-button-group>
+              <n-button
+                v-for="area in AREA_OPTIONS"
+                :key="area.label"
+                :type="queryParams.size_range === area.value ? 'primary' : 'default'"
+                @click="handleAreaChange(area.value)"
+              >
+                {{ area.label }}
+              </n-button>
+            </n-button-group>
+          </n-space>
         </n-space>
       </n-space>
 
@@ -131,8 +132,10 @@ import CommonPage from '@/components/page/CommonPage.vue'
 import ErshoufangModal from './components/ErshoufangModal.vue'
 import TheIcon from '@/components/icon/TheIcon.vue'
 import { useErshoufangCRUD } from '@/composables/useErshoufangCRUD'
+import { useCityStore } from '@/stores/city'
 
 const message = useMessage()
+const cityStore = useCityStore()
 
 // API 定义
 const api = {
@@ -170,7 +173,13 @@ const {
   handleDelete
 } = useErshoufangCRUD(api)
 
-// 处理新增
+// 处理城市变化
+const handleCityChange = (city) => {
+  queryParams.city = city
+  loadData()
+}
+
+// 修改新增处理函数
 const handleAdd = () => {
   modalTitle.value = '新增房源'
   formParams.value = {
@@ -184,7 +193,8 @@ const handleAdd = () => {
     orientation: null,
     size: null,
     total_price: null,
-    data_source: 'store'
+    data_source: 'store',
+    city: cityStore.currentCity  // 设置默认城市
   }
   showModal.value = true
 }
@@ -217,9 +227,9 @@ const handleModalCancel = () => {
   showModal.value = false
 }
 
-// 在组件挂载时加载数据
+// 在组件挂载时加载数据，并设置默认城市
 onMounted(() => {
-  console.log('Component mounted, loading data...')
+  queryParams.city = cityStore.currentCity
   loadData()
 })
 </script>

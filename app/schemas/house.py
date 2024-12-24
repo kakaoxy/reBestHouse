@@ -67,12 +67,14 @@ class ErshoufangCreate(BaseModel):
     size: float
     total_price: float
     data_source: str
+    city: str = 'shanghai'  # 添加默认值
     # ... 其他字段保持不变 ...
 
 class ErshoufangUpdate(ErshoufangBase):
     community_id: Optional[int] = Field(None, description='小区ID')
     total_price: Optional[float] = Field(None, description='房源总价')
     data_source: Optional[str] = Field(None, description='数据来源')
+    city: Optional[str] = Field('shanghai', description='城市')  # 添加默认值
 
 class ErshoufangInDB(ErshoufangBase):
     id: int

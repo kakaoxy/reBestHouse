@@ -5,6 +5,9 @@
     :title="title"
     :loading="loading"
     preset="dialog"
+    class="ershoufang-modal"
+    style="width: 600px"
+    :show-icon="false"
   >
     <n-form
       ref="formRef"
@@ -13,105 +16,197 @@
       label-placement="left"
       label-width="100"
       require-mark-placement="right-hanging"
+      class="ershoufang-form"
     >
-      <n-form-item label="小区" path="community_name">
-        <n-select
-          v-model:value="localFormValue.community_id"
-          :options="communityOptions"
-          placeholder="请选择小区"
-          filterable
-          clearable
-          @update:value="handleCommunityChange"
-        >
-          <template #action>
-            <n-input
-              v-model:value="localFormValue.community_name"
-              type="text"
-              placeholder="或手动输入小区名称"
-              @input="handleCommunityNameInput"
+      <!-- 基本信息区域 -->
+      <div class="form-section">
+        <div class="section-title">基本信息</div>
+        
+        <!-- 小区选择 -->
+        <n-form-item label="小区" path="community_name">
+          <n-select
+            v-model:value="localFormValue.community_id"
+            :options="communityOptions"
+            placeholder="请选择小区"
+            filterable
+            clearable
+            @update:value="handleCommunityChange"
+            class="select-with-input"
+          >
+            <template #action>
+              <n-input
+                v-model:value="localFormValue.community_name"
+                type="text"
+                placeholder="或手动输入小区名称"
+                @input="handleCommunityNameInput"
+                class="manual-input"
+              />
+            </template>
+          </n-select>
+        </n-form-item>
+
+        <!-- 户型输入 -->
+        <n-form-item label="户型" path="layout">
+          <div class="layout-input">
+            <n-input-number
+              v-model:value="roomCount"
+              :min="1"
+              :max="9"
+              placeholder="室"
+              @update:value="handleLayoutChange"
+              class="number-input"
             />
-          </template>
-        </n-select>
-      </n-form-item>
-      <n-form-item label="户型" path="layout">
-        <n-input v-model:value="localFormValue.layout" placeholder="请输入户型，如：2室1厅" />
-      </n-form-item>
-      <n-space :size="24">
-        <n-form-item label="所在楼层" path="floor_number">
-          <n-input-number
-            v-model:value="localFormValue.floor_number"
-            placeholder="请输入所在楼层"
-            :min="1"
-            @update:value="handleFloorChange"
+            <span class="separator">室</span>
+            <n-input-number
+              v-model:value="hallCount"
+              :min="0"
+              :max="9"
+              placeholder="厅"
+              @update:value="handleLayoutChange"
+              class="number-input"
+            />
+            <span class="separator">厅</span>
+          </div>
+        </n-form-item>
+
+        <!-- 楼层信息 -->
+        <n-form-item label="楼层" path="floor_number">
+          <div class="floor-input">
+            <n-input-number
+              v-model:value="localFormValue.floor_number"
+              :min="1"
+              placeholder="所在楼层"
+              @update:value="handleFloorChange"
+              class="number-input"
+            />
+            <span class="separator">/</span>
+            <n-input-number
+              v-model:value="localFormValue.total_floors"
+              :min="1"
+              placeholder="总层高"
+              @update:value="handleFloorChange"
+              class="number-input"
+            />
+            <span class="floor-label">层</span>
+          </div>
+        </n-form-item>
+
+        <!-- 其他基本信息 -->
+        <n-form-item label="朝向" path="orientation">
+          <n-select
+            v-model:value="localFormValue.orientation"
+            :options="ORIENTATION_OPTIONS"
+            placeholder="请选择朝向"
+            class="full-width"
           />
         </n-form-item>
-        <n-form-item label="总层高" path="total_floors">
+
+        <n-form-item label="面积" path="size">
           <n-input-number
-            v-model:value="localFormValue.total_floors"
-            placeholder="请输入总层高"
-            :min="1"
-            @update:value="handleFloorChange"
-          />
+            v-model:value="localFormValue.size"
+            placeholder="请输入建筑面积"
+            :min="0"
+            :precision="2"
+            clearable
+            @update:value="handleSizeChange"
+            class="full-width"
+          >
+            <template #suffix>
+              <span class="unit">㎡</span>
+            </template>
+          </n-input-number>
         </n-form-item>
-      </n-space>
-      <n-form-item label="朝向" path="orientation">
-        <n-select
-          v-model:value="localFormValue.orientation"
-          :options="ORIENTATION_OPTIONS"
-          placeholder="请选择朝向"
-        />
-      </n-form-item>
-      <n-form-item label="面积" path="size">
-        <n-input-number
-          v-model:value="localFormValue.size"
-          placeholder="请输入建筑面积"
-          :min="0"
-          :precision="2"
-          clearable
-          @update:value="handleSizeChange"
-        />
-      </n-form-item>
-      <n-form-item label="总价" path="total_price">
-        <n-input-number
-          v-model:value="localFormValue.total_price"
-          placeholder="请输入总价(万元)"
-          :min="0"
-          :precision="2"
-          clearable
-          @update:value="handleTotalPriceChange"
-        />
-      </n-form-item>
-      <n-form-item label="梯户比" path="ladder_ratio">
-        <n-input v-model:value="localFormValue.ladder_ratio" placeholder="请输入梯户比" />
-      </n-form-item>
-      <n-form-item label="抵押信息" path="mortgage_info">
-        <n-input v-model:value="localFormValue.mortgage_info" placeholder="请输入抵押信息" />
-      </n-form-item>
-      <n-form-item label="房源编号" path="house_id">
-        <n-input v-model:value="localFormValue.house_id" placeholder="请输入房源编号" />
-      </n-form-item>
-      <n-form-item label="贝壳编号" path="ke_code">
-        <n-input v-model:value="localFormValue.ke_code" placeholder="请输入贝壳编号" />
-      </n-form-item>
-      <n-form-item label="房源链接" path="house_link">
-        <n-input v-model:value="localFormValue.house_link" placeholder="请输入房源链接" />
-      </n-form-item>
-      <n-form-item label="信息来源" path="data_source">
-        <n-select
-          v-model:value="localFormValue.data_source"
-          :options="DATA_SOURCE_OPTIONS"
-          placeholder="请选择信息来源"
-        />
-      </n-form-item>
+
+        <n-form-item label="总价" path="total_price">
+          <n-input-number
+            v-model:value="localFormValue.total_price"
+            placeholder="请输入总价"
+            :min="0"
+            :precision="2"
+            clearable
+            @update:value="handleTotalPriceChange"
+            class="full-width"
+          >
+            <template #suffix>
+              <span class="unit">万元</span>
+            </template>
+          </n-input-number>
+        </n-form-item>
+      </div>
+
+      <!-- 更多信息折叠面板 -->
+      <n-collapse class="more-info">
+        <n-collapse-item title="更多信息" name="more">
+          <div class="form-section">
+            <n-form-item label="梯户比" path="ladder_ratio">
+              <n-input 
+                v-model:value="localFormValue.ladder_ratio" 
+                placeholder="请输入梯户比"
+                class="full-width"
+              />
+            </n-form-item>
+
+            <n-form-item label="抵押信息" path="mortgage_info">
+              <n-input 
+                v-model:value="localFormValue.mortgage_info" 
+                placeholder="请输入抵押信息"
+                class="full-width"
+              />
+            </n-form-item>
+
+            <n-form-item label="房源编号" path="house_id">
+              <n-input 
+                v-model:value="localFormValue.house_id" 
+                placeholder="请输入房源编号"
+                class="full-width"
+              />
+            </n-form-item>
+
+            <n-form-item label="贝壳编号" path="ke_code">
+              <n-input 
+                v-model:value="localFormValue.ke_code" 
+                placeholder="请输入贝壳编号"
+                class="full-width"
+              />
+            </n-form-item>
+
+            <n-form-item label="房源链接" path="house_link">
+              <n-input 
+                v-model:value="localFormValue.house_link" 
+                placeholder="请输入房源链接"
+                class="full-width"
+              />
+            </n-form-item>
+
+            <n-form-item label="信息来源" path="data_source">
+              <n-select
+                v-model:value="localFormValue.data_source"
+                :options="DATA_SOURCE_OPTIONS"
+                placeholder="请选择信息来源"
+                class="full-width"
+              />
+            </n-form-item>
+
+            <n-form-item label="城市" path="city">
+              <n-select
+                v-model:value="localFormValue.city"
+                :options="CITY_OPTIONS"
+                placeholder="请选择城市"
+                class="full-width"
+              />
+            </n-form-item>
+          </div>
+        </n-collapse-item>
+      </n-collapse>
     </n-form>
 
     <template #action>
-      <n-space>
-        <n-button @click="handleCancel">取消</n-button>
+      <div class="modal-footer">
+        <n-button class="cancel-btn" @click="handleCancel">取消</n-button>
         <n-button type="primary" :loading="loading" @click="handleSubmit">
           确定
         </n-button>
-      </n-space>
+      </div>
     </template>
   </n-modal>
 </template>
@@ -120,6 +215,7 @@
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 import { request } from '@/utils'
+import { useCityStore } from '@/stores/city'
 
 const props = defineProps({
   show: Boolean,
@@ -140,6 +236,9 @@ const communityOptions = ref([])
 
 // 本地表单数据
 const localFormValue = reactive({ ...props.formValue })
+
+const cityStore = useCityStore()
+const { CITY_OPTIONS } = cityStore
 
 const ORIENTATION_OPTIONS = [
   { label: '朝南', value: '朝南' },
@@ -293,6 +392,30 @@ watch(() => props.formValue, (newVal) => {
   Object.assign(localFormValue, newVal)
 }, { deep: true })
 
+// 户型数字输入 - 移除默认值
+const roomCount = ref(null)
+const hallCount = ref(null)
+
+// 处理户型变化
+const handleLayoutChange = () => {
+  if (roomCount.value !== null && hallCount.value !== null) {
+    localFormValue.layout = `${roomCount.value}室${hallCount.value}厅`
+  } else {
+    localFormValue.layout = ''
+  }
+}
+
+// 监听 formValue 的变化，解析户型
+watch(() => props.formValue.layout, (newLayout) => {
+  if (newLayout) {
+    const match = newLayout.match(/(\d+)室(\d+)厅/)
+    if (match) {
+      roomCount.value = parseInt(match[1])
+      hallCount.value = parseInt(match[2])
+    }
+  }
+}, { immediate: true })
+
 onMounted(() => {
   loadCommunityOptions()
 })
@@ -301,4 +424,107 @@ defineExpose({
   formRef,
   validate: () => formRef.value?.validate()
 })
-</script> 
+</script>
+
+<style scoped>
+.ershoufang-modal {
+  --primary-color: #18a058;
+  --border-radius: 4px;
+  --input-height: 34px;
+}
+
+.ershoufang-form {
+  padding: 0 16px;
+}
+
+.form-section {
+  background: #f9f9f9;
+  border-radius: var(--border-radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 16px;
+  padding-left: 8px;
+  border-left: 3px solid var(--primary-color);
+}
+
+.layout-input,
+.floor-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.number-input {
+  width: 100px;
+}
+
+.separator {
+  color: #666;
+  padding: 0 4px;
+}
+
+.unit {
+  color: #666;
+  margin-left: 4px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.select-with-input :deep(.n-base-selection) {
+  margin-bottom: 8px;
+}
+
+.manual-input {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.more-info {
+  margin-top: 24px;
+  border: 1px solid #eee;
+  border-radius: var(--border-radius);
+}
+
+.more-info :deep(.n-collapse-item__header) {
+  font-size: 14px;
+  color: #666;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+}
+
+:deep(.n-form-item) {
+  margin-bottom: 20px;
+}
+
+:deep(.n-form-item-label) {
+  font-weight: 500;
+  color: #333;
+}
+
+:deep(.n-input),
+:deep(.n-input-number),
+:deep(.n-select) {
+  height: var(--input-height);
+}
+
+:deep(.n-base-selection) {
+  height: var(--input-height);
+}
+</style> 

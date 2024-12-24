@@ -118,7 +118,7 @@ class ErshoufangController:
         
         # 基本筛选条件
         if params.city:
-            query = query.filter(city=params.city)
+            query = query.filter(Q(city=params.city) | Q(city__isnull=True))
         if params.community_name:
             query = query.filter(community_name__icontains=params.community_name)
         if params.region:
@@ -215,6 +215,10 @@ class ErshoufangController:
             # 准备创建数据
             create_data = data.model_dump(exclude_unset=True)
             
+            # 确保设置城市字段
+            if not create_data.get('city'):
+                create_data['city'] = 'shanghai'  # 默认设置为上海
+            
             # 计算楼层信息
             if create_data.get('floor_number') and create_data.get('total_floors'):
                 floor_info = ErshoufangController.calculate_floor_info(
@@ -261,6 +265,11 @@ class ErshoufangController:
         
         # 准备更新数据
         update_data = data.model_dump(exclude_unset=True)
+        
+        # 确保设置城市字段
+        if not update_data.get('city'):
+            update_data['city'] = 'shanghai'  # 默认设置为上海
+        
         print(f"Debug - Update data received: {update_data}")  # 调试信息
         
         # 处理楼层信息
