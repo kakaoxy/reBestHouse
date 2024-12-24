@@ -137,14 +137,11 @@ Object.keys(modules).forEach((key) => {
   asyncRoutes.push(modules[key].default)
 })
 
+// 添加房源管理路由
+import house from './modules/house'
+asyncRoutes.push(house)
+
 // 加载 views 下每个模块的 index.vue 文件
 const vueModules = import.meta.glob('@/views/**/index.vue')
-
-import house from './modules/house'
-
-export default [
-  house,
-  // 其他现有路由...
-]
 
 export { asyncRoutes, vueModules }

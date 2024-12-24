@@ -1,19 +1,29 @@
 export default {
-  name: '基础数据',
+  name: 'House',
   path: '/house',
   component: 'Layout',
   meta: {
-    icon: 'material-symbols:home',
-    order: 0
+    title: '房源管理',
+    icon: 'material-symbols:home-outline',
+    order: 3
   },
   children: [
     {
-      name: '在售房源',
-      path: 'ershoufang',
-      component: 'house/ershoufang/index',
+      name: 'Community',
+      path: 'community',
+      component: '/house/community/index',
       meta: {
-        icon: 'material-symbols:home-outline',
-        order: 1
+        title: '小区管理',
+        icon: 'material-symbols:location-city'
+      }
+    },
+    {
+      name: 'Ershoufang',
+      path: 'ershoufang',
+      component: '/house/ershoufang/index',
+      meta: {
+        title: '在售房源',
+        icon: 'material-symbols:list'
       }
     }
   ]

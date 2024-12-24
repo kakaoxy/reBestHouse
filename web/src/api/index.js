@@ -1,5 +1,4 @@
 import { request } from '@/utils'
-import house from './modules/house'
 
 export default {
   login: (data) => request.post('/base/access_token', data, { noNeedToken: true }),
@@ -40,5 +39,8 @@ export default {
   deleteDept: (params = {}) => request.delete('/dept/delete', { params }),
   // auditlog
   getAuditLogList: (params = {}) => request.get('/auditlog/list', { params }),
-  ...house
+  // house
+  export: (params = {}) => request.get('/house/export', { params }),
 }
+
+export * from './house'

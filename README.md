@@ -15,8 +15,7 @@
 - **代码规范**：项目内置丰富的规范插件，确保代码质量和一致性，有效提高团队协作效率。
 - **动态路由**：后端动态路由，结合 RBAC（Role-Based Access Control）权限模型，提供精细的菜单路由控制。
 - **JWT鉴权**：使用 JSON Web Token（JWT）进行身份验证和授权，增强应用的安全性。
-- **细粒度权限控制**：实现按钮和接口级别的���限控制，确保不同用户或角色在界面操作和接口访问时具有不同的权限限制。
-- **MongoDB支持**：集成MongoDB数据库，支持房源数据的存储和查询。
+- **细粒度权限控制**：实现按钮和接口级别的权限控制，确保不同用户或角色在界面操作和接口访问时具有不同的权限限制。
 
 ### 在线预览
 - http://180.76.151.29:8080
@@ -169,7 +168,7 @@ pnpm dev
     ├── public            // 公共资源目录
     │   └── resource      // 公共资源文件
     ├── settings          // 前端项目配置
-    └── src               // 源���码目录
+    └── src               // 源代码目录
         ├── api           // API接口定义
         ├── assets        // 静态资源目录
         │   ├── images    // 图片资源
@@ -195,7 +194,7 @@ pnpm dev
         │   ├── auth      // 认证相关工具
         │   ├── common    // 通用工具
         │   ├── http      // 封装axios
-        │   └── storage   // 封装localStorage��sessionStorage
+        │   └── storage   // 封装localStorage和sessionStorage
         └── views         // 视图/页面目录
             ├── error-page // 错误页面
             ├── login      // 登录页面
@@ -227,15 +226,3 @@ pnpm dev
 ### Visitors Count
 
 <img align="left" src = "https://profile-counter.glitch.me/vue-fastapi-admin/count.svg" alt="Loading">
-
-#### MongoDB配置
-项目使用MongoDB存储房源数据。请确保：
-1. 已安装MongoDB
-2. 在项目根目录创建.env文件，配置以下环境变量：
-```sh
-MONGO_USERNAME=your_username
-MONGO_PASSWORD=your_password
-MONGO_HOST=your_host
-MONGO_PORT=your_port
-MONGO_AUTH_SOURCE=admin
-```
