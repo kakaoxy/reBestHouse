@@ -210,16 +210,17 @@ class DealRecordResponse(BaseModel):
         from_attributes = True
 
 class DealRecordQueryParams(BaseModel):
-    search_keyword: Optional[str] = Field(None, description='搜索关键词')
-    community_id: Optional[int] = Field(None, description='小区ID')
-    layout: Optional[str] = Field(None, description='户型')
-    floor_info: Optional[str] = Field(None, description='楼层')
-    deal_date_start: Optional[date] = Field(None, description='成交开始日期')
-    deal_date_end: Optional[date] = Field(None, description='成交结束日期')
-    sort_by: Optional[str] = Field('deal_date', description='排序字段')
-    sort_direction: Optional[str] = Field('desc', description='排序方向')
-    page: int = Field(1, description='页码')
-    page_size: int = Field(10, description='每页数量')
+    search_keyword: Optional[str] = None
+    community_id: Optional[int] = None
+    layout: Optional[str] = None
+    floor_info: Optional[str] = None
+    deal_date_start: Optional[date] = None
+    deal_date_end: Optional[date] = None
+    city: Optional[str] = None
+    page: int = 1
+    page_size: int = 20
+    sort_by: str = 'deal_date'
+    sort_direction: str = 'desc'
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -229,10 +230,11 @@ class DealRecordQueryParams(BaseModel):
         self.floor_info = data.get('floor_info')
         self.deal_date_start = data.get('deal_date_start')
         self.deal_date_end = data.get('deal_date_end')
-        self.sort_by = data.get('sort_by')
-        self.sort_direction = data.get('sort_direction')
+        self.city = data.get('city')
         self.page = data.get('page')
         self.page_size = data.get('page_size')
+        self.sort_by = data.get('sort_by')
+        self.sort_direction = data.get('sort_direction')
 
     def __str__(self):
-        return f"DealRecordQueryParams(search_keyword={self.search_keyword}, community_id={self.community_id}, layout={self.layout}, floor_info={self.floor_info}, deal_date_start={self.deal_date_start}, deal_date_end={self.deal_date_end}, sort_by={self.sort_by}, sort_direction={self.sort_direction}, page={self.page}, page_size={self.page_size})" 
+        return f"DealRecordQueryParams(search_keyword={self.search_keyword}, community_id={self.community_id}, layout={self.layout}, floor_info={self.floor_info}, deal_date_start={self.deal_date_start}, deal_date_end={self.deal_date_end}, city={self.city}, page={self.page}, page_size={self.page_size}, sort_by={self.sort_by}, sort_direction={self.sort_direction})" 

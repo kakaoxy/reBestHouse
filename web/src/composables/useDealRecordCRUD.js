@@ -2,11 +2,13 @@ import { ref, reactive } from 'vue'
 import { useMessage } from 'naive-ui'
 import { h } from 'vue'
 import { NSpace, NButton, NPopconfirm, NTag } from 'naive-ui'
+import { useCityStore } from '@/stores/city'
 
 export function useDealRecordCRUD(api) {
   const message = useMessage()
   const loading = ref(false)
   const data = ref([])
+  const cityStore = useCityStore()
   
   // 分页配置
   const pagination = reactive({
@@ -22,6 +24,7 @@ export function useDealRecordCRUD(api) {
     search_keyword: '',
     layout: undefined,
     floor_info: undefined,
+    city: cityStore.currentCity,
     page: 1,
     page_size: 20,
     sort_by: 'deal_date',
@@ -117,7 +120,8 @@ export function useDealRecordCRUD(api) {
       const res = await api.list({
         ...queryParams,
         page: pagination.page,
-        page_size: pagination.pageSize
+        page_size: pagination.pageSize,
+        city: queryParams.city || cityStore.currentCity
       })
       if (res.code === 200) {
         data.value = res.data.items
@@ -188,9 +192,11 @@ export function useDealRecordCRUD(api) {
       search_keyword: '',
       layout: undefined,
       floor_info: undefined,
+      city: cityStore.currentCity,
       sort_by: 'deal_date',
       sort_direction: 'desc'
     })
+    pagination.page = 1
     loadData()
   }
 
@@ -209,6 +215,48 @@ export function useDealRecordCRUD(api) {
     } catch (error) {
       console.error('Delete error:', error)
       message.error('删除失败')
+    }
+  }
+
+  // 添加编辑处理函数
+  const handleEdit = (row) => {
+    // 转换日期格式
+    const formData = { ...row }
+    if (formData.deal_date) {
+      // 将日期字符串转换为时间戳
+      formData.deal_date = new Date(formData.deal_date).getTime()
+    }
+    
+    formValue.value = formData
+    modalTitle.value = '编辑成交记录'
+    showModal.value = true
+  }
+
+  // 修改提交处理函数
+  const handleSubmit = async (data) => {
+    try {
+      modalLoading.value = true
+      let res
+      if (data.id) {
+        // 编辑
+        res = await api.update(data.id, data)
+      } else {
+        // 新增
+        res = await api.create(data)
+      }
+      
+      if (res.code === 200) {
+        message.success(data.id ? '更新成功' : '创建成功')
+        showModal.value = false
+        loadData()
+      } else {
+        message.error(res.msg || '操作失败')
+      }
+    } catch (error) {
+      console.error('Submit error:', error)
+      message.error(error.response?.data?.detail || '操作失败')
+    } finally {
+      modalLoading.value = false
     }
   }
 
@@ -232,6 +280,8 @@ export function useDealRecordCRUD(api) {
     modalTitle,
     modalLoading,
     formValue,
-    handleDelete
+    handleDelete,
+    handleEdit,
+    handleSubmit
   }
 } 

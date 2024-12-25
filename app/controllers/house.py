@@ -364,6 +364,10 @@ class DealRecordController:
         try:
             query = DealRecord.all().prefetch_related('community')
             
+            # 添加城市筛选条件
+            if params.city:
+                query = query.filter(community__city=params.city)
+            
             # 基本筛选条件
             if params.search_keyword:
                 query = query.filter(
@@ -442,28 +446,83 @@ class DealRecordController:
     @staticmethod
     async def create_deal_record(data: DealRecordCreate) -> Dict:
         try:
+            # 创建记录
             record = await DealRecord.create(**data.model_dump(exclude_unset=True))
+            
+            # 手动构建响应数据
+            record_dict = {
+                "id": record.id,
+                "community_id": record.community_id,
+                "source": record.source,
+                "source_transaction_id": record.source_transaction_id,
+                "deal_date": record.deal_date,
+                "total_price": record.total_price,
+                "unit_price": record.unit_price,
+                "layout": record.layout,
+                "size": record.size,
+                "floor_info": record.floor_info,
+                "orientation": record.orientation,
+                "building_year": record.building_year,
+                "agency": record.agency,
+                "deal_cycle": record.deal_cycle,
+                "house_link": record.house_link,
+                "layout_image": record.layout_image,
+                "entry_time": record.entry_time,
+                "original_data": record.original_data,
+                "created_at": record.created_at,
+                "updated_at": record.updated_at
+            }
+            
             return {
                 "code": 200,
                 "msg": "创建成功",
-                "data": await DealRecordResponse.from_tortoise_orm(record)
+                "data": record_dict
             }
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 
     @staticmethod
     async def update_deal_record(id: int, data: DealRecordUpdate) -> Dict:
-        record = await DealRecord.get_or_none(id=id)
-        if not record:
-            raise HTTPException(status_code=404, detail="Record not found")
-        
-        await record.update_from_dict(data.model_dump(exclude_unset=True))
-        await record.save()
-        return {
-            "code": 200,
-            "msg": "更新成功",
-            "data": await DealRecordResponse.from_tortoise_orm(record)
-        }
+        try:
+            record = await DealRecord.get_or_none(id=id)
+            if not record:
+                raise HTTPException(status_code=404, detail="Record not found")
+            
+            await record.update_from_dict(data.model_dump(exclude_unset=True))
+            await record.save()
+            
+            # 手动构建响应数据
+            record_dict = {
+                "id": record.id,
+                "community_id": record.community_id,
+                "source": record.source,
+                "source_transaction_id": record.source_transaction_id,
+                "deal_date": record.deal_date,
+                "total_price": record.total_price,
+                "unit_price": record.unit_price,
+                "layout": record.layout,
+                "size": record.size,
+                "floor_info": record.floor_info,
+                "orientation": record.orientation,
+                "building_year": record.building_year,
+                "agency": record.agency,
+                "deal_cycle": record.deal_cycle,
+                "house_link": record.house_link,
+                "layout_image": record.layout_image,
+                "entry_time": record.entry_time,
+                "original_data": record.original_data,
+                "created_at": record.created_at,
+                "updated_at": record.updated_at
+            }
+            
+            return {
+                "code": 200,
+                "msg": "更新成功",
+                "data": record_dict
+            }
+        except Exception as e:
+            print(f"Error in update_deal_record: {str(e)}")  # 添加错误日志
+            raise HTTPException(status_code=500, detail=str(e))
 
     @staticmethod
     async def delete_deal_record(id: int) -> Dict:

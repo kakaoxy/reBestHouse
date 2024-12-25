@@ -3,43 +3,77 @@
     <n-card :bordered="false" class="proCard">
       <n-space vertical :size="16">
         <!-- 顶部操作栏 -->
-        <n-space justify="space-between" align="center">
-          <n-space align="center" :size="8">
-            <!-- 城市选择器 -->
-            <n-select
-              v-model:value="cityStore.currentCity"
-              :options="cityStore.CITY_OPTIONS"
-              style="width: 120px"
-              @update:value="handleCityChange"
-            />
-            <!-- 搜索框 -->
-            <n-input
-              v-model:value="queryParams.search_keyword"
-              type="text"
-              placeholder="输入小区名称搜索"
-              style="width: 200px"
-              clearable
-            />
-            <n-button type="primary" @click="loadData">
+        <n-space vertical :size="12">
+          <!-- 第一行：城市选择和搜索 -->
+          <n-space justify="space-between">
+            <!-- 左侧搜索区域 -->
+            <n-space align="center" :size="8">
+              <n-select
+                v-model:value="cityStore.currentCity"
+                :options="cityStore.CITY_OPTIONS"
+                style="width: 120px"
+                @update:value="handleCityChange"
+              />
+              <n-input
+                v-model:value="queryParams.search_keyword"
+                type="text"
+                placeholder="输入小区名称搜索"
+                style="width: 200px"
+                clearable
+              />
+              <n-button type="primary" @click="handleSearch">
+                <template #icon>
+                  <TheIcon icon="material-symbols:search" />
+                </template>
+                搜索
+              </n-button>
+              <n-button @click="handleReset">
+                <template #icon>
+                  <TheIcon icon="material-symbols:refresh" />
+                </template>
+                重置
+              </n-button>
+            </n-space>
+            
+            <!-- 右侧新增按钮 -->
+            <n-button type="primary" @click="handleAdd">
               <template #icon>
-                <TheIcon icon="material-symbols:search" />
+                <TheIcon icon="material-symbols:add" />
               </template>
-              搜索
-            </n-button>
-            <n-button @click="handleReset">
-              <template #icon>
-                <TheIcon icon="material-symbols:refresh" />
-              </template>
-              重置
+              新增成交
             </n-button>
           </n-space>
-          <!-- 新增按钮 -->
-          <n-button type="primary" @click="handleAdd">
-            <template #icon>
-              <TheIcon icon="material-symbols:add" />
-            </template>
-            新增成交记录
-          </n-button>
+
+          <!-- 第二行：筛选条件 -->
+          <n-space align="center" :size="24">
+            <n-space align="center">
+              <span class="label">户型：</span>
+              <n-button-group>
+                <n-button
+                  v-for="option in LAYOUT_OPTIONS"
+                  :key="option.value"
+                  :type="queryParams.layout === option.value ? 'primary' : 'default'"
+                  @click="handleLayoutChange(option.value)"
+                >
+                  {{ option.label }}
+                </n-button>
+              </n-button-group>
+            </n-space>
+
+            <n-space align="center">
+              <span class="label">楼层：</span>
+              <n-button-group>
+                <n-button
+                  v-for="option in FLOOR_OPTIONS"
+                  :key="option.value"
+                  :type="queryParams.floor_info === option.value ? 'primary' : 'default'"
+                  @click="handleFloorChange(option.value)"
+                >
+                  {{ option.label }}
+                </n-button>
+              </n-button-group>
+            </n-space>
+          </n-space>
         </n-space>
 
         <!-- 数据表格 -->
@@ -56,11 +90,11 @@
     </n-card>
 
     <!-- Modal 组件 -->
-    <DealRecordModal
+    <deal-record-modal
       v-model:show="showModal"
       :title="modalTitle"
-      :form-value="formValue"
       :loading="modalLoading"
+      :form-value="formValue"
       @submit="handleSubmit"
       @cancel="handleModalCancel"
     />
@@ -68,7 +102,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useCityStore } from '@/stores/city'
 import { useDealRecordCRUD } from '@/composables/useDealRecordCRUD'
@@ -80,7 +114,6 @@ import TheIcon from '@/components/icon/TheIcon.vue'
 const message = useMessage()
 const cityStore = useCityStore()
 
-// 使用 CRUD 函数
 const {
   loading,
   columns,
@@ -100,48 +133,40 @@ const {
   modalTitle,
   modalLoading,
   formValue,
-  handleDelete
+  handleSubmit
 } = useDealRecordCRUD(dealRecordApi)
 
 // 处理城市变化
 const handleCityChange = (value) => {
+  cityStore.setCurrentCity(value)
   queryParams.city = value
+  pagination.page = 1
+  queryParams.search_keyword = ''
+  queryParams.layout = undefined
+  queryParams.floor_info = undefined
   loadData()
 }
 
-// 处理新增
+// 搜索处理
+const handleSearch = () => {
+  pagination.page = 1
+  loadData()
+}
+
+// 新增处理
 const handleAdd = () => {
-  modalTitle.value = '新增成交记录'
   formValue.value = {
     source: 'manual',
     city: cityStore.currentCity
   }
+  modalTitle.value = '新增成交'
   showModal.value = true
 }
 
-// 处理提交
-const handleSubmit = async (data) => {
-  modalLoading.value = true
-  try {
-    if (data.id) {
-      await dealRecordApi.update(data.id, data)
-    } else {
-      await dealRecordApi.create(data)
-    }
-    message.success('操作成功')
-    showModal.value = false
-    loadData()
-  } catch (error) {
-    console.error('Submit error:', error)
-    message.error('操作失败')
-  } finally {
-    modalLoading.value = false
-  }
-}
-
-// 处理 Modal 取消
+// 取消处理
 const handleModalCancel = () => {
   showModal.value = false
+  formValue.value = {}
 }
 
 // 在组件挂载时加载数据
@@ -149,6 +174,18 @@ onMounted(() => {
   queryParams.city = cityStore.currentCity
   loadData()
 })
+
+// 监听全局城市变化
+watch(() => cityStore.currentCity, (newCity) => {
+  if (newCity !== queryParams.city) {
+    queryParams.city = newCity
+    pagination.page = 1
+    queryParams.search_keyword = ''
+    queryParams.layout = undefined
+    queryParams.floor_info = undefined
+    loadData()
+  }
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -161,24 +198,19 @@ onMounted(() => {
 }
 
 .n-button-group {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
   gap: 4px;
 }
 
-.n-button {
+.n-button-group .n-button {
   min-width: 80px;
+  padding: 0 16px;
 }
 
 .label {
   display: inline-block;
   min-width: 50px;
-  text-align: right;
-  margin-right: 8px;
-  white-space: nowrap;
-}
-
-.mt-4 {
-  margin-top: 16px;
+  color: #666;
+  font-size: 14px;
 }
 </style> 
