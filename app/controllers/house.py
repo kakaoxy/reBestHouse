@@ -2,11 +2,13 @@ from typing import List, Dict
 from fastapi import HTTPException
 from tortoise.expressions import Q
 from tortoise.functions import Count
-from app.models.house import Community, Ershoufang
+from app.models.house import Community, Ershoufang, DealRecord
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
     ErshoufangCreate, ErshoufangUpdate, ErshoufangResponse,
-    CommunityQueryParams, ErshoufangQueryParams
+    CommunityQueryParams, ErshoufangQueryParams,
+    DealRecordCreate, DealRecordUpdate, DealRecordResponse,
+    DealRecordQueryParams
 )
 from datetime import datetime
 
@@ -350,6 +352,125 @@ class ErshoufangController:
         if not ershoufang:
             raise HTTPException(status_code=404, detail="Ershoufang not found")
         await ershoufang.delete()
+        return {
+            "code": 200,
+            "msg": "删除成功",
+            "data": None
+        }
+
+class DealRecordController:
+    @staticmethod
+    async def get_deal_records(params: DealRecordQueryParams) -> Dict:
+        try:
+            query = DealRecord.all().prefetch_related('community')
+            
+            # 基本筛选条件
+            if params.search_keyword:
+                query = query.filter(
+                    Q(community__name__icontains=params.search_keyword) |
+                    Q(layout__icontains=params.search_keyword)
+                )
+            if params.community_id:
+                query = query.filter(community_id=params.community_id)
+            if params.layout:
+                query = query.filter(layout=params.layout)
+            if params.floor_info:
+                query = query.filter(floor_info=params.floor_info)
+            if params.deal_date_start:
+                query = query.filter(deal_date__gte=params.deal_date_start)
+            if params.deal_date_end:
+                query = query.filter(deal_date__lte=params.deal_date_end)
+                
+            # 排序
+            sort_field = params.sort_by
+            if params.sort_direction == 'desc':
+                sort_field = f"-{sort_field}"
+            query = query.order_by(sort_field)
+                
+            # 获取总数
+            total = await query.count()
+                
+            # 分页
+            records = await query.offset((params.page - 1) * params.page_size).limit(params.page_size)
+                
+            # 构建响应数据，包含小区名称
+            items = []
+            for record in records:
+                record_dict = {
+                    "id": record.id,
+                    "community_id": record.community_id,
+                    "community_name": record.community.name if record.community else None,
+                    "source": record.source,
+                    "source_transaction_id": record.source_transaction_id,
+                    "deal_date": record.deal_date,
+                    "total_price": record.total_price,
+                    "unit_price": record.unit_price,
+                    "layout": record.layout,
+                    "size": record.size,
+                    "floor_info": record.floor_info,
+                    "orientation": record.orientation,
+                    "building_year": record.building_year,
+                    "agency": record.agency,
+                    "deal_cycle": record.deal_cycle,
+                    "house_link": record.house_link,
+                    "layout_image": record.layout_image,
+                    "entry_time": record.entry_time,
+                    "original_data": record.original_data,
+                    "created_at": record.created_at,
+                    "updated_at": record.updated_at
+                }
+                items.append(record_dict)
+                
+            return {
+                "code": 200,
+                "msg": "OK",
+                "data": {
+                    "items": items,
+                    "total": total,
+                    "page": params.page,
+                    "page_size": params.page_size
+                }
+            }
+        except Exception as e:
+            print(f"Error in get_deal_records: {str(e)}")
+            return {
+                "code": 500,
+                "msg": "获取数据失败",
+                "data": None
+            }
+
+    @staticmethod
+    async def create_deal_record(data: DealRecordCreate) -> Dict:
+        try:
+            record = await DealRecord.create(**data.model_dump(exclude_unset=True))
+            return {
+                "code": 200,
+                "msg": "创建成功",
+                "data": await DealRecordResponse.from_tortoise_orm(record)
+            }
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @staticmethod
+    async def update_deal_record(id: int, data: DealRecordUpdate) -> Dict:
+        record = await DealRecord.get_or_none(id=id)
+        if not record:
+            raise HTTPException(status_code=404, detail="Record not found")
+        
+        await record.update_from_dict(data.model_dump(exclude_unset=True))
+        await record.save()
+        return {
+            "code": 200,
+            "msg": "更新成功",
+            "data": await DealRecordResponse.from_tortoise_orm(record)
+        }
+
+    @staticmethod
+    async def delete_deal_record(id: int) -> Dict:
+        record = await DealRecord.get_or_none(id=id)
+        if not record:
+            raise HTTPException(status_code=404, detail="Record not found")
+        await record.delete()
         return {
             "code": 200,
             "msg": "删除成功",

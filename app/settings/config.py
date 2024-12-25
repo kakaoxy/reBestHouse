@@ -24,20 +24,19 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 day
     TORTOISE_ORM: dict = {
-        "connections": {
-            "default": {
-                "engine": "tortoise.backends.sqlite",
-                "credentials": {"file_path": f"{BASE_DIR}/db.sqlite3"},
-            }
-        },
+        "connections": {"default": f"sqlite://{BASE_DIR}/db.sqlite3"},
         "apps": {
             "models": {
-                "models": ["aerich.models", "app.models"],
+                "models": [
+                    "app.models.admin",
+                    "app.models.house",
+                    "aerich.models",
+                ],
                 "default_connection": "default",
             },
         },
         "use_tz": False,
-        "timezone": "Asia/Shanghai",
+        "timezone": "Asia/Shanghai"
     }
     DATETIME_FORMAT: str = "%Y-%m-%d %H:%M:%S"
 

@@ -1,10 +1,11 @@
 from typing import List, Dict
 from fastapi import APIRouter, Depends
-from app.controllers.house import CommunityController, ErshoufangController
+from app.controllers.house import CommunityController, ErshoufangController, DealRecordController
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
     ErshoufangCreate, ErshoufangUpdate, ErshoufangResponse,
-    CommunityQueryParams, ErshoufangQueryParams
+    CommunityQueryParams, ErshoufangQueryParams,
+    DealRecordCreate, DealRecordUpdate, DealRecordQueryParams
 )
 from app.core.dependency import DependPermisson
 
@@ -82,4 +83,41 @@ async def update_ershoufang(id: int, data: ErshoufangUpdate):
     summary="删除二手房"
 )
 async def delete_ershoufang(id: int):
-    return await ErshoufangController.delete_ershoufang(id) 
+    return await ErshoufangController.delete_ershoufang(id)
+
+# DealRecord routes
+@router.get(
+    "/deal-records",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="获取成交记录列表"
+)
+async def get_deal_records(params: DealRecordQueryParams = Depends()):
+    return await DealRecordController.get_deal_records(params)
+
+@router.post(
+    "/deal-records",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="创建成交记录"
+)
+async def create_deal_record(data: DealRecordCreate):
+    return await DealRecordController.create_deal_record(data)
+
+@router.put(
+    "/deal-records/{id}",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="更新成交记录"
+)
+async def update_deal_record(id: int, data: DealRecordUpdate):
+    return await DealRecordController.update_deal_record(id, data)
+
+@router.delete(
+    "/deal-records/{id}",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="删除成交记录"
+)
+async def delete_deal_record(id: int):
+    return await DealRecordController.delete_deal_record(id) 

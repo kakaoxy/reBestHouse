@@ -64,3 +64,30 @@ class Ershoufang(Model):
 
     class Meta:
         table = "ershoufang"
+
+class DealRecord(Model):
+    id = fields.IntField(pk=True)
+    community = fields.ForeignKeyField('models.Community', related_name='deal_records')
+    source = fields.CharField(max_length=20, null=False, description='数据来源')
+    source_transaction_id = fields.CharField(max_length=50, null=True, description='来源平台交易ID')
+    deal_date = fields.DateField(null=False, description='成交日期')
+    total_price = fields.FloatField(null=False, description='成交总价')
+    unit_price = fields.FloatField(null=False, description='成交单价')
+    layout = fields.CharField(max_length=50, null=True, description='户型')
+    size = fields.FloatField(null=True, description='建筑面积')
+    floor_info = fields.CharField(max_length=50, null=True, description='楼层信息')
+    orientation = fields.CharField(max_length=50, null=True, description='房屋朝向')
+    building_year = fields.IntField(null=True, description='建筑年代')
+    agency = fields.CharField(max_length=100, null=True, description='中介公司')
+    deal_cycle = fields.IntField(null=True, description='成交周期')
+    house_link = fields.CharField(max_length=500, null=True, description='房源链接')
+    layout_image = fields.CharField(max_length=500, null=True, description='户型图链接')
+    entry_time = fields.DatetimeField(null=True, description='数据入库时间')
+    original_data = fields.JSONField(null=True, description='原始数据')
+    created_at = fields.DatetimeField(auto_now_add=True, description='创建时间')
+    updated_at = fields.DatetimeField(auto_now=True, description='更新时间')
+
+    class Meta:
+        table = "deal_record"
+        table_description = "成交记录表"
+        app = "models"

@@ -272,6 +272,51 @@ async def test_get_communities_by_city():
         assert len(result["data"]["items"]) == 1
         assert result["data"]["items"][0]["city"] == "shanghai"
 
+async def test_deal_record_crud(client, token_headers):
+    # 创建测试小区
+    community_data = {
+        "name": "测试小区",
+        "city": "shanghai",
+        "region": "浦东新区",
+        "area": "陆家嘴"
+    }
+    community_response = await client.post("/v1/house/communities", json=community_data, headers=token_headers)
+    community_id = community_response.json()["data"]["id"]
+
+    # 测试创建成交记录
+    deal_data = {
+        "community_id": community_id,
+        "source": "manual",
+        "deal_date": "2024-03-20",
+        "total_price": 500.0,
+        "unit_price": 50000.0,
+        "layout": "2室1厅",
+        "size": 89.5,
+        "floor_info": "中楼层/33层",
+        "orientation": "南",
+        "agency": "测试中介"
+    }
+    response = await client.post("/v1/house/deal-records", json=deal_data, headers=token_headers)
+    assert response.status_code == 200
+    deal_id = response.json()["data"]["id"]
+
+    # 测试获取成交记录列表
+    response = await client.get("/v1/house/deal-records", headers=token_headers)
+    assert response.status_code == 200
+    assert len(response.json()["data"]["items"]) > 0
+
+    # 测试更新成交记录
+    update_data = {
+        "total_price": 520.0,
+        "unit_price": 52000.0
+    }
+    response = await client.put(f"/v1/house/deal-records/{deal_id}", json=update_data, headers=token_headers)
+    assert response.status_code == 200
+
+    # 测试删除成交记录
+    response = await client.delete(f"/v1/house/deal-records/{deal_id}", headers=token_headers)
+    assert response.status_code == 200
+
 async def main():
     """运行所有测试"""
     try:

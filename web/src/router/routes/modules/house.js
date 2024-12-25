@@ -25,6 +25,15 @@ export default {
         title: '在售房源',
         icon: 'material-symbols:list'
       }
+    },
+    {
+      name: 'DealRecord',
+      path: 'deal-record',
+      component: '/house/deal-record/index',
+      meta: {
+        title: '成交记录',
+        icon: 'material-symbols:real-estate-agent'
+      }
     }
   ]
 } 

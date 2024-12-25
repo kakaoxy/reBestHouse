@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from tortoise.contrib.pydantic import pydantic_model_creator
-from app.models.house import Community, Ershoufang
+from app.models.house import Community, Ershoufang, DealRecord
 
 # Community Schemas
 class CommunityBase(BaseModel):
@@ -142,4 +142,97 @@ class ErshoufangQueryParams(BaseModel):
     sort_by: Optional[str] = Field(None, description='排序字段')
     sort_direction: Optional[str] = Field('desc', description='排序方向')
     page: int = Field(1, description='页码')
-    page_size: int = Field(10, description='每页数量') 
+    page_size: int = Field(10, description='每页数量')
+
+# DealRecord Schemas
+class DealRecordBase(BaseModel):
+    community_id: int = Field(..., description='小区ID')
+    source: str = Field(..., description='数据来源')
+    source_transaction_id: Optional[str] = Field(None, description='来源平台交易ID')
+    deal_date: date = Field(..., description='成交日期')
+    total_price: float = Field(..., description='成交总价')
+    unit_price: float = Field(..., description='成交单价')
+    layout: Optional[str] = Field(None, description='户型')
+    size: Optional[float] = Field(None, description='建筑面积')
+    floor_info: Optional[str] = Field(None, description='楼层信息')
+    orientation: Optional[str] = Field(None, description='房屋朝向')
+    building_year: Optional[int] = Field(None, description='建筑年代')
+    agency: Optional[str] = Field(None, description='中介公司')
+    deal_cycle: Optional[int] = Field(None, description='成交周期')
+    house_link: Optional[str] = Field(None, description='房源链接')
+    layout_image: Optional[str] = Field(None, description='户型图链接')
+    entry_time: Optional[datetime] = Field(None, description='数据入库时间')
+    original_data: Optional[dict] = Field(None, description='原始数据')
+
+class DealRecordCreate(DealRecordBase):
+    pass
+
+class DealRecordUpdate(DealRecordBase):
+    community_id: Optional[int] = None
+    source: Optional[str] = None
+    deal_date: Optional[date] = None
+    total_price: Optional[float] = None
+    unit_price: Optional[float] = None
+
+class DealRecordInDB(DealRecordBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Response Models
+class DealRecordResponse(BaseModel):
+    id: int
+    community_id: int
+    community_name: Optional[str] = None
+    source: str
+    source_transaction_id: Optional[str] = None
+    deal_date: date
+    total_price: float
+    unit_price: float
+    layout: Optional[str] = None
+    size: Optional[float] = None
+    floor_info: Optional[str] = None
+    orientation: Optional[str] = None
+    building_year: Optional[int] = None
+    agency: Optional[str] = None
+    deal_cycle: Optional[int] = None
+    house_link: Optional[str] = None
+    layout_image: Optional[str] = None
+    entry_time: Optional[datetime] = None
+    original_data: Optional[dict] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class DealRecordQueryParams(BaseModel):
+    search_keyword: Optional[str] = Field(None, description='搜索关键词')
+    community_id: Optional[int] = Field(None, description='小区ID')
+    layout: Optional[str] = Field(None, description='户型')
+    floor_info: Optional[str] = Field(None, description='楼层')
+    deal_date_start: Optional[date] = Field(None, description='成交开始日期')
+    deal_date_end: Optional[date] = Field(None, description='成交结束日期')
+    sort_by: Optional[str] = Field('deal_date', description='排序字段')
+    sort_direction: Optional[str] = Field('desc', description='排序方向')
+    page: int = Field(1, description='页码')
+    page_size: int = Field(10, description='每页数量')
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.search_keyword = data.get('search_keyword')
+        self.community_id = data.get('community_id')
+        self.layout = data.get('layout')
+        self.floor_info = data.get('floor_info')
+        self.deal_date_start = data.get('deal_date_start')
+        self.deal_date_end = data.get('deal_date_end')
+        self.sort_by = data.get('sort_by')
+        self.sort_direction = data.get('sort_direction')
+        self.page = data.get('page')
+        self.page_size = data.get('page_size')
+
+    def __str__(self):
+        return f"DealRecordQueryParams(search_keyword={self.search_keyword}, community_id={self.community_id}, layout={self.layout}, floor_info={self.floor_info}, deal_date_start={self.deal_date_start}, deal_date_end={self.deal_date_end}, sort_by={self.sort_by}, sort_direction={self.sort_direction}, page={self.page}, page_size={self.page_size})" 

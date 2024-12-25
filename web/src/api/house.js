@@ -14,4 +14,11 @@ export const communityApi = {
   create: (data) => request.post(`${baseUrl}/communities`, data),
   update: (id, data) => request.put(`${baseUrl}/communities/${id}`, data),
   delete: (id) => request.delete(`${baseUrl}/communities/${id}`)
+}
+
+export const dealRecordApi = {
+  list: (params = {}) => request.get(`${baseUrl}/deal-records`, { params }),
+  create: (data) => request.post(`${baseUrl}/deal-records`, data),
+  update: (id, data) => request.put(`${baseUrl}/deal-records/${id}`, data),
+  delete: (id) => request.delete(`${baseUrl}/deal-records/${id}`)
 } 

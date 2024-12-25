@@ -24,7 +24,7 @@ from app.core.exceptions import (
 )
 from app.log import logger
 from app.models.admin import Api, Menu, Role
-from app.models.house import Community
+from app.models.house import Community, Ershoufang, DealRecord
 from app.schemas.menus import MenuType
 from app.settings.config import settings
 from app.settings import TORTOISE_ORM
@@ -193,23 +193,33 @@ async def init_db():
         # 生成数据库表
         await Tortoise.generate_schemas()
         
-        # 确保 community 表存在
+        # 创建 deal_record 表
         await Tortoise.get_connection("default").execute_script("""
-            CREATE TABLE IF NOT EXISTS "community" (
+            CREATE TABLE IF NOT EXISTS "deal_record" (
                 "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                "community_id" INTEGER NOT NULL REFERENCES "community" ("id") ON DELETE CASCADE,
+                "source" VARCHAR(20) NOT NULL,
+                "source_transaction_id" VARCHAR(50),
+                "deal_date" DATE NOT NULL,
+                "total_price" FLOAT NOT NULL,
+                "unit_price" FLOAT NOT NULL,
+                "layout" VARCHAR(50),
+                "size" FLOAT,
+                "floor_info" VARCHAR(50),
+                "orientation" VARCHAR(50),
+                "building_year" INTEGER,
+                "agency" VARCHAR(100),
+                "deal_cycle" INTEGER,
+                "house_link" VARCHAR(500),
+                "layout_image" VARCHAR(500),
+                "entry_time" TIMESTAMP,
+                "original_data" JSON,
                 "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                "name" VARCHAR(100) NOT NULL,
-                "city" VARCHAR(50) NOT NULL DEFAULT 'beijing',
-                "region" VARCHAR(50) NOT NULL DEFAULT '',
-                "area" VARCHAR(50) NOT NULL DEFAULT '',
-                "address" VARCHAR(200),
-                "building_type" VARCHAR(50),
-                "property_rights" VARCHAR(100),
-                "total_houses" INTEGER,
-                "building_year" INTEGER
+                "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
         """)
+        
+        await Tortoise.close_connections()
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
         raise
@@ -246,3 +256,15 @@ async def init_data():
     await init_menus()
     await init_apis()
     await init_roles()
+
+
+async def register_tortoise(app: FastAPI) -> None:
+    """注册数据库连接"""
+    await Tortoise.init(
+        config=TORTOISE_ORM
+    )
+    logger.info("Tortoise-ORM started, %s, %s", Tortoise._connections, Tortoise.apps)
+    await Tortoise.generate_schemas()
+    
+    # 注册关闭数据库连接
+    app.add_event_handler("shutdown", lambda: Tortoise.close_connections())
