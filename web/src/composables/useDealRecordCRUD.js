@@ -121,7 +121,8 @@ export function useDealRecordCRUD(api) {
         ...queryParams,
         page: pagination.page,
         page_size: pagination.pageSize,
-        city: queryParams.city || cityStore.currentCity
+        city: queryParams.city || cityStore.currentCity,
+        layout: queryParams.layout
       })
       if (res.code === 200) {
         data.value = res.data.items
@@ -165,25 +166,37 @@ export function useDealRecordCRUD(api) {
 
   // 筛选条件
   const LAYOUT_OPTIONS = [
-    { label: '一室', value: '1室' },
-    { label: '二室', value: '2室' },
-    { label: '三室', value: '3室' },
-    { label: '四室及以上', value: '4室以上' }
+    { label: '一室', value: '1' },
+    { label: '二室', value: '2' },
+    { label: '三室', value: '3' },
+    { label: '四室', value: '4' },
+    { label: '其他', value: 'other' }
   ]
 
   const FLOOR_OPTIONS = [
-    { label: '低楼层', value: '低楼层' },
-    { label: '中楼层', value: '中楼层' },
-    { label: '高楼层', value: '高楼层' }
+    { label: '低楼层', value: 'low' },
+    { label: '中楼层', value: 'middle' },
+    { label: '高楼层', value: 'high' }
   ]
 
   const handleLayoutChange = (value) => {
-    queryParams.layout = value
+    if (queryParams.layout === value) {
+      queryParams.layout = undefined
+    } else {
+      queryParams.layout = value
+    }
+    pagination.page = 1
     loadData()
   }
 
   const handleFloorChange = (value) => {
-    queryParams.floor_info = value
+    // 如果当前选中的是已选值，则取消选择
+    if (queryParams.floor_info === value) {
+      queryParams.floor_info = undefined
+    } else {
+      queryParams.floor_info = value
+    }
+    pagination.page = 1
     loadData()
   }
 

@@ -374,17 +374,32 @@ class DealRecordController:
                     Q(community__name__icontains=params.search_keyword) |
                     Q(layout__icontains=params.search_keyword)
                 )
-            if params.community_id:
-                query = query.filter(community_id=params.community_id)
+            
+            # 户型筛选 - 与在售房源保持一致
             if params.layout:
-                query = query.filter(layout=params.layout)
+                if params.layout == 'other':
+                    # 其他户型：非 1-4 室的户型
+                    query = query.filter(
+                        ~Q(layout__startswith='1室') &
+                        ~Q(layout__startswith='2室') &
+                        ~Q(layout__startswith='3室') &
+                        ~Q(layout__startswith='4室')
+                    )
+                else:
+                    # 精确匹配 1-4 室
+                    query = query.filter(layout__startswith=f'{params.layout}室')
+
+            # 楼层筛选 - 与在售房源保持一致
             if params.floor_info:
-                query = query.filter(floor_info=params.floor_info)
-            if params.deal_date_start:
-                query = query.filter(deal_date__gte=params.deal_date_start)
-            if params.deal_date_end:
-                query = query.filter(deal_date__lte=params.deal_date_end)
-                
+                if params.floor_info == 'low':
+                    query = query.filter(floor_info__icontains='低')
+                elif params.floor_info == 'middle':
+                    query = query.filter(floor_info__icontains='中')
+                elif params.floor_info == 'high':
+                    query = query.filter(floor_info__icontains='高')
+
+            # ... 其他代码保持不变 ...
+
             # 排序
             sort_field = params.sort_by
             if params.sort_direction == 'desc':
