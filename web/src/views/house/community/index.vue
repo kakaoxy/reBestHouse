@@ -20,7 +20,7 @@
               style="width: 200px"
               clearable
             />
-            <n-button type="primary" @click="loadData">
+            <n-button type="primary" @click="handleSearch">
               <template #icon>
                 <TheIcon icon="material-symbols:search" />
               </template>
@@ -87,11 +87,13 @@ const communityStore = useCommunityStore()
 // API 定义
 const api = {
   list: (params = {}) => {
-    // 确保参数中包含城市
-    const queryParams = {
-      ...params,
-      city: params.city || selectedCity.value
+    const defaultParams = {
+      page: 1,
+      page_size: 10,
+      city: selectedCity.value,
+      search_keyword: ''
     }
+    const queryParams = { ...defaultParams, ...params }
     console.log('API request params:', queryParams)
     return request.get('/house/communities', { params: queryParams })
   },
@@ -105,9 +107,7 @@ const selectedCity = ref(communityStore.currentCity)
 // 查询参数
 const queryParams = reactive({
   city: selectedCity.value,
-  search_keyword: '',
-  page: 1,
-  page_size: 10
+  search_keyword: ''
 })
 
 // 表格和模态框状态
@@ -224,27 +224,43 @@ const loadData = async () => {
     loading.value = true
     const params = {
       ...queryParams,
-      city: selectedCity.value,
       page: pagination.page,
-      page_size: pagination.pageSize
+      page_size: pagination.pageSize,
+      city: selectedCity.value,
+      search_keyword: queryParams.search_keyword.trim()
     }
-    console.log('Sending request with params:', params)
     
+    console.log('Sending request with params:', params)
     const res = await api.list(params)
     console.log('API response:', res)
     
     if (res.code === 200) {
-      // 确保只显示当前城市的数据
-      data.value = res.data.items.filter(item => item.city === selectedCity.value)
-      pagination.itemCount = data.value.length
-      pagination.page = res.data.page
-      pagination.pageSize = res.data.page_size
-      
-      console.log('Filtered data:', {
-        currentCity: selectedCity.value,
-        totalItems: data.value.length,
-        items: data.value
+      // 过滤数据：
+      // 1. 只显示当前城市的数据
+      // 2. 如果有搜索关键词，只显示名称中包含关键词的数据
+      const filteredItems = res.data.items.filter(item => {
+        const cityMatch = item.city === selectedCity.value
+        if (!params.search_keyword) {
+          return cityMatch
+        }
+        return cityMatch && item.name.toLowerCase().includes(params.search_keyword.toLowerCase())
       })
+
+      data.value = filteredItems
+      pagination.itemCount = filteredItems.length
+      pagination.page = res.data.page || 1
+      pagination.pageSize = res.data.page_size || 10
+      
+      console.log('Processed data:', {
+        items: data.value,
+        total: pagination.itemCount,
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        currentCity: selectedCity.value,
+        searchKeyword: params.search_keyword
+      })
+    } else {
+      message.error(res.msg || '加载失败')
     }
   } catch (error) {
     console.error('Failed to load data:', error)
@@ -256,24 +272,22 @@ const loadData = async () => {
 
 // 处理分页
 const handlePageChange = (page) => {
-  queryParams.page = page
+  pagination.page = page
   loadData()
 }
 
 const handlePageSizeChange = (pageSize) => {
-  queryParams.page_size = pageSize
+  pagination.pageSize = pageSize
+  pagination.page = 1
   loadData()
 }
 
 // 处理城市变化
 const handleCityChange = (city) => {
-  console.log('City changed to:', city)
   selectedCity.value = city
   queryParams.city = city
   communityStore.setCity(city)
-  // 重置分页
   pagination.page = 1
-  // 重新加载数据
   loadData()
 }
 
@@ -324,7 +338,8 @@ const handleModalCancel = () => {
 // 重置查询
 const handleReset = () => {
   queryParams.search_keyword = ''
-  queryParams.city = selectedCity.value
+  queryParams.city = selectedCity.value // 确保重置时保持当前城市
+  pagination.page = 1
   loadData()
 }
 
@@ -350,6 +365,13 @@ const handleDelete = async (row) => {
   } finally {
     loading.value = false
   }
+}
+
+// 修改搜索按钮点击事件处理
+const handleSearch = () => {
+  pagination.page = 1
+  queryParams.city = selectedCity.value // 确保搜索时使用当前城市
+  loadData()
 }
 
 // 初始化
