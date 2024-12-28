@@ -24,7 +24,7 @@
         </div>
         <n-button type="primary" @click="handleAdd">
           <template #icon>
-            <n-icon><Add /></n-icon>
+            <n-icon color="#fff"><Add /></n-icon>
           </template>
           添加商机
         </n-button>
@@ -33,7 +33,7 @@
       <n-tabs
         v-model:value="currentTab"
         type="segment"
-        class="mb-4"
+        class="mb-4 mt-4"
         @update:value="handleTabChange"
       >
         <n-tab-pane name="all" tab="全部" />
@@ -55,9 +55,32 @@
           :key="item.id"
           class="opportunity-card"
           :bordered="false"
-          style="max-width: 300px; margin: 0 auto;"
+          style="min-width: 225px; max-width: 300px; margin: 0 auto;"
         >
           <div class="relative">
+            <div class="absolute right-2 top-2 z-10">
+              <n-dropdown
+                :options="actionOptions"
+                @select="handleSelect($event, item)"
+                placement="bottom-end"
+                trigger="hover"
+              >
+                <n-button 
+                  text 
+                  class="action-button"
+                  style="padding: 4px;"
+                >
+                  <template #icon>
+                    <n-icon size="18">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2s-2 .9-2 2s.9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2s2-.9 2-2s-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2s2-.9 2-2s-.9-2-2-2z"/>
+                      </svg>
+                    </n-icon>
+                  </template>
+                </n-button>
+              </n-dropdown>
+            </div>
+
             <n-image
               v-if="item.layout_image"
               :src="item.layout_image"
@@ -66,11 +89,21 @@
             />
             <div 
               v-else 
-              class="w-full aspect-[1.36/1] bg-gray-100 rounded flex items-center justify-center text-gray-400"
+              class="w-full aspect-[1.36/1] bg-gray-100 rounded relative"
             >
-              暂无户型图
+              <n-image
+                src="/layout.jpeg"
+                class="w-full h-full object-cover rounded"
+                preview-disabled
+              />
+              <div class="absolute left-4 bottom-4 right-4 flex justify-between items-center">
+                <span class="text-5xl font-bold text-white">{{ item.community_name }}</span>
+                <n-tag :type="getStatusType(item.status)" size="small">
+                  {{ item.status }}
+                </n-tag>
+              </div>
             </div>
-            <div class="absolute left-4 top-4 text-xl font-bold text-white">
+            <div v-if="item.layout_image" class="absolute left-4 top-4 text-5xl font-bold text-white">
               {{ item.community_name }}
             </div>
           </div>
@@ -91,7 +124,7 @@
                     <path fill="currentColor" d="M2 22h20V2z"/>
                   </svg>
                 </n-icon>
-                <span>{{ item.floor }}</span>
+                <span>{{ formatFloor(item.floor) }}</span>
               </div>
               <div class="house-area">
                 <n-icon class="mr-1 text-gray-400">
@@ -108,16 +141,6 @@
                   </svg>
                 </n-icon>
                 <span>{{ item.total_price }}万</span>
-              </div>
-            </div>
-
-            <div class="flex justify-between items-center mt-4">
-              <n-tag :type="getStatusType(item.status)" size="small">
-                {{ item.status }}
-              </n-tag>
-              <div class="flex space-x-2">
-                <n-button size="small" @click="handleEdit(item)">编辑</n-button>
-                <n-button size="small" type="error" @click="handleDelete(item)">删除</n-button>
               </div>
             </div>
           </div>
@@ -349,6 +372,8 @@ import { opportunityApi } from '@/api/house'
 import { communityApi } from '@/api/house'
 import { OPPORTUNITY_STATUS, OPPORTUNITY_STATUS_TAG_TYPE } from './constants'
 import { useMessage } from 'naive-ui'
+import { NPopconfirm, NIcon } from 'naive-ui'
+import { h } from 'vue'
 
 const message = useMessage()
 
@@ -435,7 +460,7 @@ const loadOpportunities = async () => {
                      currentTab.value === 'signed' ? '已签约' :
                      currentTab.value === 'abandoned' ? '已放弃' : undefined
     }
-    params.sort_by = 'created_at'
+    params.sort_by = 'updated_at'
     params.sort_direction = 'desc'
     params.page = params.page || 1
     params.page_size = params.page_size || 30
@@ -448,7 +473,22 @@ const loadOpportunities = async () => {
       return
     }
     if (params.page === 1) {
-      opportunityList.value = Array.isArray(res.data.items) ? res.data.items : []
+      const items = Array.isArray(res.data.items) ? res.data.items : []
+      // 按状态和更新时间排序
+      opportunityList.value = items.sort((a, b) => {
+        const statusOrder = {
+          '待评估': 1,
+          '已评估': 2,
+          '已签约': 3,
+          '已放弃': 4
+        }
+        // 先按状态排序
+        if (statusOrder[a.status] !== statusOrder[b.status]) {
+          return statusOrder[a.status] - statusOrder[b.status]
+        }
+        // 状态相同时按更新时间降序
+        return new Date(b.updated_at) - new Date(a.updated_at)
+      })
     } else {
       opportunityList.value.push(...(Array.isArray(res.data.items) ? res.data.items : []))
     }
@@ -552,6 +592,11 @@ const handleEdit = (item) => {
   loadCommunities()
 }
 
+const formatFloor = (floor) => {
+  const match = floor?.match(/第(\d+)层\/共(\d+)层/)
+  return match ? `${match[1]}/${match[2]}` : floor
+}
+
 const handleCommunityChange = (communityId) => {
   const selectedCommunity = communityOptions.value.find(
     option => option.value === communityId
@@ -597,7 +642,7 @@ const handleSubmit = async () => {
 
 const updateFloor = () => {
   if (formData.floor_number && formData.total_floors) {
-    formData.floor = `第${formData.floor_number}层/共${formData.total_floors}层`
+    formData.floor = `${formData.floor_number}/${formData.total_floors}`
   }
 }
 
@@ -651,12 +696,73 @@ const resetList = () => {
   loadOpportunities()
 }
 
+const actionOptions = [
+  {
+    label: '编辑',
+    key: 'edit',
+    icon: renderIcon('edit')
+  },
+  {
+    key: 'delete',
+    label: '删除',
+    icon: renderIcon('delete'),
+  }
+]
+
+function renderIcon(type) {
+  return () => h('svg', {
+    xmlns: 'http://www.w3.org/2000/svg',
+    width: '16',
+    height: '16',
+    viewBox: '0 0 24 24'
+  }, [
+    h('path', {
+      fill: 'currentColor',
+      d: type === 'edit' 
+        ? 'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'
+        : 'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'
+    })
+  ])
+}
+
+const handleSelect = (key, item) => {
+  if (key === 'edit') {
+    handleEdit(item)
+  } else if (key === 'delete') {
+    window.$dialog.warning({
+      title: '确认删除',
+      content: '确定要删除这条商机吗？',
+      positiveText: '确定',
+      negativeText: '取消',
+      onPositiveClick: () => {
+        handleDelete(item)
+      }
+    })
+  }
+}
+
 onMounted(() => {
   loadOpportunities()
 })
 </script>
 
 <style scoped>
+.action-button {
+  background-color: rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  background-color: #fff;
+  opacity: 1;
+}
+
+.action-button :deep(.n-icon) {
+  color: #666;
+}
+
 .operation-area {
   background-color: #fff;
   padding: 16px 16px 0;
@@ -686,8 +792,8 @@ onMounted(() => {
 }
 
 .house-details {
-  padding: 16px;
-  background-color: #fff;
+  padding: 8px;
+  background-color: transparent;
   border-radius: 0 0 8px 8px;
 }
 
@@ -723,6 +829,11 @@ onMounted(() => {
   border-radius: 8px;
   background-color: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  min-width: 225px;
+}
+
+.opportunity-card :deep(.n-card__content) {
+  padding: 8px;
 }
 
 .opportunity-card:hover {
@@ -733,16 +844,29 @@ onMounted(() => {
 .opportunity-card .relative::after {
   content: '';
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
-  height: 80px;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
-  border-radius: 3px 3px 0 0;
+  height: 50px;
+  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
+  border-radius: 0 0 8px 8px;
+  z-index: 1;
+}
+
+.opportunity-card .relative .absolute {
+  z-index: 2;
 }
 
 .grid {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
   gap: 1rem;
+}
+
+.n-button--primary-type :deep(.n-icon) {
+  color: #fff;
+}
+
+.n-tabs {
+  margin-top: 16px;
 }
 </style> 
