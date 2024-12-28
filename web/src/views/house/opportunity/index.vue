@@ -16,6 +16,7 @@
             placeholder="搜索小区"
             class="n-input n-input--medium"
             style="width: 240px; margin-left: 12px"
+            @keydown.enter="handleSearch"
           >
             <template #prefix>
               <n-icon><Search /></n-icon>
@@ -454,6 +455,11 @@ const loadOpportunities = async () => {
   loading.value = true
   try {
     const params = { ...searchParams }
+    if (params.communityName) {
+      params.community_name_like = params.communityName
+      delete params.communityName
+    }
+
     if (currentTab.value !== 'all') {
       params.status = currentTab.value === 'pending' ? '待评估' :
                      currentTab.value === 'evaluated' ? '已评估' :
@@ -474,25 +480,30 @@ const loadOpportunities = async () => {
     }
     if (params.page === 1) {
       const items = Array.isArray(res.data.items) ? res.data.items : []
-      // 按状态和更新时间排序
-      opportunityList.value = items.sort((a, b) => {
+      const filteredItems = params.community_name_like
+        ? items.filter(item => item.community_name.toLowerCase().includes(params.community_name_like.toLowerCase()))
+        : items
+
+      opportunityList.value = filteredItems.sort((a, b) => {
         const statusOrder = {
           '待评估': 1,
           '已评估': 2,
           '已签约': 3,
           '已放弃': 4
         }
-        // 先按状态排序
         if (statusOrder[a.status] !== statusOrder[b.status]) {
           return statusOrder[a.status] - statusOrder[b.status]
         }
-        // 状态相同时按更新时间降序
         return new Date(b.updated_at) - new Date(a.updated_at)
       })
+      total.value = opportunityList.value.length
     } else {
-      opportunityList.value.push(...(Array.isArray(res.data.items) ? res.data.items : []))
+      const newItems = Array.isArray(res.data.items) ? res.data.items : []
+      const filteredNewItems = params.community_name_like
+        ? newItems.filter(item => item.community_name.toLowerCase().includes(params.community_name_like.toLowerCase()))
+        : newItems
+      opportunityList.value.push(...filteredNewItems)
     }
-    total.value = res.data.total || 0
     console.log('处理后的商机列表:', opportunityList.value)
   } catch (error) {
     console.error('加载商机列表失败:', error)
@@ -739,6 +750,10 @@ const handleSelect = (key, item) => {
       }
     })
   }
+}
+
+const handleSearch = () => {
+  resetList()
 }
 
 onMounted(() => {
