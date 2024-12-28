@@ -2,13 +2,14 @@ from typing import List, Dict
 from fastapi import HTTPException
 from tortoise.expressions import Q
 from tortoise.functions import Count
-from app.models.house import Community, Ershoufang, DealRecord
+from app.models.house import Community, Ershoufang, DealRecord, Opportunity
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
     ErshoufangCreate, ErshoufangUpdate, ErshoufangResponse,
     CommunityQueryParams, ErshoufangQueryParams,
     DealRecordCreate, DealRecordUpdate, DealRecordResponse,
-    DealRecordQueryParams
+    DealRecordQueryParams,
+    OpportunityCreate, OpportunityUpdate, OpportunityQueryParams
 )
 from datetime import datetime
 
@@ -549,4 +550,64 @@ class DealRecordController:
             "code": 200,
             "msg": "删除成功",
             "data": None
+        }
+
+class OpportunityController:
+    @staticmethod
+    async def get_opportunities(params: OpportunityQueryParams) -> Dict:
+        query = Opportunity.all()
+        
+        if params.city:
+            query = query.filter(community__city=params.city.lower())
+        if params.community_name:
+            query = query.filter(community_name__icontains=params.community_name)
+        if params.status and params.status != 'all':
+            query = query.filter(status=params.status)
+
+        total = await query.count()
+        items = await query.offset((params.page - 1) * params.page_size).limit(params.page_size)
+
+        return {
+            "code": 200,
+            "data": {
+                "total": total,
+                "items": [await item.to_dict() for item in items]
+            },
+            "message": "获取商机列表成功"
+        }
+
+    @staticmethod
+    async def create_opportunity(data: OpportunityCreate) -> Dict:
+        opportunity = await Opportunity.create(**data.dict())
+        return {
+            "code": 200,
+            "data": await opportunity.to_dict(),
+            "message": "创建商机成功"
+        }
+
+    @staticmethod
+    async def update_opportunity(id: int, data: OpportunityUpdate) -> Dict:
+        opportunity = await Opportunity.get(id=id)
+        if not opportunity:
+            return {"code": 404, "message": "商机不存在"}
+            
+        await opportunity.update_from_dict(data.dict(exclude_unset=True))
+        await opportunity.save()
+        
+        return {
+            "code": 200,
+            "data": await opportunity.to_dict(),
+            "message": "更新商机成功"
+        }
+
+    @staticmethod
+    async def delete_opportunity(id: int) -> Dict:
+        opportunity = await Opportunity.get(id=id)
+        if not opportunity:
+            return {"code": 404, "message": "商机不存在"}
+            
+        await opportunity.delete()
+        return {
+            "code": 200,
+            "message": "删除商机成功"
         } 

@@ -1,0 +1,6 @@
+{
+	"dependencies": {
+		"@vicons/fluent": "^0.13.0",
+		"compressorjs": "^1.2.1"
+	}
+}

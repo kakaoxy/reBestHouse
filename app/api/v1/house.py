@@ -1,11 +1,12 @@
 from typing import List, Dict
 from fastapi import APIRouter, Depends
-from app.controllers.house import CommunityController, ErshoufangController, DealRecordController
+from app.controllers.house import CommunityController, ErshoufangController, DealRecordController, OpportunityController
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
     ErshoufangCreate, ErshoufangUpdate, ErshoufangResponse,
     CommunityQueryParams, ErshoufangQueryParams,
-    DealRecordCreate, DealRecordUpdate, DealRecordQueryParams
+    DealRecordCreate, DealRecordUpdate, DealRecordQueryParams,
+    OpportunityQueryParams, OpportunityCreate, OpportunityUpdate
 )
 from app.core.dependency import DependPermisson
 
@@ -120,4 +121,43 @@ async def update_deal_record(id: int, data: DealRecordUpdate):
     summary="删除成交记录"
 )
 async def delete_deal_record(id: int):
-    return await DealRecordController.delete_deal_record(id) 
+    return await DealRecordController.delete_deal_record(id)
+
+# Opportunity routes
+@router.get(
+    "/opportunities",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="获取商机列表"
+)
+async def get_opportunities(
+    params: OpportunityQueryParams = Depends()
+):
+    return await OpportunityController.get_opportunities(params)
+
+@router.post(
+    "/opportunities",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="创建商机"
+)
+async def create_opportunity(data: OpportunityCreate):
+    return await OpportunityController.create_opportunity(data)
+
+@router.put(
+    "/opportunities/{id}",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="更新商机"
+)
+async def update_opportunity(id: int, data: OpportunityUpdate):
+    return await OpportunityController.update_opportunity(id, data)
+
+@router.delete(
+    "/opportunities/{id}",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="删除商机"
+)
+async def delete_opportunity(id: int):
+    return await OpportunityController.delete_opportunity(id) 

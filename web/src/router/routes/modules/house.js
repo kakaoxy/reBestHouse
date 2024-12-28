@@ -34,6 +34,15 @@ export default {
         title: '成交记录',
         icon: 'material-symbols:real-estate-agent'
       }
+    },
+    {
+      path: 'opportunity',
+      name: 'Opportunity',
+      component: '/house/opportunity/index',
+      meta: {
+        title: '商机管理',
+        icon: 'material-symbols:business-center-outline'
+      }
     }
   ]
 } 

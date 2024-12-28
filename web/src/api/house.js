@@ -21,4 +21,11 @@ export const dealRecordApi = {
   create: (data) => request.post(`${baseUrl}/deal-records`, data),
   update: (id, data) => request.put(`${baseUrl}/deal-records/${id}`, data),
   delete: (id) => request.delete(`${baseUrl}/deal-records/${id}`)
+}
+
+export const opportunityApi = {
+  list: (params = {}) => request.get(`${baseUrl}/opportunities`, { params }),
+  create: (data) => request.post(`${baseUrl}/opportunities`, data),
+  update: (id, data) => request.put(`${baseUrl}/opportunities/${id}`, data),
+  delete: (id) => request.delete(`${baseUrl}/opportunities/${id}`)
 } 

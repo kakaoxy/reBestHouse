@@ -238,3 +238,40 @@ class DealRecordQueryParams(BaseModel):
 
     def __str__(self):
         return f"DealRecordQueryParams(search_keyword={self.search_keyword}, community_id={self.community_id}, layout={self.layout}, floor_info={self.floor_info}, deal_date_start={self.deal_date_start}, deal_date_end={self.deal_date_end}, city={self.city}, page={self.page}, page_size={self.page_size}, sort_by={self.sort_by}, sort_direction={self.sort_direction})" 
+
+class OpportunityBase(BaseModel):
+    community_id: int
+    community_name: Optional[str] = None
+    layout: Optional[str] = None
+    floor: Optional[str] = None
+    area: Optional[float] = None
+    total_price: Optional[float] = None
+    unit_price: Optional[float] = None
+    address: Optional[str] = None
+    building_number: Optional[str] = None
+    room_number: Optional[str] = None
+    is_full_five: Optional[bool] = False
+    is_full_two: Optional[bool] = False
+    is_unique: Optional[bool] = False
+    transaction_source: Optional[str] = None
+    layout_image: Optional[str] = None
+    interior_image: Optional[str] = None
+    location_image: Optional[str] = None
+    opportunity_owner: Optional[str] = None
+    belonging_owner: Optional[str] = None
+    status: str = '待评估'
+    remarks: Optional[str] = None
+    ershoufang_id: Optional[int] = None
+
+class OpportunityCreate(OpportunityBase):
+    pass
+
+class OpportunityUpdate(OpportunityBase):
+    pass
+
+class OpportunityQueryParams(BaseModel):
+    page: int = 1
+    page_size: int = 20
+    city: Optional[str] = None
+    community_name: Optional[str] = None
+    status: Optional[str] = None 

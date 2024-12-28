@@ -91,3 +91,50 @@ class DealRecord(Model):
         table = "deal_record"
         table_description = "成交记录表"
         app = "models"
+
+class Opportunity(Model):
+    id = fields.IntField(pk=True)
+    community = fields.ForeignKeyField('models.Community', related_name='opportunities')
+    community_name = fields.CharField(max_length=100, null=True)
+    layout = fields.CharField(max_length=50, null=True)
+    floor = fields.CharField(max_length=50, null=True)
+    area = fields.FloatField(null=True)
+    total_price = fields.FloatField(null=True)
+    unit_price = fields.FloatField(null=True)
+    address = fields.CharField(max_length=200, null=True)
+    building_number = fields.CharField(max_length=50, null=True)
+    room_number = fields.CharField(max_length=50, null=True)
+    is_full_five = fields.BooleanField(default=False)
+    is_full_two = fields.BooleanField(default=False)
+    is_unique = fields.BooleanField(default=False)
+    transaction_source = fields.CharField(max_length=50, null=True)
+    layout_image = fields.CharField(max_length=500, null=True)
+    interior_image = fields.CharField(max_length=500, null=True)
+    location_image = fields.CharField(max_length=500, null=True)
+    opportunity_owner = fields.CharField(max_length=100, null=True)
+    belonging_owner = fields.CharField(max_length=100, null=True)
+    status = fields.CharField(max_length=20, default='待评估')
+    remarks = fields.TextField(null=True)
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
+    ershoufang = fields.ForeignKeyField('models.Ershoufang', null=True, related_name='opportunities')
+
+    class Meta:
+        table = "opportunity"
+        table_description = "商机信息表"
+
+    async def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "community_id": self.community_id,
+            "community_name": self.community_name,
+            "layout": self.layout,
+            "floor": self.floor,
+            "area": self.area,
+            "total_price": self.total_price,
+            "unit_price": self.unit_price,
+            "status": self.status,
+            "layout_image": self.layout_image,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }

@@ -1,0 +1,748 @@
+<template>
+  <n-card class="page-container">
+    <div class="operation-area">
+      <div class="flex justify-between mb-4">
+        <div class="n-space n-space-horizontal">
+          <n-select
+            v-model:value="searchParams.city"
+            class="n-base-selection n-base-selection--active"
+            style="width: 120px"
+            :options="cityOptions"
+            placeholder="选择城市"
+            size="medium"
+          />
+          <n-input
+            v-model:value="searchParams.communityName"
+            placeholder="搜索小区"
+            class="n-input n-input--medium"
+            style="width: 240px; margin-left: 12px"
+          >
+            <template #prefix>
+              <n-icon><Search /></n-icon>
+            </template>
+          </n-input>
+        </div>
+        <n-button type="primary" @click="handleAdd">
+          <template #icon>
+            <n-icon><Add /></n-icon>
+          </template>
+          添加商机
+        </n-button>
+      </div>
+
+      <n-tabs
+        v-model:value="currentTab"
+        type="segment"
+        class="mb-4"
+        @update:value="handleTabChange"
+      >
+        <n-tab-pane name="all" tab="全部" />
+        <n-tab-pane name="pending" tab="待评估" />
+        <n-tab-pane name="evaluated" tab="已评估" />
+        <n-tab-pane name="signed" tab="已签约" />
+        <n-tab-pane name="abandoned" tab="已放弃" />
+      </n-tabs>
+    </div>
+
+    <div class="content-area">
+      <div 
+        class="grid grid-cols-3 gap-4 overflow-auto" 
+        style="max-height: calc(100vh - 200px);"
+        @scroll="handleScroll"
+      >
+        <n-card
+          v-for="item in opportunityList"
+          :key="item.id"
+          class="opportunity-card"
+          :bordered="false"
+          style="max-width: 300px; margin: 0 auto;"
+        >
+          <div class="relative">
+            <n-image
+              v-if="item.layout_image"
+              :src="item.layout_image"
+              class="w-full aspect-[1.36/1] object-cover rounded"
+              preview-disabled
+            />
+            <div 
+              v-else 
+              class="w-full aspect-[1.36/1] bg-gray-100 rounded flex items-center justify-center text-gray-400"
+            >
+              暂无户型图
+            </div>
+            <div class="absolute left-4 top-4 text-xl font-bold text-white">
+              {{ item.community_name }}
+            </div>
+          </div>
+
+          <div class="house-details">
+            <div class="house-info">
+              <div class="house-layout">
+                <n-icon class="mr-1 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3L2 12h3v8z"/>
+                  </svg>
+                </n-icon>
+                <span>{{ item.layout }}</span>
+              </div>
+              <div class="house-floor">
+                <n-icon class="mr-1 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M2 22h20V2z"/>
+                  </svg>
+                </n-icon>
+                <span>{{ item.floor }}</span>
+              </div>
+              <div class="house-area">
+                <n-icon class="mr-1 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M15 15H5v-4h10m5 4v-4h-3v4M2 20h20V4H2z"/>
+                  </svg>
+                </n-icon>
+                <span>{{ item.area }}㎡</span>
+              </div>
+              <div class="house-price">
+                <n-icon class="mr-1 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87c1.96 0 2.4-.98 2.4-1.59c0-.83-.44-1.61-2.67-2.14c-2.48-.6-4.18-1.62-4.18-3.67c0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87c-1.5 0-2.4.68-2.4 1.64c0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
+                  </svg>
+                </n-icon>
+                <span>{{ item.total_price }}万</span>
+              </div>
+            </div>
+
+            <div class="flex justify-between items-center mt-4">
+              <n-tag :type="getStatusType(item.status)" size="small">
+                {{ item.status }}
+              </n-tag>
+              <div class="flex space-x-2">
+                <n-button size="small" @click="handleEdit(item)">编辑</n-button>
+                <n-button size="small" type="error" @click="handleDelete(item)">删除</n-button>
+              </div>
+            </div>
+          </div>
+        </n-card>
+        <n-empty v-if="opportunityList.length === 0" description="暂无数据" />
+      </div>
+    </div>
+
+    <!-- 添加/编辑弹窗 -->
+    <n-modal v-model:show="showModal" :title="modalTitle" preset="card" style="max-width: 800px">
+      <n-form
+        ref="formRef"
+        :model="formData"
+        :rules="rules"
+        label-placement="left"
+        label-width="100"
+      >
+        <n-divider>基础信息</n-divider>
+        <n-grid :cols="2" :x-gap="24">
+          <n-grid-item>
+            <n-form-item label="小区" path="community_name">
+              <n-select
+                v-model:value="formData.community_id"
+                :options="communityOptions"
+                placeholder="请选择小区"
+                filterable
+                remote
+                :loading="loading"
+                @update:value="handleCommunityChange"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="户型" path="layout">
+              <n-input-group>
+                <n-input-number
+                  v-model:value="formData.rooms"
+                  placeholder="室"
+                  :min="1"
+                  :max="9"
+                />
+                <n-input-number
+                  v-model:value="formData.halls"
+                  placeholder="厅"
+                  :min="0"
+                  :max="9"
+                />
+              </n-input-group>
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="楼层" path="floor">
+              <n-input-group>
+                <n-input-number
+                  v-model:value="formData.floor_number"
+                  placeholder="所在楼层"
+                  :min="1"
+                  :precision="0"
+                  @update:value="updateFloor"
+                />
+                <n-input-number
+                  v-model:value="formData.total_floors"
+                  placeholder="总层高"
+                  :min="1"
+                  :precision="0"
+                  @update:value="updateFloor"
+                />
+              </n-input-group>
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="建筑面积" path="area">
+              <n-input-number
+                v-model:value="formData.area"
+                placeholder="请输入面积"
+                :min="0"
+                :precision="2"
+                :show-button="false"
+                @update:value="handleAreaChange"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="总价" path="total_price">
+              <n-input-number
+                v-model:value="formData.total_price"
+                placeholder="请输入总价"
+                :min="0"
+                :precision="2"
+                :show-button="false"
+                @update:value="calculateUnitPrice"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="单价" path="unit_price">
+              <n-input-number
+                v-model:value="formData.unit_price"
+                placeholder="自动计算"
+                disabled
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item span="2">
+            <n-form-item label="地址" path="address">
+              <n-input v-model:value="formData.address" placeholder="请输入地址" />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="楼栋号" path="building_number">
+              <n-input v-model:value="formData.building_number" placeholder="请输入楼栋号" />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="房号" path="room_number">
+              <n-input v-model:value="formData.room_number" placeholder="请输入房号" />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+
+        <n-divider>交易信息</n-divider>
+        <n-grid :cols="3" :x-gap="24">
+          <n-grid-item>
+            <n-form-item label="满五年" path="is_full_five">
+              <n-radio-group v-model:value="formData.is_full_five">
+                <n-radio :value="true">是</n-radio>
+                <n-radio :value="false">否</n-radio>
+              </n-radio-group>
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="满二年" path="is_full_two">
+              <n-radio-group v-model:value="formData.is_full_two">
+                <n-radio :value="true">是</n-radio>
+                <n-radio :value="false">否</n-radio>
+              </n-radio-group>
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="是否唯一" path="is_unique">
+              <n-radio-group v-model:value="formData.is_unique">
+                <n-radio :value="true">是</n-radio>
+                <n-radio :value="false">否</n-radio>
+              </n-radio-group>
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+        <n-form-item label="交易来源" path="transaction_source">
+          <n-select
+            v-model:value="formData.transaction_source"
+            :options="transactionSourceOptions"
+            placeholder="请选择交易来源"
+          />
+        </n-form-item>
+
+        <n-divider>图片信息</n-divider>
+        <n-form-item label="户型图" path="layout_image">
+          <n-upload
+            v-model:file-list="layoutImageList"
+            :max="1"
+            :custom-request="handleUploadLayoutImage"
+          >
+            <n-button>上传户型图</n-button>
+          </n-upload>
+        </n-form-item>
+        <n-form-item label="室内图" path="interior_image">
+          <n-upload
+            v-model:file-list="interiorImageList"
+            multiple
+            :custom-request="handleUploadInteriorImage"
+          >
+            <n-button>上传室内图</n-button>
+          </n-upload>
+        </n-form-item>
+        <n-form-item label="位置图" path="location_image">
+          <n-upload
+            v-model:file-list="locationImageList"
+            :max="1"
+            :custom-request="handleUploadLocationImage"
+          >
+            <n-button>上传位置图</n-button>
+          </n-upload>
+        </n-form-item>
+
+        <n-divider>业务信息</n-divider>
+        <n-form-item label="商机方" path="opportunity_owner">
+          <n-input v-model:value="formData.opportunity_owner" placeholder="请输入商机方" />
+        </n-form-item>
+        <n-form-item label="归属方" path="belonging_owner">
+          <n-select
+            v-model:value="formData.belonging_owner"
+            :options="userOptions"
+            placeholder="请选择归属方"
+            filterable
+          />
+        </n-form-item>
+
+        <n-form-item label="商机状态" path="status">
+          <n-select
+            v-model:value="formData.status"
+            :options="statusOptions"
+            placeholder="请选择状态"
+          />
+        </n-form-item>
+
+        <n-form-item label="备注" path="remarks">
+          <n-input
+            v-model:value="formData.remarks"
+            type="textarea"
+            placeholder="请输入备注信息"
+            :rows="3"
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <div class="flex justify-end space-x-4">
+          <n-button @click="showModal = false">取消</n-button>
+          <n-button type="primary" @click="handleSubmit">保存</n-button>
+        </div>
+      </template>
+    </n-modal>
+  </n-card>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted, watch } from 'vue'
+import { Add20Regular as Add, Search20Regular as Search } from '@vicons/fluent'
+import { opportunityApi } from '@/api/house'
+import { communityApi } from '@/api/house'
+import { OPPORTUNITY_STATUS, OPPORTUNITY_STATUS_TAG_TYPE } from './constants'
+import { useMessage } from 'naive-ui'
+
+const message = useMessage()
+
+const communityOptions = ref([])
+
+const searchParams = reactive({
+  city: 'shanghai',
+  communityName: '',
+  status: '',
+  page: 1,
+  page_size: 30
+})
+
+const currentTab = ref('all')
+const opportunityList = ref([])
+const total = ref(0)
+const loading = ref(false)
+const showModal = ref(false)
+const modalTitle = ref('添加商机')
+const formRef = ref(null)
+
+const formData = reactive({
+  community_id: null,
+  community_name: '',
+  rooms: null,
+  halls: null,
+  layout: '',
+  floor_number: null,
+  total_floors: null,
+  floor: '',
+  area: undefined,
+  total_price: undefined,
+  unit_price: undefined,
+  status: OPPORTUNITY_STATUS.PENDING
+})
+
+const cityOptions = [
+  { label: '上海', value: 'shanghai' },
+  { label: '北京', value: 'beijing' },
+  { label: '广州', value: 'guangzhou' },
+  { label: '深圳', value: 'shenzhen' }
+].map(item => ({
+  ...item,
+  label: item.label + '市'
+}))
+
+const statusOptions = Object.entries(OPPORTUNITY_STATUS).map(([key, value]) => ({
+  label: value,
+  value: value
+}))
+
+const rules = {
+  community_name: { required: true, message: '请选择小区', trigger: 'change' },
+  layout: { required: true, message: '请输入户型', trigger: 'blur' },
+  floor: { required: true, message: '请输入楼层信息', trigger: ['input', 'change'] },
+  area: { 
+    required: true, 
+    message: '请输入面积', 
+    trigger: ['input', 'change'],
+    validator: (rule, value) => {
+      return value > 0
+    }
+  },
+  total_price: { 
+    required: true, 
+    message: '请输入总价', 
+    trigger: ['input', 'change'],
+    validator: (rule, value) => {
+      return value > 0
+    }
+  },
+  status: { required: true, message: '请选择状态', trigger: 'change' }
+}
+
+const getStatusType = (status) => OPPORTUNITY_STATUS_TAG_TYPE[status] || 'default'
+
+const loadOpportunities = async () => {
+  loading.value = true
+  try {
+    const params = { ...searchParams }
+    if (currentTab.value !== 'all') {
+      params.status = currentTab.value === 'pending' ? '待评估' :
+                     currentTab.value === 'evaluated' ? '已评估' :
+                     currentTab.value === 'signed' ? '已签约' :
+                     currentTab.value === 'abandoned' ? '已放弃' : undefined
+    }
+    params.sort_by = 'created_at'
+    params.sort_direction = 'desc'
+    params.page = params.page || 1
+    params.page_size = params.page_size || 30
+
+    const res = await opportunityApi.list(params)
+    console.log('商机列表请求参数:', params)
+    console.log('商机列表响应数据:', res)
+    if (!res.data || !Array.isArray(res.data.items)) {
+      console.error('响应数据格式错误:', res)
+      return
+    }
+    if (params.page === 1) {
+      opportunityList.value = Array.isArray(res.data.items) ? res.data.items : []
+    } else {
+      opportunityList.value.push(...(Array.isArray(res.data.items) ? res.data.items : []))
+    }
+    total.value = res.data.total || 0
+    console.log('处理后的商机列表:', opportunityList.value)
+  } catch (error) {
+    console.error('加载商机列表失败:', error)
+    message.error('加载商机列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleTabChange = () => {
+  resetList()
+}
+
+const loadCommunities = async () => {
+  try {
+    const res = await communityApi.list({
+      city: searchParams.city,
+      name: searchParams.communityName,
+      page: 1,
+      page_size: 100
+    })
+    console.log('小区列表请求参数:', {
+      city: searchParams.city,
+      name: searchParams.communityName
+    })
+    console.log('小区列表响应数据:', res)
+    communityOptions.value = res.data.items
+      .filter(item => item.city.toLowerCase() === searchParams.city)
+      .map(item => ({
+        label: `${item.name} (${item.region}-${item.area})`,
+        value: item.id,
+        community: item
+      }))
+    console.log('处理后的小区选项:', communityOptions.value)
+  } catch (error) {
+    console.error('加载小区列表失败:', error)
+    message.error('加载小区列表失败')
+  }
+}
+
+watch(
+  () => searchParams.city,
+  () => {
+    searchParams.communityName = ''
+    resetList()
+  }
+)
+
+watch(
+  () => searchParams.communityName,
+  () => {
+    loadCommunities()
+  }
+)
+
+watch(
+  [() => formData.rooms, () => formData.halls],
+  ([rooms, halls]) => {
+    if (rooms !== null && halls !== null) {
+      formData.layout = `${rooms}室${halls}厅`
+    }
+  }
+)
+
+const handleAdd = () => {
+  modalTitle.value = '添加商机'
+  Object.assign(formData, {
+    community_id: null,
+    community_name: '',
+    rooms: null,
+    halls: null,
+    layout: '',
+    floor_number: null,
+    total_floors: null,
+    floor: '',
+    area: undefined,
+    total_price: undefined,
+    unit_price: undefined,
+    status: OPPORTUNITY_STATUS.PENDING
+  })
+  showModal.value = true
+  loadCommunities()
+}
+
+const handleEdit = (item) => {
+  modalTitle.value = '编辑商机'
+  const layoutMatch = item.layout?.match(/(\d+)室(\d+)厅/)
+  const floorMatch = item.floor?.match(/第(\d+)层\/共(\d+)层/)
+  Object.assign(formData, {
+    ...item,
+    rooms: layoutMatch ? parseInt(layoutMatch[1]) : null,
+    halls: layoutMatch ? parseInt(layoutMatch[2]) : null,
+    floor_number: floorMatch ? parseInt(floorMatch[1]) : null,
+    total_floors: floorMatch ? parseInt(floorMatch[2]) : null
+  })
+  showModal.value = true
+  loadCommunities()
+}
+
+const handleCommunityChange = (communityId) => {
+  const selectedCommunity = communityOptions.value.find(
+    option => option.value === communityId
+  )
+  if (selectedCommunity) {
+    const { community } = selectedCommunity
+    formData.community_name = community.name
+    formData.community_id = community.id
+    formData.address = community.address
+  }
+}
+
+const handleDelete = async (item) => {
+  try {
+    await opportunityApi.delete(item.id)
+    message.success('删除成功')
+    resetList()
+  } catch (error) {
+    message.error('删除失败')
+  }
+}
+
+const handleSubmit = async () => {
+  try {
+    await formRef.value?.validate()
+    console.log('提交的表单数据:', formData)
+    let result
+    if (formData.id) {
+      result = await opportunityApi.update(formData.id, formData)
+      message.success('更新成功')
+    } else {
+      result = await opportunityApi.create(formData)
+      message.success('创建成功')
+    }
+    console.log('提交响应:', result)
+    showModal.value = false
+    resetList()
+  } catch (error) {
+    console.error('表单提交失败:', error)
+    message.error(error.message || '操作失败')
+  }
+}
+
+const updateFloor = () => {
+  if (formData.floor_number && formData.total_floors) {
+    formData.floor = `第${formData.floor_number}层/共${formData.total_floors}层`
+  }
+}
+
+const handleAreaChange = (value) => {
+  formData.area = value === null ? undefined : Number(value)
+  if (formData.total_price) {
+    const unitPrice = (formData.total_price * 10000) / value
+    formData.unit_price = Number.isFinite(unitPrice) ? Math.round(unitPrice * 100) / 100 : undefined
+  }
+}
+
+const calculateUnitPrice = (value) => {
+  formData.total_price = value === null || value === '' ? undefined : Number(value)
+  if (value && formData.area) {
+    const unitPrice = (value * 10000) / formData.area
+    formData.unit_price = Number.isFinite(unitPrice) ? Math.round(unitPrice * 100) / 100 : undefined
+  }
+}
+
+const loadMore = async () => {
+  searchParams.page++
+  try {
+    const params = { ...searchParams }
+    if (currentTab.value !== 'all') {
+      params.status = currentTab.value === 'pending' ? '待评估' :
+                     currentTab.value === 'evaluated' ? '已评估' :
+                     currentTab.value === 'signed' ? '已签约' :
+                     currentTab.value === 'abandoned' ? '已放弃' : undefined
+    }
+    const res = await opportunityApi.list(params)
+    if (Array.isArray(res.data.items)) {
+      opportunityList.value.push(...res.data.items)
+    }
+  } catch (error) {
+    message.error('加载更多失败')
+  }
+}
+
+const handleScroll = (e) => {
+  const { scrollHeight, scrollTop, clientHeight } = e.target
+  if (!loading.value && scrollHeight - scrollTop - clientHeight < 100) {
+    if (opportunityList.value.length < total.value) {
+      loadMore()
+    }
+  }
+}
+
+const resetList = () => {
+  searchParams.page = 1
+  searchParams.page_size = 30
+  loadOpportunities()
+}
+
+onMounted(() => {
+  loadOpportunities()
+})
+</script>
+
+<style scoped>
+.operation-area {
+  background-color: #fff;
+  padding: 16px 16px 0;
+  margin: -16px -16px 16px;
+  border-radius: 8px 8px 0 0;
+}
+
+.content-area {
+  background-color: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  min-height: calc(100vh - 250px);
+}
+
+.page-container {
+  background-color: #f5f6fb;
+  min-height: calc(100vh - 64px);
+}
+
+.page-container :deep(.n-card-header) {
+  background-color: #fff;
+}
+
+.page-container :deep(.n-card__content) {
+  background-color: #f5f6fb;
+  padding: 16px;
+}
+
+.house-details {
+  padding: 16px;
+  background-color: #fff;
+  border-radius: 0 0 8px 8px;
+}
+
+.house-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.house-area,
+.house-layout,
+.house-floor,
+.house-price {
+  display: flex;
+  align-items: center;
+  color: #1c1c1c;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+:deep(.n-icon) {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  color: #758599;
+}
+
+.opportunity-card {
+  transition: all 0.3s ease;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.opportunity-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
+}
+
+.opportunity-card .relative::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
+  border-radius: 3px 3px 0 0;
+}
+
+.grid {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+</style> 
