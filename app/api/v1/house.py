@@ -130,10 +130,17 @@ async def delete_deal_record(id: int):
     dependencies=[DependPermisson],
     summary="获取商机列表"
 )
-async def get_opportunities(
-    params: OpportunityQueryParams = Depends()
-):
+async def get_opportunities(params: OpportunityQueryParams = Depends()):
     return await OpportunityController.get_opportunities(params)
+
+@router.get(
+    "/opportunities/{id}",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="获取商机详情"
+)
+async def get_opportunity(id: int):
+    return await OpportunityController.get_opportunity(id)
 
 @router.post(
     "/opportunities",

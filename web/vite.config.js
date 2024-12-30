@@ -4,6 +4,7 @@ import { convertEnv, getSrcPath, getRootPath } from './build/utils'
 import { viteDefine } from './build/config'
 import { createVitePlugins } from './build/plugin'
 import { OUTPUT_DIR, PROXY_CONFIG } from './build/constant'
+import { fileURLToPath } from 'url'
 
 export default defineConfig(({ command, mode }) => {
   const srcPath = getSrcPath()
@@ -19,8 +20,9 @@ export default defineConfig(({ command, mode }) => {
     resolve: {
       alias: {
         '~': rootPath,
-        '@': srcPath,
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
+      extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue']
     },
     define: viteDefine,
     plugins: createVitePlugins(viteEnv, isBuild),
@@ -39,6 +41,13 @@ export default defineConfig(({ command, mode }) => {
       outDir: OUTPUT_DIR || 'dist',
       reportCompressedSize: false, // 启用/禁用 gzip 压缩大小报告
       chunkSizeWarningLimit: 1024, // chunk 大小警告的限制（单位kb）
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'opportunity': ['./src/views/house/opportunity/components/OpportunityDetail.vue']
+          }
+        }
+      }
     },
   }
 })

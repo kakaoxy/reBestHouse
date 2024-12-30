@@ -135,6 +135,16 @@ class Opportunity(Model):
             "unit_price": self.unit_price,
             "status": self.status,
             "layout_image": self.layout_image,
+            "address": self.address,
+            "building_number": self.building_number,
+            "room_number": self.room_number,
+            "is_full_five": self.is_full_five,
+            "is_full_two": self.is_full_two,
+            "is_unique": self.is_unique,
+            "transaction_source": self.transaction_source,
+            "opportunity_owner": self.opportunity_owner,
+            "belonging_owner": self.belonging_owner,
+            "remarks": self.remarks,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

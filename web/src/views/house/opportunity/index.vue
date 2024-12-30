@@ -58,90 +58,92 @@
           :bordered="false"
           style="min-width: 225px; max-width: 300px; margin: 0 auto;"
         >
-          <div class="relative">
-            <div class="absolute right-2 top-2 z-10">
-              <n-dropdown
-                :options="actionOptions"
-                @select="handleSelect($event, item)"
-                placement="bottom-end"
-                trigger="hover"
-              >
-                <n-button 
-                  text 
-                  class="action-button"
-                  style="padding: 4px;"
+          <div class="card-content" @click.stop="handleCardClick(item)">
+            <div class="relative">
+              <div class="absolute right-2 top-2 z-10">
+                <n-dropdown
+                  :options="actionOptions"
+                  @select="handleSelect($event, item)"
+                  placement="bottom-end"
+                  trigger="hover"
                 >
-                  <template #icon>
-                    <n-icon size="18">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2s-2 .9-2 2s.9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2s2-.9 2-2s-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2s2-.9 2-2s-.9-2-2-2z"/>
-                      </svg>
-                    </n-icon>
-                  </template>
-                </n-button>
-              </n-dropdown>
-            </div>
+                  <n-button 
+                    text 
+                    class="action-button"
+                    style="padding: 4px;"
+                  >
+                    <template #icon>
+                      <n-icon size="18">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                          <path fill="currentColor" d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2s-2 .9-2 2s.9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2s2-.9 2-2s-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2s2-.9 2-2s-.9-2-2-2z"/>
+                        </svg>
+                      </n-icon>
+                    </template>
+                  </n-button>
+                </n-dropdown>
+              </div>
 
-            <n-image
-              v-if="item.layout_image"
-              :src="item.layout_image"
-              class="w-full aspect-[1.36/1] object-cover rounded"
-              preview-disabled
-            />
-            <div 
-              v-else 
-              class="w-full aspect-[1.36/1] bg-gray-100 rounded relative"
-            >
               <n-image
-                src="/layout.jpeg"
-                class="w-full h-full object-cover rounded"
+                v-if="item.layout_image"
+                :src="item.layout_image"
+                class="w-full aspect-[1.36/1] object-cover rounded"
                 preview-disabled
               />
-              <div class="absolute left-4 bottom-4 right-4 flex justify-between items-center">
-                <span class="text-5xl font-bold text-white">{{ item.community_name }}</span>
-                <n-tag :type="getStatusType(item.status)" size="small">
-                  {{ item.status }}
-                </n-tag>
+              <div 
+                v-else 
+                class="w-full aspect-[1.36/1] bg-gray-100 rounded relative"
+              >
+                <n-image
+                  src="/layout.jpeg"
+                  class="w-full h-full object-cover rounded"
+                  preview-disabled
+                />
+                <div class="absolute left-4 bottom-4 right-4 flex justify-between items-center">
+                  <span class="text-5xl font-bold text-white">{{ item.community_name }}</span>
+                  <n-tag :type="getStatusType(item.status)" size="small">
+                    {{ item.status }}
+                  </n-tag>
+                </div>
+              </div>
+              <div v-if="item.layout_image" class="absolute left-4 top-4 text-5xl font-bold text-white">
+                {{ item.community_name }}
               </div>
             </div>
-            <div v-if="item.layout_image" class="absolute left-4 top-4 text-5xl font-bold text-white">
-              {{ item.community_name }}
-            </div>
-          </div>
 
-          <div class="house-details">
-            <div class="house-info">
-              <div class="house-layout">
-                <n-icon class="mr-1 text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3L2 12h3v8z"/>
-                  </svg>
-                </n-icon>
-                <span>{{ item.layout }}</span>
-              </div>
-              <div class="house-floor">
-                <n-icon class="mr-1 text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M2 22h20V2z"/>
-                  </svg>
-                </n-icon>
-                <span>{{ formatFloor(item.floor) }}</span>
-              </div>
-              <div class="house-area">
-                <n-icon class="mr-1 text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M15 15H5v-4h10m5 4v-4h-3v4M2 20h20V4H2z"/>
-                  </svg>
-                </n-icon>
-                <span>{{ item.area }}㎡</span>
-              </div>
-              <div class="house-price">
-                <n-icon class="mr-1 text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87c1.96 0 2.4-.98 2.4-1.59c0-.83-.44-1.61-2.67-2.14c-2.48-.6-4.18-1.62-4.18-3.67c0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87c-1.5 0-2.4.68-2.4 1.64c0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
-                  </svg>
-                </n-icon>
-                <span>{{ item.total_price }}万</span>
+            <div class="house-details">
+              <div class="house-info">
+                <div class="house-layout">
+                  <n-icon class="mr-1 text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3L2 12h3v8z"/>
+                    </svg>
+                  </n-icon>
+                  <span>{{ item.layout }}</span>
+                </div>
+                <div class="house-floor">
+                  <n-icon class="mr-1 text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M2 22h20V2z"/>
+                    </svg>
+                  </n-icon>
+                  <span>{{ formatFloor(item.floor) }}</span>
+                </div>
+                <div class="house-area">
+                  <n-icon class="mr-1 text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M15 15H5v-4h10m5 4v-4h-3v4M2 20h20V4H2z"/>
+                    </svg>
+                  </n-icon>
+                  <span>{{ item.area }}㎡</span>
+                </div>
+                <div class="house-price">
+                  <n-icon class="mr-1 text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87c1.96 0 2.4-.98 2.4-1.59c0-.83-.44-1.61-2.67-2.14c-2.48-.6-4.18-1.62-4.18-3.67c0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87c-1.5 0-2.4.68-2.4 1.64c0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
+                    </svg>
+                  </n-icon>
+                  <span>{{ item.total_price }}万</span>
+                </div>
               </div>
             </div>
           </div>
@@ -150,14 +152,25 @@
       </div>
     </div>
 
-    <!-- 添加/编辑弹窗 -->
-    <n-modal v-model:show="showModal" :title="modalTitle" preset="card" style="max-width: 800px">
+    <OpportunityDetail
+      v-model:show="showDetail"
+      :id="selectedOpportunityId"
+    />
+
+    <n-modal
+      v-model:show="showModal"
+      :title="modalTitle"
+      preset="card"
+      style="width: 800px"
+      :mask-closable="false"
+    >
       <n-form
         ref="formRef"
         :model="formData"
         :rules="rules"
         label-placement="left"
         label-width="100"
+        require-mark-placement="right-hanging"
       >
         <n-divider>基础信息</n-divider>
         <n-grid :cols="2" :x-gap="24">
@@ -167,9 +180,9 @@
                 v-model:value="formData.community_id"
                 :options="communityOptions"
                 placeholder="请选择小区"
-                filterable
+                :loading="loadingCommunities"
                 remote
-                :loading="loading"
+                filterable
                 @update:value="handleCommunityChange"
               />
             </n-form-item>
@@ -213,14 +226,14 @@
             </n-form-item>
           </n-grid-item>
           <n-grid-item>
-            <n-form-item label="建筑面积" path="area">
+            <n-form-item label="面积" path="area">
               <n-input-number
                 v-model:value="formData.area"
                 placeholder="请输入面积"
-                :min="0"
+                :min="1"
                 :precision="2"
-                :show-button="false"
                 @update:value="handleAreaChange"
+                style="width: 100%"
               />
             </n-form-item>
           </n-grid-item>
@@ -229,10 +242,10 @@
               <n-input-number
                 v-model:value="formData.total_price"
                 placeholder="请输入总价"
-                :min="0"
+                :min="1"
                 :precision="2"
-                :show-button="false"
                 @update:value="calculateUnitPrice"
+                style="width: 100%"
               />
             </n-form-item>
           </n-grid-item>
@@ -240,92 +253,45 @@
             <n-form-item label="单价" path="unit_price">
               <n-input-number
                 v-model:value="formData.unit_price"
-                placeholder="自动计算"
+                placeholder="请输入单价"
+                :min="1"
+                :precision="2"
                 disabled
+                style="width: 100%"
               />
             </n-form-item>
           </n-grid-item>
-          <n-grid-item span="2">
-            <n-form-item label="地址" path="address">
-              <n-input v-model:value="formData.address" placeholder="请输入地址" />
-            </n-form-item>
-          </n-grid-item>
           <n-grid-item>
-            <n-form-item label="楼栋号" path="building_number">
-              <n-input v-model:value="formData.building_number" placeholder="请输入楼栋号" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="房号" path="room_number">
-              <n-input v-model:value="formData.room_number" placeholder="请输入房号" />
+            <n-form-item label="备注" path="remarks">
+              <n-input
+                v-model:value="formData.remarks"
+                type="textarea"
+                placeholder="请输入备注"
+              />
             </n-form-item>
           </n-grid-item>
         </n-grid>
-
         <n-divider>交易信息</n-divider>
-        <n-grid :cols="3" :x-gap="24">
-          <n-grid-item>
-            <n-form-item label="满五年" path="is_full_five">
-              <n-radio-group v-model:value="formData.is_full_five">
-                <n-radio :value="true">是</n-radio>
-                <n-radio :value="false">否</n-radio>
-              </n-radio-group>
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="满二年" path="is_full_two">
-              <n-radio-group v-model:value="formData.is_full_two">
-                <n-radio :value="true">是</n-radio>
-                <n-radio :value="false">否</n-radio>
-              </n-radio-group>
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="是否唯一" path="is_unique">
-              <n-radio-group v-model:value="formData.is_unique">
-                <n-radio :value="true">是</n-radio>
-                <n-radio :value="false">否</n-radio>
-              </n-radio-group>
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
+        <n-form-item>
+          <div style="display: flex; justify-content: center; width: 100%;">
+            <n-space>
+              <n-checkbox v-model:checked="formData.is_full_five">满五</n-checkbox>
+              <n-checkbox v-model:checked="formData.is_full_two">满二</n-checkbox>
+              <n-checkbox v-model:checked="formData.is_unique">唯一</n-checkbox>
+            </n-space>
+          </div>
+        </n-form-item>
         <n-form-item label="交易来源" path="transaction_source">
           <n-select
             v-model:value="formData.transaction_source"
-            :options="transactionSourceOptions"
+            :options="[
+              { label: '动迁', value: '动迁' },
+              { label: '买卖', value: '买卖' },
+              { label: '继承', value: '继承' }
+            ]"
             placeholder="请选择交易来源"
           />
         </n-form-item>
-
-        <n-divider>图片信息</n-divider>
-        <n-form-item label="户型图" path="layout_image">
-          <n-upload
-            v-model:file-list="layoutImageList"
-            :max="1"
-            :custom-request="handleUploadLayoutImage"
-          >
-            <n-button>上传户型图</n-button>
-          </n-upload>
-        </n-form-item>
-        <n-form-item label="室内图" path="interior_image">
-          <n-upload
-            v-model:file-list="interiorImageList"
-            multiple
-            :custom-request="handleUploadInteriorImage"
-          >
-            <n-button>上传室内图</n-button>
-          </n-upload>
-        </n-form-item>
-        <n-form-item label="位置图" path="location_image">
-          <n-upload
-            v-model:file-list="locationImageList"
-            :max="1"
-            :custom-request="handleUploadLocationImage"
-          >
-            <n-button>上传位置图</n-button>
-          </n-upload>
-        </n-form-item>
-
         <n-divider>业务信息</n-divider>
         <n-form-item label="商机方" path="opportunity_owner">
           <n-input v-model:value="formData.opportunity_owner" placeholder="请输入商机方" />
@@ -338,7 +304,6 @@
             filterable
           />
         </n-form-item>
-
         <n-form-item label="商机状态" path="status">
           <n-select
             v-model:value="formData.status"
@@ -346,21 +311,14 @@
             placeholder="请选择状态"
           />
         </n-form-item>
-
-        <n-form-item label="备注" path="remarks">
-          <n-input
-            v-model:value="formData.remarks"
-            type="textarea"
-            placeholder="请输入备注信息"
-            :rows="3"
-          />
-        </n-form-item>
       </n-form>
       <template #footer>
-        <div class="flex justify-end space-x-4">
-          <n-button @click="showModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSubmit">保存</n-button>
-        </div>
+        <n-space justify="end">
+          <n-button @click="handleCancel">取消</n-button>
+          <n-button type="primary" @click="handleSubmit">
+            确定
+          </n-button>
+        </n-space>
       </template>
     </n-modal>
   </n-card>
@@ -375,6 +333,7 @@ import { OPPORTUNITY_STATUS, OPPORTUNITY_STATUS_TAG_TYPE } from './constants'
 import { useMessage } from 'naive-ui'
 import { NPopconfirm, NIcon } from 'naive-ui'
 import { h } from 'vue'
+import OpportunityDetail from './components/OpportunityDetail.vue'
 
 const message = useMessage()
 
@@ -395,6 +354,7 @@ const loading = ref(false)
 const showModal = ref(false)
 const modalTitle = ref('添加商机')
 const formRef = ref(null)
+const loadingCommunities = ref(false)
 
 const formData = reactive({
   community_id: null,
@@ -405,10 +365,15 @@ const formData = reactive({
   floor_number: null,
   total_floors: null,
   floor: '',
-  area: undefined,
-  total_price: undefined,
-  unit_price: undefined,
-  status: OPPORTUNITY_STATUS.PENDING
+  area: null,
+  total_price: null,
+  unit_price: null,
+  is_full_five: false,
+  is_full_two: false,
+  is_unique: false,
+  transaction_source: null,
+  status: OPPORTUNITY_STATUS.PENDING,
+  remarks: ''
 })
 
 const cityOptions = [
@@ -421,32 +386,62 @@ const cityOptions = [
   label: item.label + '市'
 }))
 
-const statusOptions = Object.entries(OPPORTUNITY_STATUS).map(([key, value]) => ({
-  label: value,
-  value: value
-}))
+const statusOptions = [
+  { label: '待评估', value: '待评估' },
+  { label: '已评估', value: '已评估' },
+  { label: '已签约', value: '已签约' },
+  { label: '已放弃', value: '已放弃' }
+]
+
+const transactionSourceOptions = [
+  { label: '个人', value: '个人' },
+  { label: '中介', value: '中介' },
+  { label: '开发商', value: '开发商' }
+]
+
+const userOptions = [
+  { label: '张三', value: '张三' },
+  { label: '李四', value: '李四' },
+  { label: '王五', value: '王五' }
+]
 
 const rules = {
-  community_name: { required: true, message: '请选择小区', trigger: 'change' },
-  layout: { required: true, message: '请输入户型', trigger: 'blur' },
-  floor: { required: true, message: '请输入楼层信息', trigger: ['input', 'change'] },
-  area: { 
-    required: true, 
-    message: '请输入面积', 
+  community_name: {
+    required: true,
+    message: '请选择小区',
+    trigger: 'change'
+  },
+  layout: {
+    required: true,
+    message: '请输入户型',
+    trigger: 'blur'
+  },
+  floor: {
+    required: true,
+    message: '请输入楼层信息',
+    trigger: ['input', 'change']
+  },
+  area: {
+    required: true,
+    message: '请输入面积',
     trigger: ['input', 'change'],
     validator: (rule, value) => {
       return value > 0
     }
   },
-  total_price: { 
-    required: true, 
-    message: '请输入总价', 
+  total_price: {
+    required: true,
+    message: '请输入总价',
     trigger: ['input', 'change'],
     validator: (rule, value) => {
       return value > 0
     }
   },
-  status: { required: true, message: '请选择状态', trigger: 'change' }
+  status: {
+    required: true,
+    message: '请选择状态',
+    trigger: 'change'
+  }
 }
 
 const getStatusType = (status) => OPPORTUNITY_STATUS_TAG_TYPE[status] || 'default'
@@ -518,6 +513,7 @@ const handleTabChange = () => {
 }
 
 const loadCommunities = async () => {
+  loadingCommunities.value = true
   try {
     const res = await communityApi.list({
       city: searchParams.city,
@@ -531,16 +527,18 @@ const loadCommunities = async () => {
     })
     console.log('小区列表响应数据:', res)
     communityOptions.value = res.data.items
-      .filter(item => item.city.toLowerCase() === searchParams.city)
+      .filter(item => item.city === searchParams.city)
       .map(item => ({
         label: `${item.name} (${item.region}-${item.area})`,
         value: item.id,
         community: item
       }))
-    console.log('处理后的小区选项:', communityOptions.value)
+    console.log('处理后的小区选项:', communityOptions)
   } catch (error) {
     console.error('加载小区列表失败:', error)
     message.error('加载小区列表失败')
+  } finally {
+    loadingCommunities.value = false
   }
 }
 
@@ -568,8 +566,23 @@ watch(
   }
 )
 
+watch(
+  () => formData.area,
+  (value) => {
+    handleAreaChange(value)
+  }
+)
+
+watch(
+  () => formData.total_price,
+  (value) => {
+    calculateUnitPrice(value)
+  }
+)
+
 const handleAdd = () => {
   modalTitle.value = '添加商机'
+  formData.id = undefined
   Object.assign(formData, {
     community_id: null,
     community_name: '',
@@ -579,11 +592,17 @@ const handleAdd = () => {
     floor_number: null,
     total_floors: null,
     floor: '',
-    area: undefined,
-    total_price: undefined,
-    unit_price: undefined,
-    status: OPPORTUNITY_STATUS.PENDING
+    area: null,
+    total_price: null,
+    unit_price: null,
+    is_full_five: false,
+    is_full_two: false,
+    is_unique: false,
+    transaction_source: null,
+    status: OPPORTUNITY_STATUS.PENDING,
+    remarks: ''
   })
+  formRef.value?.restoreValidation()
   showModal.value = true
   loadCommunities()
 }
@@ -591,7 +610,7 @@ const handleAdd = () => {
 const handleEdit = (item) => {
   modalTitle.value = '编辑商机'
   const layoutMatch = item.layout?.match(/(\d+)室(\d+)厅/)
-  const floorMatch = item.floor?.match(/第(\d+)层\/共(\d+)层/)
+  const floorMatch = item.floor?.match(/(\d+)\/(\d+)/)
   Object.assign(formData, {
     ...item,
     rooms: layoutMatch ? parseInt(layoutMatch[1]) : null,
@@ -601,6 +620,17 @@ const handleEdit = (item) => {
   })
   showModal.value = true
   loadCommunities()
+}
+
+const formatDate = (date) => {
+  if (!date) return ''
+  return new Date(date).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 const formatFloor = (floor) => {
@@ -658,18 +688,18 @@ const updateFloor = () => {
 }
 
 const handleAreaChange = (value) => {
-  formData.area = value === null ? undefined : Number(value)
+  formData.area = value
   if (formData.total_price) {
-    const unitPrice = (formData.total_price * 10000) / value
-    formData.unit_price = Number.isFinite(unitPrice) ? Math.round(unitPrice * 100) / 100 : undefined
+    const unitPrice = (formData.total_price * 10000) / formData.area
+    formData.unit_price = Number.isFinite(unitPrice) ? Math.round(unitPrice) : null
   }
 }
 
 const calculateUnitPrice = (value) => {
-  formData.total_price = value === null || value === '' ? undefined : Number(value)
+  formData.total_price = value
   if (value && formData.area) {
     const unitPrice = (value * 10000) / formData.area
-    formData.unit_price = Number.isFinite(unitPrice) ? Math.round(unitPrice * 100) / 100 : undefined
+    formData.unit_price = Number.isFinite(unitPrice) ? Math.round(unitPrice) : null
   }
 }
 
@@ -714,9 +744,9 @@ const actionOptions = [
     icon: renderIcon('edit')
   },
   {
-    key: 'delete',
     label: '删除',
-    icon: renderIcon('delete'),
+    key: 'delete',
+    icon: renderIcon('delete')
   }
 ]
 
@@ -752,12 +782,25 @@ const handleSelect = (key, item) => {
   }
 }
 
+const showDetail = ref(false)
+const selectedOpportunityId = ref(null)
+
+const handleCardClick = (item) => {
+  selectedOpportunityId.value = item.id
+  showDetail.value = true
+}
+
+const handleCancel = () => {
+  showModal.value = false
+}
+
 const handleSearch = () => {
   resetList()
 }
 
 onMounted(() => {
   loadOpportunities()
+  loadCommunities()
 })
 </script>
 
@@ -845,6 +888,7 @@ onMounted(() => {
   background-color: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   min-width: 225px;
+  cursor: pointer;
 }
 
 .opportunity-card :deep(.n-card__content) {
@@ -883,5 +927,15 @@ onMounted(() => {
 
 .n-tabs {
   margin-top: 16px;
+}
+
+.card-content {
+  position: relative;
+  z-index: 1;
+}
+
+.action-button {
+  position: relative;
+  z-index: 2;
 }
 </style> 

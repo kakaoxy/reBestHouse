@@ -554,6 +554,21 @@ class DealRecordController:
 
 class OpportunityController:
     @staticmethod
+    async def get_opportunity(id: int) -> Dict:
+        opportunity = await Opportunity.get_or_none(id=id)
+        if not opportunity:
+            return {
+                "code": 404,
+                "message": "商机不存在"
+            }
+        
+        return {
+            "code": 200,
+            "data": await opportunity.to_dict(),
+            "message": "获取商机详情成功"
+        }
+
+    @staticmethod
     async def get_opportunities(params: OpportunityQueryParams) -> Dict:
         query = Opportunity.all()
         

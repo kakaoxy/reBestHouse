@@ -38,7 +38,7 @@ export default {
     {
       path: 'opportunity',
       name: 'Opportunity',
-      component: '/house/opportunity/index',
+      component: () => import('@/views/house/opportunity/index.vue'),
       meta: {
         title: '商机管理',
         icon: 'material-symbols:business-center-outline'
