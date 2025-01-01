@@ -1,5 +1,6 @@
 import { ref, reactive, h } from 'vue'
 import { useMessage, NSpace, NButton, NPopconfirm } from 'naive-ui'
+import { useCityStore } from '@/stores/city'
 
 export function useErshoufangCRUD(api) {
   const message = useMessage()
@@ -7,6 +8,7 @@ export function useErshoufangCRUD(api) {
   const showModal = ref(false)
   const modalTitle = ref('')
   const formParams = ref({})
+  const cityStore = useCityStore()
   
   // 表格数据
   const data = ref([])
@@ -20,7 +22,7 @@ export function useErshoufangCRUD(api) {
 
   // 查询参数
   const queryParams = reactive({
-    city: '',
+    city: cityStore.currentCity,
     search_keyword: '',
     layout: undefined,
     orientation: undefined,
@@ -125,7 +127,8 @@ export function useErshoufangCRUD(api) {
       const res = await api.list({
         ...queryParams,
         page: pagination.page,
-        page_size: pagination.pageSize
+        page_size: pagination.pageSize,
+        city: queryParams.city || cityStore.currentCity
       })
       if (res?.code === 200 && Array.isArray(res.data?.items)) {
         data.value = res.data.items.map(item => ({
@@ -166,10 +169,12 @@ export function useErshoufangCRUD(api) {
   const handleAdd = () => {
     modalTitle.value = '新增房源'
     formParams.value = {
+      id: null,
       community_id: null,
       community_name: '',
       region: '',
       area: '',
+      city: cityStore.currentCity,
       layout: null,
       floor_number: null,
       total_floors: null,
@@ -177,26 +182,25 @@ export function useErshoufangCRUD(api) {
       size: null,
       total_price: null,
       data_source: 'store',
-      city: queryParams.city
+      ladder_ratio: '',
+      mortgage_info: '',
+      house_id: '',
+      ke_code: '',
+      house_link: ''
     }
     showModal.value = true
   }
 
   // 处理编辑
   const handleEdit = (row) => {
-    if (!row) {
-      console.error('No row data provided for edit')
-      return
-    }
-    console.log('Original row data:', row)
     modalTitle.value = '编辑房源'
     formParams.value = {
       id: row.id,
-      community_id: row.community_id ? parseInt(row.community_id) : null,
+      community_id: parseInt(row.community_id),
       community_name: row.community_name || '',
       region: row.region || '',
       area: row.area || '',
-      city: row.city || '',
+      city: row.city || cityStore.currentCity,
       layout: row.layout || null,
       floor_number: row.floor_number ? parseInt(row.floor_number) : null,
       total_floors: row.total_floors ? parseInt(row.total_floors) : null,
@@ -212,7 +216,6 @@ export function useErshoufangCRUD(api) {
       ke_code: row.ke_code || '',
       house_link: row.house_link || ''
     }
-    console.log('Processed form data:', formParams.value)
     showModal.value = true
   }
 
