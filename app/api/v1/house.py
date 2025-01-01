@@ -1,6 +1,6 @@
 from typing import List, Dict
 from fastapi import APIRouter, Depends
-from app.controllers.house import CommunityController, ErshoufangController, DealRecordController, OpportunityController
+from app.controllers.house import community_controller, ershoufang_controller, deal_record_controller, opportunity_controller
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
     ErshoufangCreate, ErshoufangUpdate, ErshoufangResponse,
@@ -20,7 +20,7 @@ router = APIRouter()
     summary="获取小区列表"
 )
 async def get_communities(params: CommunityQueryParams = Depends()):
-    return await CommunityController.get_communities(params)
+    return await community_controller.get_communities(params)
 
 @router.post(
     "/communities",
@@ -29,7 +29,7 @@ async def get_communities(params: CommunityQueryParams = Depends()):
     summary="创建小区"
 )
 async def create_community(data: CommunityCreate):
-    return await CommunityController.create_community(data)
+    return await community_controller.create_community(data)
 
 @router.put(
     "/communities/{id}",
@@ -38,7 +38,7 @@ async def create_community(data: CommunityCreate):
     summary="更新小区"
 )
 async def update_community(id: int, data: CommunityUpdate):
-    return await CommunityController.update_community(id, data)
+    return await community_controller.update_community(id, data)
 
 @router.delete(
     "/communities/{id}",
@@ -47,7 +47,7 @@ async def update_community(id: int, data: CommunityUpdate):
     summary="删除小区"
 )
 async def delete_community(id: int):
-    return await CommunityController.delete_community(id)
+    return await community_controller.delete_community(id)
 
 # Ershoufang routes
 @router.get(
@@ -57,7 +57,7 @@ async def delete_community(id: int):
     summary="获取二手房列表"
 )
 async def get_ershoufangs(params: ErshoufangQueryParams = Depends()):
-    return await ErshoufangController.get_ershoufangs(params)
+    return await ershoufang_controller.get_ershoufangs(params)
 
 @router.post(
     "/ershoufangs",
@@ -66,7 +66,7 @@ async def get_ershoufangs(params: ErshoufangQueryParams = Depends()):
     summary="创建二手房"
 )
 async def create_ershoufang(data: ErshoufangCreate):
-    return await ErshoufangController.create_ershoufang(data)
+    return await ershoufang_controller.create_ershoufang(data)
 
 @router.put(
     "/ershoufangs/{id}",
@@ -75,7 +75,7 @@ async def create_ershoufang(data: ErshoufangCreate):
     summary="更新二手房"
 )
 async def update_ershoufang(id: int, data: ErshoufangUpdate):
-    return await ErshoufangController.update_ershoufang(id, data)
+    return await ershoufang_controller.update_ershoufang(id, data)
 
 @router.delete(
     "/ershoufangs/{id}",
@@ -84,7 +84,7 @@ async def update_ershoufang(id: int, data: ErshoufangUpdate):
     summary="删除二手房"
 )
 async def delete_ershoufang(id: int):
-    return await ErshoufangController.delete_ershoufang(id)
+    return await ershoufang_controller.delete_ershoufang(id)
 
 # DealRecord routes
 @router.get(
@@ -94,7 +94,7 @@ async def delete_ershoufang(id: int):
     summary="获取成交记录列表"
 )
 async def get_deal_records(params: DealRecordQueryParams = Depends()):
-    return await DealRecordController.get_deal_records(params)
+    return await deal_record_controller.get_deal_records(params)
 
 @router.post(
     "/deal-records",
@@ -103,7 +103,7 @@ async def get_deal_records(params: DealRecordQueryParams = Depends()):
     summary="创建成交记录"
 )
 async def create_deal_record(data: DealRecordCreate):
-    return await DealRecordController.create_deal_record(data)
+    return await deal_record_controller.create_deal_record(data)
 
 @router.put(
     "/deal-records/{id}",
@@ -112,7 +112,7 @@ async def create_deal_record(data: DealRecordCreate):
     summary="更新成交记录"
 )
 async def update_deal_record(id: int, data: DealRecordUpdate):
-    return await DealRecordController.update_deal_record(id, data)
+    return await deal_record_controller.update_deal_record(id, data)
 
 @router.delete(
     "/deal-records/{id}",
@@ -121,7 +121,7 @@ async def update_deal_record(id: int, data: DealRecordUpdate):
     summary="删除成交记录"
 )
 async def delete_deal_record(id: int):
-    return await DealRecordController.delete_deal_record(id)
+    return await deal_record_controller.delete_deal_record(id)
 
 # Opportunity routes
 @router.get(
@@ -131,7 +131,7 @@ async def delete_deal_record(id: int):
     summary="获取商机列表"
 )
 async def get_opportunities(params: OpportunityQueryParams = Depends()):
-    return await OpportunityController.get_opportunities(params)
+    return await opportunity_controller.get_opportunities(params)
 
 @router.get(
     "/opportunities/{id}",
@@ -140,7 +140,7 @@ async def get_opportunities(params: OpportunityQueryParams = Depends()):
     summary="获取商机详情"
 )
 async def get_opportunity(id: int):
-    return await OpportunityController.get_opportunity(id)
+    return await opportunity_controller.get_opportunity(id)
 
 @router.post(
     "/opportunities",
@@ -149,7 +149,7 @@ async def get_opportunity(id: int):
     summary="创建商机"
 )
 async def create_opportunity(data: OpportunityCreate):
-    return await OpportunityController.create_opportunity(data)
+    return await opportunity_controller.create_opportunity(data)
 
 @router.put(
     "/opportunities/{id}",
@@ -158,7 +158,7 @@ async def create_opportunity(data: OpportunityCreate):
     summary="更新商机"
 )
 async def update_opportunity(id: int, data: OpportunityUpdate):
-    return await OpportunityController.update_opportunity(id, data)
+    return await opportunity_controller.update_opportunity(id, data)
 
 @router.delete(
     "/opportunities/{id}",
@@ -167,4 +167,4 @@ async def update_opportunity(id: int, data: OpportunityUpdate):
     summary="删除商机"
 )
 async def delete_opportunity(id: int):
-    return await OpportunityController.delete_opportunity(id) 
+    return await opportunity_controller.delete_opportunity(id) 

@@ -12,37 +12,42 @@ from app.schemas.house import (
     OpportunityCreate, OpportunityUpdate, OpportunityQueryParams
 )
 from datetime import datetime
+from app.core.crud import CRUDBase
 
-class CommunityController:
-    @staticmethod
-    async def get_communities(params: CommunityQueryParams) -> Dict:
-        query = Community.all()
-        
+class CommunityController(CRUDBase[Community, CommunityCreate, CommunityUpdate]):
+    def __init__(self):
+        super().__init__(model=Community)
+    
+    async def get_communities(self, params: CommunityQueryParams) -> Dict:
+        query = Q()
         if params.name:
-            query = query.filter(name__icontains=params.name)
+            query &= Q(name__icontains=params.name)
         if params.region:
-            query = query.filter(region=params.region)
+            query &= Q(region=params.region)
         if params.area:
-            query = query.filter(area=params.area)
+            query &= Q(area=params.area)
         if params.building_year:
-            query = query.filter(building_year=params.building_year)
+            query &= Q(building_year=params.building_year)
             
-        communities = await query.order_by('-created_at')
+        total, items = await self.list(
+            page=1,
+            page_size=1000,  # 保持原有行为
+            search=query,
+            order=["-created_at"]
+        )
         
-        # 修改返回格式，使用 data 而不是 error
         return {
             "code": 200,
             "msg": "OK",
             "data": {
-                "items": [await CommunityResponse.from_tortoise_orm(community) for community in communities],
-                "total": len(communities)
+                "items": [await CommunityResponse.from_tortoise_orm(item) for item in items],
+                "total": total
             }
         }
 
-    @staticmethod
-    async def create_community(data: CommunityCreate) -> Dict:
+    async def create_community(self, data: CommunityCreate) -> Dict:
         try:
-            community = await Community.create(**data.model_dump(exclude_unset=True))
+            community = await self.create(data)
             return {
                 "code": 200,
                 "msg": "创建成功",
@@ -51,35 +56,35 @@ class CommunityController:
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-    @staticmethod
-    async def update_community(id: int, data: CommunityUpdate) -> Dict:
-        community = await Community.get_or_none(id=id)
-        if not community:
+    async def update_community(self, id: int, data: CommunityUpdate) -> Dict:
+        try:
+            community = await self.update(id, data)
+            return {
+                "code": 200,
+                "msg": "更新成功",
+                "data": await CommunityResponse.from_tortoise_orm(community)
+            }
+        except Exception as e:
             raise HTTPException(status_code=404, detail="Community not found")
-        
-        await community.update_from_dict(data.model_dump(exclude_unset=True))
-        await community.save()
-        return {
-            "code": 200,
-            "msg": "更新成功",
-            "data": await CommunityResponse.from_tortoise_orm(community)
-        }
 
-    @staticmethod
-    async def delete_community(id: int) -> Dict:
-        community = await Community.get_or_none(id=id)
-        if not community:
+    async def delete_community(self, id: int) -> Dict:
+        try:
+            await self.remove(id)
+            return {
+                "code": 200,
+                "msg": "删除成功",
+                "data": None
+            }
+        except Exception as e:
             raise HTTPException(status_code=404, detail="Community not found")
-        await community.delete()
-        return {
-            "code": 200,
-            "msg": "删除成功",
-            "data": None
-        }
 
-class ErshoufangController:
-    @staticmethod
-    def calculate_floor_info(location_floor: int, total_floors: int) -> str:
+community_controller = CommunityController()
+
+class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpdate]):
+    def __init__(self):
+        super().__init__(model=Ershoufang)
+
+    def calculate_floor_info(self, location_floor: int, total_floors: int) -> str:
         """计算楼层描述
         x = 所在楼层/总层高
         x < 1/3: 低楼层
@@ -87,7 +92,6 @@ class ErshoufangController:
         x >= 2/3: 高楼层
         """
         try:
-            # 确保输入是数字
             location_floor = int(location_floor)
             total_floors = int(total_floors)
             
@@ -98,117 +102,83 @@ class ErshoufangController:
                 return None
                 
             ratio = location_floor / total_floors
-            if ratio < 1/3:  # 修改判断条件
+            if ratio < 1/3:
                 return f"低楼层/共{total_floors}层"
-            elif ratio < 2/3:  # 修改判断条件
+            elif ratio < 2/3:
                 return f"中楼层/共{total_floors}层"
             else:
                 return f"高楼层/共{total_floors}层"
         except (TypeError, ValueError):
             return None
 
-    @staticmethod
-    async def get_ershoufangs(params: ErshoufangQueryParams) -> Dict:
-        query = Ershoufang.all().prefetch_related('community')
-        
-        # 搜索关键词
-        if params.search_keyword:
-            query = query.filter(
-                Q(community_name__icontains=params.search_keyword) |
-                Q(region__icontains=params.search_keyword) |
-                Q(area__icontains=params.search_keyword)
-            )
-        
-        # 基本筛选条件
-        if params.city:
-            query = query.filter(Q(city=params.city) | Q(city__isnull=True))
-        if params.community_name:
-            query = query.filter(community_name__icontains=params.community_name)
-        if params.region:
-            query = query.filter(region=params.region)
-        if params.area:
-            query = query.filter(area=params.area)
-        if params.layout:
-            query = query.filter(layout=params.layout)
-        if params.orientation:
-            query = query.filter(orientation=params.orientation)
-        if params.floor:
-            query = query.filter(floor__icontains=params.floor)
+    async def get_ershoufangs(self, params: ErshoufangQueryParams) -> Dict:
+        try:
+            query = Q()
             
-        # 范围筛选
-        if params.total_price_min is not None:
-            query = query.filter(total_price__gte=params.total_price_min)
-        if params.total_price_max is not None:
-            query = query.filter(total_price__lte=params.total_price_max)
-        if params.size_min is not None:
-            query = query.filter(size__gte=params.size_min)
-        if params.size_max is not None:
-            query = query.filter(size__lte=params.size_max)
-        if params.data_source:
-            query = query.filter(data_source=params.data_source)
-            
-        # 获取总数
-        total = await query.count()
-        
-        # 排序
-        sort_field = params.sort_by or 'created_at'
-        sort_direction = params.sort_direction or 'desc'
-        if sort_direction == 'desc':
-            sort_field = f'-{sort_field}'
-        query = query.order_by(sort_field)
-        
-        # 分页
-        offset = (params.page - 1) * params.page_size
-        query = query.offset(offset).limit(params.page_size)
-        
-        # 获取数据
-        ershoufangs = await query
-
-        # 格式化返回数据
-        formatted_items = []
-        for item in ershoufangs:
-            response_data = await ErshoufangResponse.from_tortoise_orm(item)
-            item_dict = response_data.model_dump()
-            
-            # 格式化日期
-            if item_dict.get('listing_date'):
-                item_dict['listing_date'] = item_dict['listing_date'].strftime('%Y-%m-%d')
-            
-            # 确保楼层信息存在
-            if not item_dict.get('floor') and item_dict.get('floor_number') and item_dict.get('total_floors'):
-                item_dict['floor'] = ErshoufangController.calculate_floor_info(
-                    item_dict['floor_number'],
-                    item_dict['total_floors']
+            if params.city:
+                query &= Q(city=params.city.lower())
+            if params.search_keyword:
+                query &= (
+                    Q(community_name__icontains=params.search_keyword) |
+                    Q(community__name__icontains=params.search_keyword)
                 )
+                
+            # 添加排序参数
+            order_by = f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}"
             
-            formatted_items.append(item_dict)
-
-        # 获取筛选选项
-        filter_options = await ErshoufangController._get_filter_options()
-        
-        return {
-            "code": 200,
-            "msg": "OK",
-            "data": {
-                "total": total,
-                "items": formatted_items,
-                "filter_options": filter_options
+            # 确保关联查询小区信息
+            items = await self.model.filter(query)\
+                .prefetch_related('community')\
+                .order_by(order_by)\
+                .offset((params.page - 1) * params.page_size)\
+                .limit(params.page_size)
+            
+            # 处理返回数据，确保包含所有必要字段
+            result_items = []
+            for item in items:
+                try:
+                    item_dict = await item.to_dict()
+                    if item.community:
+                        item_dict.update({
+                            'community_name': item.community.name,
+                            'community_id': item.community.id,
+                            'region': item.community.region,
+                            'area': item.community.area
+                        })
+                    result_items.append(item_dict)
+                except Exception as e:
+                    print(f"Error processing item {item.id}: {str(e)}")
+                    continue
+            
+            return {
+                "code": 200,
+                "data": {
+                    "items": result_items,
+                    "total": await self.model.filter(query).count()
+                }
             }
-        }
+        except Exception as e:
+            print(f"Error in get_ershoufangs: {str(e)}")
+            return {
+                "code": 500,
+                "msg": "获取数据失败",
+                "error": {
+                    "message": str(e),
+                    "type": type(e).__name__
+                }
+            }
 
-    @staticmethod
-    async def _get_filter_options() -> Dict:
+    async def _get_filter_options(self) -> Dict:
         """获取筛选选项"""
         return {
-            "regions": await Ershoufang.all().distinct().values_list('region', flat=True),
-            "areas": await Ershoufang.all().distinct().values_list('area', flat=True),
-            "layouts": await Ershoufang.all().distinct().values_list('layout', flat=True),
-            "orientations": await Ershoufang.all().distinct().values_list('orientation', flat=True),
-            "cities": await Ershoufang.all().distinct().values_list('city', flat=True)
+            "regions": await self.model.all().distinct().values_list('region', flat=True),
+            "areas": await self.model.all().distinct().values_list('area', flat=True),
+            "layouts": await self.model.all().distinct().values_list('layout', flat=True),
+            "orientations": await self.model.all().distinct().values_list('orientation', flat=True),
+            "cities": await self.model.all().distinct().values_list('city', flat=True)
         }
 
-    @staticmethod
-    async def create_ershoufang(data: ErshoufangCreate) -> Dict:
+    async def create_ershoufang(self, data: ErshoufangCreate) -> Dict:
         try:
             # 验证小区是否存在
             community = await Community.get_or_none(id=data.community_id)
@@ -218,13 +188,18 @@ class ErshoufangController:
             # 准备创建数据
             create_data = data.model_dump(exclude_unset=True)
             
+            # 添加小区相关信息
+            create_data['community_name'] = community.name
+            create_data['region'] = community.region
+            create_data['area'] = community.area
+            
             # 确保设置城市字段
             if not create_data.get('city'):
-                create_data['city'] = 'shanghai'  # 默认设置为上海
+                create_data['city'] = 'shanghai'
             
             # 计算楼层信息
             if create_data.get('floor_number') and create_data.get('total_floors'):
-                floor_info = ErshoufangController.calculate_floor_info(
+                floor_info = self.calculate_floor_info(
                     create_data['floor_number'],
                     create_data['total_floors']
                 )
@@ -239,10 +214,9 @@ class ErshoufangController:
                     create_data['unit_price'] = round(total_price * 10000 / size, 2)
             
             # 添加今日日期作为挂牌时间
-            today = datetime.now()
-            create_data['listing_date'] = today.strftime('%Y-%m-%d')
+            create_data['listing_date'] = datetime.now().strftime('%Y-%m-%d')
             
-            ershoufang = await Ershoufang.create(**create_data)
+            ershoufang = await self.create(create_data)
             
             # 格式化返回数据
             response_data = await ErshoufangResponse.from_tortoise_orm(ershoufang)
@@ -260,8 +234,7 @@ class ErshoufangController:
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-    @staticmethod
-    async def update_ershoufang(id: int, data: ErshoufangUpdate) -> Dict:
+    async def update_ershoufang(self, id: int, data: ErshoufangUpdate) -> Dict:
         ershoufang = await Ershoufang.get_or_none(id=id)
         if not ershoufang:
             raise HTTPException(status_code=404, detail="Ershoufang not found")
@@ -298,7 +271,7 @@ class ErshoufangController:
                     update_data['total_floors'] = current_total_floors
                     
                     # 计算楼层描述
-                    floor_info = ErshoufangController.calculate_floor_info(
+                    floor_info = self.calculate_floor_info(
                         current_floor_number,
                         current_total_floors
                     )
@@ -347,8 +320,7 @@ class ErshoufangController:
             "data": response_dict
         }
 
-    @staticmethod
-    async def delete_ershoufang(id: int) -> Dict:
+    async def delete_ershoufang(self, id: int) -> Dict:
         ershoufang = await Ershoufang.get_or_none(id=id)
         if not ershoufang:
             raise HTTPException(status_code=404, detail="Ershoufang not found")
@@ -359,60 +331,60 @@ class ErshoufangController:
             "data": None
         }
 
-class DealRecordController:
-    @staticmethod
-    async def get_deal_records(params: DealRecordQueryParams) -> Dict:
+ershoufang_controller = ErshoufangController()
+
+class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpdate]):
+    def __init__(self):
+        super().__init__(model=DealRecord)
+
+    async def get_deal_records(self, params: DealRecordQueryParams) -> Dict:
         try:
-            query = DealRecord.all().prefetch_related('community')
+            query = Q()
             
             # 添加城市筛选条件
             if params.city:
-                query = query.filter(community__city=params.city)
+                query &= Q(community__city=params.city)
             
             # 基本筛选条件
             if params.search_keyword:
-                query = query.filter(
+                query &= (
                     Q(community__name__icontains=params.search_keyword) |
                     Q(layout__icontains=params.search_keyword)
                 )
             
-            # 户型筛选 - 与在售房源保持一致
+            # 户型筛选
             if params.layout:
                 if params.layout == 'other':
-                    # 其他户型：非 1-4 室的户型
-                    query = query.filter(
-                        ~Q(layout__startswith='1室') &
-                        ~Q(layout__startswith='2室') &
-                        ~Q(layout__startswith='3室') &
-                        ~Q(layout__startswith='4室')
-                    )
+                    query &= ~Q(layout__startswith='1室') & \
+                            ~Q(layout__startswith='2室') & \
+                            ~Q(layout__startswith='3室') & \
+                            ~Q(layout__startswith='4室')
                 else:
-                    # 精确匹配 1-4 室
-                    query = query.filter(layout__startswith=f'{params.layout}室')
+                    query &= Q(layout__startswith=f'{params.layout}室')
 
-            # 楼层筛选 - 与在售房源保持一致
+            # 楼层筛选
             if params.floor_info:
                 if params.floor_info == 'low':
-                    query = query.filter(floor_info__icontains='低')
+                    query &= Q(floor_info__icontains='低')
                 elif params.floor_info == 'middle':
-                    query = query.filter(floor_info__icontains='中')
+                    query &= Q(floor_info__icontains='中')
                 elif params.floor_info == 'high':
-                    query = query.filter(floor_info__icontains='高')
+                    query &= Q(floor_info__icontains='高')
 
-            # ... 其他代码保持不变 ...
+            # 获取基础查询
+            base_query = self.model.all().prefetch_related('community')
+            if query:
+                base_query = base_query.filter(query)
 
-            # 排序
-            sort_field = params.sort_by
-            if params.sort_direction == 'desc':
-                sort_field = f"-{sort_field}"
-            query = query.order_by(sort_field)
-                
             # 获取总数
-            total = await query.count()
-                
-            # 分页
-            records = await query.offset((params.page - 1) * params.page_size).limit(params.page_size)
-                
+            total = await base_query.count()
+
+            # 排序和分页
+            sort_field = f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}"
+            records = await base_query.order_by(sort_field)\
+                .offset((params.page - 1) * params.page_size)\
+                .limit(params.page_size)
+
             # 构建响应数据，包含小区名称
             items = []
             for record in records:
@@ -459,11 +431,10 @@ class DealRecordController:
                 "data": None
             }
 
-    @staticmethod
-    async def create_deal_record(data: DealRecordCreate) -> Dict:
+    async def create_deal_record(self, data: DealRecordCreate) -> Dict:
         try:
             # 创建记录
-            record = await DealRecord.create(**data.model_dump(exclude_unset=True))
+            record = await self.create(data.model_dump(exclude_unset=True))
             
             # 手动构建响应数据
             record_dict = {
@@ -497,15 +468,9 @@ class DealRecordController:
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-    @staticmethod
-    async def update_deal_record(id: int, data: DealRecordUpdate) -> Dict:
+    async def update_deal_record(self, id: int, data: DealRecordUpdate) -> Dict:
         try:
-            record = await DealRecord.get_or_none(id=id)
-            if not record:
-                raise HTTPException(status_code=404, detail="Record not found")
-            
-            await record.update_from_dict(data.model_dump(exclude_unset=True))
-            await record.save()
+            record = await self.update(id, data.model_dump(exclude_unset=True))
             
             # 手动构建响应数据
             record_dict = {
@@ -537,50 +502,55 @@ class DealRecordController:
                 "data": record_dict
             }
         except Exception as e:
-            print(f"Error in update_deal_record: {str(e)}")  # 添加错误日志
+            print(f"Error in update_deal_record: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    @staticmethod
-    async def delete_deal_record(id: int) -> Dict:
-        record = await DealRecord.get_or_none(id=id)
-        if not record:
+    async def delete_deal_record(self, id: int) -> Dict:
+        try:
+            await self.remove(id)
+            return {
+                "code": 200,
+                "msg": "删除成功",
+                "data": None
+            }
+        except Exception as e:
             raise HTTPException(status_code=404, detail="Record not found")
-        await record.delete()
-        return {
-            "code": 200,
-            "msg": "删除成功",
-            "data": None
-        }
 
-class OpportunityController:
-    @staticmethod
-    async def get_opportunity(id: int) -> Dict:
-        opportunity = await Opportunity.get_or_none(id=id)
-        if not opportunity:
+deal_record_controller = DealRecordController()
+
+class OpportunityController(CRUDBase[Opportunity, OpportunityCreate, OpportunityUpdate]):
+    def __init__(self):
+        super().__init__(model=Opportunity)
+
+    async def get_opportunity(self, id: int) -> Dict:
+        try:
+            opportunity = await self.get(id)
+            return {
+                "code": 200,
+                "data": await opportunity.to_dict(),
+                "message": "获取商机详情成功"
+            }
+        except Exception:
             return {
                 "code": 404,
                 "message": "商机不存在"
             }
-        
-        return {
-            "code": 200,
-            "data": await opportunity.to_dict(),
-            "message": "获取商机详情成功"
-        }
 
-    @staticmethod
-    async def get_opportunities(params: OpportunityQueryParams) -> Dict:
-        query = Opportunity.all()
+    async def get_opportunities(self, params: OpportunityQueryParams) -> Dict:
+        query = Q()
         
         if params.city:
-            query = query.filter(community__city=params.city.lower())
+            query &= Q(community__city=params.city.lower())
         if params.community_name:
-            query = query.filter(community_name__icontains=params.community_name)
+            query &= Q(community_name__icontains=params.community_name)
         if params.status and params.status != 'all':
-            query = query.filter(status=params.status)
+            query &= Q(status=params.status)
 
-        total = await query.count()
-        items = await query.offset((params.page - 1) * params.page_size).limit(params.page_size)
+        total, items = await self.list(
+            page=params.page,
+            page_size=params.page_size,
+            search=query
+        )
 
         return {
             "code": 200,
@@ -591,38 +561,36 @@ class OpportunityController:
             "message": "获取商机列表成功"
         }
 
-    @staticmethod
-    async def create_opportunity(data: OpportunityCreate) -> Dict:
-        opportunity = await Opportunity.create(**data.dict())
-        return {
-            "code": 200,
-            "data": await opportunity.to_dict(),
-            "message": "创建商机成功"
-        }
+    async def create_opportunity(self, data: OpportunityCreate) -> Dict:
+        try:
+            opportunity = await self.create(data.dict())
+            return {
+                "code": 200,
+                "data": await opportunity.to_dict(),
+                "message": "创建商机成功"
+            }
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-    @staticmethod
-    async def update_opportunity(id: int, data: OpportunityUpdate) -> Dict:
-        opportunity = await Opportunity.get(id=id)
-        if not opportunity:
+    async def update_opportunity(self, id: int, data: OpportunityUpdate) -> Dict:
+        try:
+            opportunity = await self.update(id, data.dict(exclude_unset=True))
+            return {
+                "code": 200,
+                "data": await opportunity.to_dict(),
+                "message": "更新商机成功"
+            }
+        except Exception:
             return {"code": 404, "message": "商机不存在"}
-            
-        await opportunity.update_from_dict(data.dict(exclude_unset=True))
-        await opportunity.save()
-        
-        return {
-            "code": 200,
-            "data": await opportunity.to_dict(),
-            "message": "更新商机成功"
-        }
 
-    @staticmethod
-    async def delete_opportunity(id: int) -> Dict:
-        opportunity = await Opportunity.get(id=id)
-        if not opportunity:
+    async def delete_opportunity(self, id: int) -> Dict:
+        try:
+            await self.remove(id)
+            return {
+                "code": 200,
+                "message": "删除商机成功"
+            }
+        except Exception:
             return {"code": 404, "message": "商机不存在"}
-            
-        await opportunity.delete()
-        return {
-            "code": 200,
-            "message": "删除商机成功"
-        } 
+
+opportunity_controller = OpportunityController() 

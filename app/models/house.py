@@ -65,6 +65,33 @@ class Ershoufang(Model):
     class Meta:
         table = "ershoufang"
 
+    async def to_dict(self) -> dict:
+        """转换为字典格式"""
+        return {
+            "id": self.id,
+            "community_id": self.community_id,
+            "community_name": self.community_name,
+            "region": self.region,
+            "area": self.area,
+            "city": self.city,
+            "layout": self.layout,
+            "floor_number": self.floor_number,
+            "total_floors": self.total_floors,
+            "floor": self.floor,
+            "orientation": self.orientation,
+            "size": self.size,
+            "total_price": self.total_price,
+            "unit_price": self.unit_price,
+            "data_source": self.data_source,
+            "ladder_ratio": self.ladder_ratio,
+            "mortgage_info": self.mortgage_info,
+            "house_id": self.house_id,
+            "ke_code": self.ke_code,
+            "house_link": self.house_link,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
+
 class DealRecord(Model):
     id = fields.IntField(pk=True)
     community = fields.ForeignKeyField('models.Community', related_name='deal_records')

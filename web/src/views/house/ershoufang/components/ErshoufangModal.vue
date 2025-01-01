@@ -23,26 +23,26 @@
         <div class="section-title">基本信息</div>
         
         <!-- 小区选择 -->
-        <n-form-item label="小区" path="community_name">
-          <n-select
-            v-model:value="localFormValue.community_id"
-            :options="filteredCommunityOptions"
-            placeholder="请选择小区"
-            filterable
-            clearable
-            @update:value="handleCommunityChange"
-            class="select-with-input"
-          >
-            <template #action>
-              <n-input
-                v-model:value="localFormValue.community_name"
-                type="text"
-                placeholder="或手动输入小区名称"
-                @input="handleCommunityNameInput"
-                class="manual-input"
-              />
-            </template>
-          </n-select>
+        <n-form-item label="小区" path="community_id" required>
+          <div class="select-with-input">
+            <n-select
+              v-model:value="localFormValue.community_id"
+              :options="filteredCommunityOptions"
+              placeholder="请选择或输入小区名称"
+              :loading="loading"
+              clearable
+              filterable
+              @update:value="handleCommunityChange"
+            />
+            <!-- 如果没有选中小区ID但有小区名称，显示手动输入框 -->
+            <n-input
+              v-if="!localFormValue.community_id && localFormValue.community_name"
+              v-model:value="localFormValue.community_name"
+              placeholder="请输入小区名称"
+              class="manual-input"
+              @input="handleCommunityNameInput"
+            />
+          </div>
         </n-form-item>
 
         <!-- 户型输入 -->
@@ -234,12 +234,32 @@ const emit = defineEmits(['update:show', 'submit', 'cancel'])
 const message = useMessage()
 const formRef = ref(null)
 const communityOptions = ref([])
-
-// 本地表单数据
-const localFormValue = reactive({ ...props.formValue })
-
 const cityStore = useCityStore()
 const { CITY_OPTIONS } = cityStore
+const communityStore = useCommunityStore()
+
+// 本地表单数据
+const localFormValue = reactive({
+  community_id: null,
+  community_name: '',
+  region: '',
+  area: '',
+  layout: null,
+  floor_number: null,
+  total_floors: null,
+  floor: null,
+  orientation: null,
+  size: null,
+  total_price: null,
+  unit_price: null,
+  data_source: 'store',
+  city: cityStore.currentCity,
+  ladder_ratio: '',
+  mortgage_info: '',
+  house_id: '',
+  ke_code: '',
+  house_link: ''
+})
 
 const ORIENTATION_OPTIONS = [
   { label: '朝南', value: '朝南' },
@@ -258,15 +278,14 @@ const DATA_SOURCE_OPTIONS = [
 // 添加日期格式
 const dateFormat = 'yyyy-MM-dd'
 
-const communityStore = useCommunityStore()
-
 // 获取小区列表
 const loadCommunityOptions = async () => {
   try {
+    console.log('Loading communities for city:', communityStore.currentCity)
     const res = await request.get('/house/communities', {
       params: {
         city: communityStore.currentCity,
-        page_size: 1000  // 获取足够多的小区数据
+        page_size: 1000
       }
     })
     if (res.code === 200) {
@@ -286,24 +305,33 @@ const loadCommunityOptions = async () => {
 
 // 根据当前城市过滤小区选项
 const filteredCommunityOptions = computed(() => {
-  return communityOptions.value.filter(option => 
-    option.city === communityStore.currentCity
-  )
+  return communityOptions.value
+    .filter(option => option.city === communityStore.currentCity)
+    .map(option => ({
+      ...option,
+      label: option.label.split(' ')[0]  // 只显示小区名，不显示区域信息
+    }))
 })
 
 // 处理小区选择变化
 const handleCommunityChange = (communityId) => {
+  console.log('Community change:', communityId)
   if (communityId) {
-    const selectedCommunity = communityOptions.value.find(opt => opt.value === communityId)
+    const selectedCommunity = communityOptions.value.find(
+      option => option.value === communityId
+    )
     if (selectedCommunity) {
-      localFormValue.community_name = selectedCommunity.label.split(' (')[0]
+      console.log('Selected community:', selectedCommunity)
+      localFormValue.community_name = selectedCommunity.label.split(' ')[0]
       localFormValue.region = selectedCommunity.region
       localFormValue.area = selectedCommunity.area
       localFormValue.city = selectedCommunity.city
     }
   } else {
-    // 清空相关字段
-    localFormValue.community_name = ''
+    // 清空小区ID时，保留已输入的小区名称
+    const currentName = localFormValue.community_name
+    localFormValue.community_id = null
+    localFormValue.community_name = currentName
     localFormValue.region = ''
     localFormValue.area = ''
   }
@@ -352,13 +380,12 @@ const calculateFloorInfo = (floorNumber, totalFloors) => {
 
 // 处理楼层变化
 const handleFloorChange = () => {
-  const floorNumber = Number(localFormValue.floor_number)
-  const totalFloors = Number(localFormValue.total_floors)
-  
-  if (floorNumber && totalFloors) {
-    // 计算楼层描述
-    localFormValue.floor = calculateFloorInfo(floorNumber, totalFloors)
-    console.log('Floor info calculated:', localFormValue.floor)
+  if (localFormValue.floor_number && localFormValue.total_floors) {
+    // 可以在这里添加楼层验证逻辑
+    if (localFormValue.floor_number > localFormValue.total_floors) {
+      message.warning('所在楼层不能大于总层高')
+      localFormValue.floor_number = localFormValue.total_floors
+    }
   }
 }
 
@@ -404,15 +431,22 @@ const handleCancel = () => {
   emit('cancel')
 }
 
-// 监听 formValue 的变化
-watch(() => props.formValue, (newVal) => {
-  // 更新本地表单数据
-  Object.assign(localFormValue, newVal)
-}, { deep: true })
-
 // 户型数字输入 - 移除默认值
 const roomCount = ref(null)
 const hallCount = ref(null)
+
+// 解析户型字符串
+const parseLayout = (layout) => {
+  if (!layout) return { rooms: null, halls: null }
+  const match = layout.match(/(\d+)室(\d+)厅/)
+  if (match) {
+    return {
+      rooms: parseInt(match[1]),
+      halls: parseInt(match[2])
+    }
+  }
+  return { rooms: null, halls: null }
+}
 
 // 处理户型变化
 const handleLayoutChange = () => {
@@ -422,17 +456,6 @@ const handleLayoutChange = () => {
     localFormValue.layout = ''
   }
 }
-
-// 监听 formValue 的变化，解析户型
-watch(() => props.formValue.layout, (newLayout) => {
-  if (newLayout) {
-    const match = newLayout.match(/(\d+)室(\d+)厅/)
-    if (match) {
-      roomCount.value = parseInt(match[1])
-      hallCount.value = parseInt(match[2])
-    }
-  }
-}, { immediate: true })
 
 // 监听表单显示状态
 watch(() => props.show, (newVal) => {
@@ -449,6 +472,118 @@ defineExpose({
   formRef,
   validate: () => formRef.value?.validate()
 })
+
+// 监听 show 的变化，当 Modal 关闭时重置表单
+watch(
+  () => props.show,
+  (newVal) => {
+    if (!newVal) {
+      // Modal 关闭时重置表单
+      formRef.value?.restoreValidation()
+      if (!props.formValue.id) {
+        // 只在新建时重置表单数据
+        Object.assign(localFormValue, {
+          community_id: null,
+          community_name: '',
+          region: '',
+          area: '',
+          layout: null,
+          floor_number: null,
+          total_floors: null,
+          orientation: null,
+          size: null,
+          total_price: null,
+          data_source: 'store',
+          city: cityStore.currentCity
+        })
+      }
+    }
+  }
+)
+
+// 监听 formValue 的变化
+watch(
+  () => props.formValue,
+  async (newVal) => {
+    console.log('Form value changed:', newVal)
+    
+    // 确保先加载小区数据
+    if (newVal.community_id) {
+      await loadCommunityOptions()
+    }
+
+    // 处理数据转换
+    const processedData = {
+      id: newVal.id,
+      community_id: parseInt(newVal.community_id) || null,
+      community_name: newVal.community_name || (newVal.community?.name) || '',
+      region: newVal.region || '',
+      area: newVal.area || '',
+      city: newVal.city,
+      layout: newVal.layout,
+      floor_number: parseInt(newVal.floor_number) || null,
+      total_floors: parseInt(newVal.total_floors) || null,
+      floor: newVal.floor || '',
+      orientation: newVal.orientation,
+      size: parseFloat(newVal.size) || null,
+      total_price: parseFloat(newVal.total_price) || null,
+      unit_price: parseFloat(newVal.unit_price) || null,
+      data_source: newVal.data_source || 'store',
+      ladder_ratio: newVal.ladder_ratio || '',
+      mortgage_info: newVal.mortgage_info || '',
+      house_id: newVal.house_id || '',
+      ke_code: newVal.ke_code || '',
+      house_link: newVal.house_link || ''
+    }
+
+    console.log('Processed data:', processedData)
+    
+    // 更新本地表单数据
+    Object.assign(localFormValue, processedData)
+    
+    // 解析并设置户型数据
+    if (processedData.layout) {
+      const { rooms, halls } = parseLayout(processedData.layout)
+      roomCount.value = rooms
+      hallCount.value = halls
+    }
+
+    // 确保小区选项已加载完成后再设置小区ID
+    if (processedData.community_id) {
+      await new Promise(resolve => {
+        const timer = setInterval(() => {
+          if (communityOptions.value.length > 0) {
+            clearInterval(timer)
+            localFormValue.community_id = processedData.community_id
+            resolve()
+          }
+        }, 100)
+        
+        // 5秒后超时
+        setTimeout(() => {
+          clearInterval(timer)
+          resolve()
+        }, 5000)
+      })
+    }
+  },
+  { deep: true, immediate: true }
+)
+
+// 修改表单验证规则
+const rules = {
+  community_id: {
+    required: true,
+    message: '请选择小区',
+    trigger: ['blur', 'change']
+  },
+  layout: {
+    required: true,
+    message: '请输入户型',
+    trigger: ['blur', 'change']
+  },
+  // ... 其他验证规则
+}
 </script>
 
 <style scoped>

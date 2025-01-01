@@ -155,12 +155,6 @@ const CUSTOM_LAYOUT_OPTIONS = [
   { label: '其他', value: '其他', dbValue: '其他' }
 ]
 
-// 修改户型筛选处理函数
-const handleLayoutChange = (dbValue) => {
-  queryParams.layout = queryParams.layout === dbValue ? null : dbValue
-  loadData()
-}
-
 // 使用 CRUD 函数
 const {
   loading,
@@ -172,73 +166,52 @@ const {
   handlePageChange,
   handlePageSizeChange,
   handleSorterChange,
-  handleOrientationChange,
-  handleFloorChange,
-  handleAreaChange,
-  handleReset,
-  CITY_OPTIONS,
-  ORIENTATION_OPTIONS,
-  FLOOR_OPTIONS,
-  AREA_OPTIONS,
+  handleFilterChange,
   showModal,
   modalTitle,
   formParams,
+  handleAdd,
   handleEdit,
-  handleDelete
+  handleDelete,
+  handleModalSubmit,
+  handleModalCancel
 } = useErshoufangCRUD(api)
 
 // 处理城市变化
 const handleCityChange = (city) => {
-  queryParams.city = city
+  handleFilterChange('city', city)
+}
+
+// 处理户型变化
+const handleLayoutChange = (layout) => {
+  handleFilterChange('layout', layout)
+}
+
+// 处理朝向变化
+const handleOrientationChange = (orientation) => {
+  handleFilterChange('orientation', orientation)
+}
+
+// 处理楼层变化
+const handleFloorChange = (floor) => {
+  handleFilterChange('floor', floor)
+}
+
+// 处理面积变化
+const handleAreaChange = (sizeRange) => {
+  handleFilterChange('size_range', sizeRange)
+}
+
+// 处理重置
+const handleReset = () => {
+  Object.assign(queryParams, {
+    search_keyword: '',
+    layout: undefined,
+    orientation: undefined,
+    floor: undefined,
+    size_range: undefined
+  })
   loadData()
-}
-
-// 修改新增处理函数
-const handleAdd = () => {
-  modalTitle.value = '新增房源'
-  formParams.value = {
-    community_id: null,
-    community_name: '',
-    region: '',
-    area: '',
-    layout: '',
-    floor_number: null,
-    total_floors: null,
-    orientation: null,
-    size: null,
-    total_price: null,
-    data_source: 'store',
-    city: cityStore.currentCity  // 设置默认城市
-  }
-  showModal.value = true
-}
-
-// 处理 Modal 提交
-const handleModalSubmit = async (formData) => {
-  try {
-    loading.value = true
-    const res = modalTitle.value.includes('新增')
-      ? await api.create(formData)
-      : await api.update(formData.id, formData)
-
-    if (res.code === 200) {
-      message.success(res.msg || '操作成功')
-      showModal.value = false
-      loadData()
-    } else {
-      message.error(res.msg || '操作失败')
-    }
-  } catch (error) {
-    console.error('Submit error:', error)
-    message.error(error.message || '操作失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-// 处理 Modal 取消
-const handleModalCancel = () => {
-  showModal.value = false
 }
 
 // 在组件挂载时加载数据，并设置默认城市
