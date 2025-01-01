@@ -85,12 +85,17 @@
               </n-button>
             </n-button-group>
 
-            <span class="label" style="margin-left: 24px; white-space: nowrap">面积(m²)：</span>
+            <span class="label" style="margin-left: 24px">面积(m²)：</span>
             <n-button-group>
               <n-button
                 v-for="area in AREA_OPTIONS"
                 :key="area.label"
-                :type="queryParams.size_range === area.value ? 'primary' : 'default'"
+                :type="
+                  queryParams.size_min === area.value[0] && 
+                  queryParams.size_max === area.value[1] 
+                    ? 'primary' 
+                    : 'default'
+                "
                 @click="handleAreaChange(area.value)"
               >
                 {{ area.label }}
@@ -126,7 +131,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { useMessage } from 'naive-ui'
 import { request } from '@/utils'
 import CommonPage from '@/components/page/CommonPage.vue'
@@ -166,7 +171,14 @@ const {
   handlePageChange,
   handlePageSizeChange,
   handleSorterChange,
-  handleFilterChange,
+  handleLayoutChange,
+  handleOrientationChange,
+  handleFloorChange,
+  handleAreaChange,
+  handleReset,
+  ORIENTATION_OPTIONS,
+  FLOOR_OPTIONS,
+  AREA_OPTIONS,
   showModal,
   modalTitle,
   formParams,
@@ -177,40 +189,23 @@ const {
   handleModalCancel
 } = useErshoufangCRUD(api)
 
+// 选中的面积范围
+const selectedSizeRange = ref([])
+
+// 处理面积范围变化
+const handleSizeRangeChange = (range) => {
+  if (!range || range.length === 0) {
+    queryParams.size_min = null
+    queryParams.size_max = null
+  } else {
+    queryParams.size_min = range[0]
+    queryParams.size_max = range[1]
+  }
+}
+
 // 处理城市变化
 const handleCityChange = (city) => {
-  handleFilterChange('city', city)
-}
-
-// 处理户型变化
-const handleLayoutChange = (layout) => {
-  handleFilterChange('layout', layout)
-}
-
-// 处理朝向变化
-const handleOrientationChange = (orientation) => {
-  handleFilterChange('orientation', orientation)
-}
-
-// 处理楼层变化
-const handleFloorChange = (floor) => {
-  handleFilterChange('floor', floor)
-}
-
-// 处理面积变化
-const handleAreaChange = (sizeRange) => {
-  handleFilterChange('size_range', sizeRange)
-}
-
-// 处理重置
-const handleReset = () => {
-  Object.assign(queryParams, {
-    search_keyword: '',
-    layout: undefined,
-    orientation: undefined,
-    floor: undefined,
-    size_range: undefined
-  })
+  queryParams.city = city
   loadData()
 }
 

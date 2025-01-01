@@ -130,23 +130,20 @@ class CommunityQueryParams(BaseModel):
     search_keyword: Optional[str] = None
 
 class ErshoufangQueryParams(BaseModel):
-    search_keyword: Optional[str] = Field(None, description='搜索关键词')
-    city: Optional[str] = Field(None, description='城市')
-    community_name: Optional[str] = Field(None, description='小区名')
-    region: Optional[str] = Field(None, description='区域')
-    area: Optional[str] = Field(None, description='商圈')
-    layout: Optional[str] = Field(None, description='户型')
-    orientation: Optional[str] = Field(None, description='朝向')
-    floor: Optional[str] = Field(None, description='楼层')
-    total_price_min: Optional[float] = Field(None, description='最低总价')
-    total_price_max: Optional[float] = Field(None, description='最高总价')
-    size_min: Optional[float] = Field(None, description='最小面积')
-    size_max: Optional[float] = Field(None, description='最大面积')
-    data_source: Optional[str] = Field(None, description='数据来源')
-    sort_by: Optional[str] = Field(None, description='排序字段')
-    sort_direction: Optional[str] = Field('desc', description='排序方向')
-    page: int = Field(1, description='页码')
-    page_size: int = Field(10, description='每页数量')
+    page: int = 1
+    page_size: int = 10
+    city: Optional[str] = None
+    search_keyword: Optional[str] = None
+    layout: Optional[str] = None
+    orientation: Optional[str] = None
+    floor: Optional[str] = None
+    size_min: Optional[float] = None
+    size_max: Optional[float] = None
+    sort_by: str = 'listing_date'
+    sort_direction: str = 'desc'
+
+    class Config:
+        from_attributes = True
 
 # DealRecord Schemas
 class DealRecordBase(BaseModel):

@@ -22,15 +22,50 @@ export function useErshoufangCRUD(api) {
 
   // 查询参数
   const queryParams = reactive({
-    city: cityStore.currentCity,
     search_keyword: '',
-    layout: undefined,
-    orientation: undefined,
-    floor: undefined,
-    size_range: undefined,
-    sort_by: 'created_at',
-    sort_direction: 'desc'
+    city: '',
+    layout: null,
+    orientation: null,
+    floor: null,
+    size_min: null,
+    size_max: null,
+    sort_by: 'listing_date',
+    sort_direction: 'desc',
+    page: 1,
+    page_size: 20
   })
+
+  // 添加预定义的选项
+  const CITY_OPTIONS = [
+    { label: '上海', value: 'shanghai' },
+    { label: '北京', value: 'beijing' },
+    { label: '深圳', value: 'shenzhen' },
+    { label: '广州', value: 'guangzhou' }
+  ]
+  
+  const ORIENTATION_OPTIONS = [
+    { label: '南', value: '朝南' },
+    { label: '北', value: '朝北' },
+    { label: '东', value: '朝东' },
+    { label: '西', value: '朝西' },
+    { label: '南北', value: '南北' }
+  ]
+  
+  const FLOOR_OPTIONS = [
+    { label: '低楼层', value: '低楼层' },
+    { label: '中楼层', value: '中楼层' },
+    { label: '高楼层', value: '高楼层' }
+  ]
+  
+  const AREA_OPTIONS = [
+    { label: '50以下', value: [0, 50] },
+    { label: '50-70', value: [50, 70] },
+    { label: '70-90', value: [70, 90] },
+    { label: '90-110', value: [90, 110] },
+    { label: '110-130', value: [110, 130] },
+    { label: '130-150', value: [130, 150] },
+    { label: '150以上', value: [150, null] }
+  ]
 
   // 表格列定义
   const columns = [
@@ -124,45 +159,71 @@ export function useErshoufangCRUD(api) {
   const loadData = async () => {
     loading.value = true
     try {
-      const res = await api.list({
-        ...queryParams,
+      // 构建请求参数
+      const params = {
         page: pagination.page,
         page_size: pagination.pageSize,
-        city: queryParams.city || cityStore.currentCity
-      })
+        search_keyword: queryParams.search_keyword,
+        city: queryParams.city || cityStore.currentCity,
+        layout: queryParams.layout,
+        orientation: queryParams.orientation,
+        floor: queryParams.floor,
+        size_min: queryParams.size_min,
+        size_max: queryParams.size_max,
+        sort_by: queryParams.sort_by,
+        sort_direction: queryParams.sort_direction
+      }
+
+      // 移除空值参数
+      const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          acc[key] = value
+        }
+        return acc
+      }, {})
+
+      console.log('Loading data with params:', cleanParams)
+      const res = await api.list(cleanParams)
+
       if (res?.code === 200 && Array.isArray(res.data?.items)) {
         data.value = res.data.items.map(item => ({
           ...item,
           community_id: parseInt(item.community_id),
-          floor_number: item.floor_number ? parseInt(item.floor_number) : null,
-          total_floors: item.total_floors ? parseInt(item.total_floors) : null,
+          // 处理楼层显示
+          floor_number: parseInt(item.floor_number) || null,
+          total_floors: parseInt(item.total_floors) || null,
+          floor_type: item.floor_type || getFloorType(item.floor_number, item.total_floors),
           created_at: item.created_at || null,
           total_price: Number(item.total_price),
           unit_price: Number(item.unit_price),
           size: Number(item.size)
         }))
         pagination.total = res.data.total
-      } else {
-        console.error('Invalid response format:', res)
-        message.error(res?.msg || '数据格式错误')
       }
     } catch (error) {
-      console.error('Load data error:', {
-        response: error?.response?.data,
-        error: error,
-        message: error?.message
-      })
-      message.error('加载数据失败')
+      console.error('Failed to load data:', error)
+      message.error('获取数据失败')
     } finally {
       loading.value = false
     }
   }
 
-  // 统一的筛选条件处理函数
-  const handleFilterChange = (type, value) => {
-    queryParams[type] = value
-    pagination.page = 1
-    loadData()
+  // 根据楼层号和总楼层判断楼层类型
+  const getFloorType = (floorNumber, totalFloors) => {
+    if (!floorNumber || !totalFloors) return null
+    
+    const floor = parseInt(floorNumber)
+    const total = parseInt(totalFloors)
+    
+    if (isNaN(floor) || isNaN(total)) return null
+    
+    // 将楼层分为三等分
+    const lowLimit = Math.ceil(total / 3)
+    const highLimit = Math.ceil(total * 2 / 3)
+    
+    if (floor <= lowLimit) return '低楼层'
+    if (floor <= highLimit) return '中楼层'
+    return '高楼层'
   }
 
   // 处理新增
@@ -284,6 +345,53 @@ export function useErshoufangCRUD(api) {
     loadData()
   }
 
+  // 处理筛选条件变化
+  const handleLayoutChange = (value) => {
+    queryParams.layout = queryParams.layout === value ? null : value
+    pagination.page = 1
+    loadData()
+  }
+
+  const handleOrientationChange = (value) => {
+    queryParams.orientation = queryParams.orientation === value ? null : value
+    pagination.page = 1
+    loadData()
+  }
+
+  const handleFloorChange = (value) => {
+    queryParams.floor = queryParams.floor === value ? null : value
+    pagination.page = 1
+    loadData()
+  }
+
+  const handleAreaChange = (value) => {
+    if (Array.isArray(value)) {
+      queryParams.size_min = value[0]
+      queryParams.size_max = value[1]
+    } else {
+      queryParams.size_min = null
+      queryParams.size_max = null
+    }
+    pagination.page = 1
+    loadData()
+  }
+
+  // 重置函数
+  const handleReset = () => {
+    Object.assign(queryParams, {
+      search_keyword: '',
+      layout: null,
+      orientation: null,
+      floor: null,
+      size_min: null,
+      size_max: null,
+      sort_by: 'listing_date',
+      sort_direction: 'desc'
+    })
+    pagination.page = 1
+    loadData()
+  }
+
   return {
     loading,
     columns,
@@ -294,7 +402,6 @@ export function useErshoufangCRUD(api) {
     modalTitle,
     formParams,
     loadData,
-    handleFilterChange,
     handleAdd,
     handleEdit,
     handleDelete,
@@ -302,6 +409,14 @@ export function useErshoufangCRUD(api) {
     handleModalCancel,
     handlePageChange,
     handlePageSizeChange,
-    handleSorterChange
+    handleSorterChange,
+    handleLayoutChange,
+    handleOrientationChange,
+    handleFloorChange,
+    handleAreaChange,
+    ORIENTATION_OPTIONS,
+    FLOOR_OPTIONS,
+    AREA_OPTIONS,
+    handleReset
   }
 } 

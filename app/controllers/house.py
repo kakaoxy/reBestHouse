@@ -264,16 +264,40 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
 
     async def get_ershoufangs(self, params: ErshoufangQueryParams) -> Dict:
         try:
+            print(f"Received query params: {params}")  # 添加调试日志
             query = Q()
             
+            # 城市筛选
             if params.city:
                 query &= Q(city=params.city.lower())
+            
+            # 关键词搜索
             if params.search_keyword:
                 query &= (
                     Q(community_name__icontains=params.search_keyword) |
                     Q(community__name__icontains=params.search_keyword)
                 )
-                
+            
+            # 户型筛选
+            if params.layout:
+                query &= Q(layout=params.layout)
+            
+            # 朝向筛选
+            if params.orientation:
+                query &= Q(orientation=params.orientation)
+            
+            # 楼层筛选
+            if params.floor:
+                query &= Q(floor__icontains=params.floor)
+            
+            # 面积范围筛选
+            if params.size_min is not None:
+                query &= Q(size__gte=params.size_min)
+            if params.size_max is not None:
+                query &= Q(size__lte=params.size_max)
+            
+            print(f"Final query conditions: {query}")  # 添加调试日志
+            
             # 添加排序参数
             order_by = f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}"
             
@@ -284,7 +308,7 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                 .offset((params.page - 1) * params.page_size)\
                 .limit(params.page_size)
             
-            # 处理返回数据，确保包含所有必要字段
+            # 处理返回数据
             result_items = []
             for item in items:
                 try:
@@ -301,15 +325,18 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                     print(f"Error processing item {item.id}: {str(e)}")
                     continue
             
+            total = await self.model.filter(query).count()
+            print(f"Total results: {total}")  # 添加调试日志
+            
             return {
                 "code": 200,
                 "data": {
                     "items": result_items,
-                    "total": await self.model.filter(query).count()
+                    "total": total
                 }
             }
         except Exception as e:
-            print(f"Error in get_ershoufangs: {str(e)}")
+            print(f"Error in get_ershoufangs: {str(e)}")  # 添加错误日志
             return {
                 "code": 500,
                 "msg": "获取数据失败",
