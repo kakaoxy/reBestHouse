@@ -1,5 +1,5 @@
 from typing import List, Dict
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from tortoise.expressions import Q
 from tortoise.functions import Count
 from app.models.house import Community, Ershoufang, DealRecord, Opportunity
@@ -13,6 +13,8 @@ from app.schemas.house import (
 )
 from datetime import datetime
 from app.core.crud import CRUDBase
+import pandas as pd
+from io import BytesIO
 
 class CommunityController(CRUDBase[Community, CommunityCreate, CommunityUpdate]):
     def __init__(self):
@@ -20,6 +22,8 @@ class CommunityController(CRUDBase[Community, CommunityCreate, CommunityUpdate])
     
     async def get_communities(self, params: CommunityQueryParams) -> Dict:
         query = Q()
+        if params.city:
+            query &= Q(city=params.city.lower())
         if params.name:
             query &= Q(name__icontains=params.name)
         if params.region:
@@ -28,10 +32,16 @@ class CommunityController(CRUDBase[Community, CommunityCreate, CommunityUpdate])
             query &= Q(area=params.area)
         if params.building_year:
             query &= Q(building_year=params.building_year)
+        if params.search_keyword:
+            query &= (
+                Q(name__icontains=params.search_keyword) |
+                Q(region__icontains=params.search_keyword) |
+                Q(area__icontains=params.search_keyword)
+            )
             
         total, items = await self.list(
-            page=1,
-            page_size=1000,  # 保持原有行为
+            page=params.page,
+            page_size=params.page_size,
             search=query,
             order=["-created_at"]
         )
@@ -41,20 +51,50 @@ class CommunityController(CRUDBase[Community, CommunityCreate, CommunityUpdate])
             "msg": "OK",
             "data": {
                 "items": [await CommunityResponse.from_tortoise_orm(item) for item in items],
-                "total": total
+                "total": total,
+                "page": params.page,
+                "page_size": params.page_size
             }
         }
 
-    async def create_community(self, data: CommunityCreate) -> Dict:
+    async def check_duplicate(self, name: str, region: str, area: str, city: str) -> bool:
+        """检查小区是否重复"""
+        exists = await self.model.filter(
+            name=name,
+            region=region,
+            area=area,
+            city=city
+        ).exists()
+        return exists
+
+    async def create(self, data: CommunityCreate) -> Dict:
+        """创建小区前检查是否重复"""
+        # 检查是否存在重复小区
+        exists = await self.check_duplicate(
+            name=data.name,
+            region=data.region,
+            area=data.area,
+            city=data.city
+        )
+        
+        if exists:
+            return {
+                "code": 400,
+                "msg": f"小区已存在：{data.region} {data.area} {data.name}"
+            }
+        
         try:
-            community = await self.create(data)
+            community = await self.model.create(**data.dict())
             return {
                 "code": 200,
                 "msg": "创建成功",
                 "data": await CommunityResponse.from_tortoise_orm(community)
             }
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            return {
+                "code": 500,
+                "msg": f"创建失败：{str(e)}"
+            }
 
     async def update_community(self, id: int, data: CommunityUpdate) -> Dict:
         try:
@@ -77,6 +117,117 @@ class CommunityController(CRUDBase[Community, CommunityCreate, CommunityUpdate])
             }
         except Exception as e:
             raise HTTPException(status_code=404, detail="Community not found")
+
+    async def import_communities(self, file: UploadFile, city: str) -> Dict:
+        try:
+            # 读取文件内容
+            contents = await file.read()
+            
+            # 读取 Excel 文件
+            df = pd.read_excel(BytesIO(contents))
+            
+            # 处理列名，移除星号
+            df.columns = df.columns.str.replace('*', '').str.strip()
+            
+            # 清理数据 - 去除前后空格
+            for col in df.columns:
+                if df[col].dtype == 'object':
+                    df[col] = df[col].str.strip()
+            
+            # 验证必要的列
+            required_columns = ['name', 'region', 'area']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                return {
+                    "code": 400,
+                    "msg": f"缺少必要的列: {', '.join(missing_columns)}"
+                }
+            
+            # 准备导入数据
+            success_count = 0
+            error_list = []
+            
+            for _, row in df.iterrows():
+                try:
+                    # 检查数据有效性
+                    if pd.isna(row['name']) or pd.isna(row['region']) or pd.isna(row['area']):
+                        error_list.append({
+                            "name": row.get('name', '未知'),
+                            "error": "必填字段不能为空"
+                        })
+                        continue
+                    
+                    # 检查是否存在重复小区
+                    exists = await self.check_duplicate(
+                        name=row['name'],
+                        region=row['region'],
+                        area=row['area'],
+                        city=city
+                    )
+                    
+                    if exists:
+                        error_list.append({
+                            "name": row['name'],
+                            "error": f"小区已存在：{row['region']} {row['area']} {row['name']}"
+                        })
+                        continue
+                    
+                    # 安全地转换数值类型
+                    def safe_int_convert(value):
+                        try:
+                            if pd.isna(value):
+                                return None
+                            # 移除非数字字符
+                            cleaned = str(value).strip().split()[0]
+                            return int(cleaned)
+                        except (ValueError, TypeError, IndexError):
+                            return None
+                    
+                    # 准备数据
+                    community_data = {
+                        "name": row['name'],
+                        "region": row['region'],
+                        "area": row['area'],
+                        "city": city.lower(),  # 强制使用当前选择的城市
+                        "building_type": row.get('building_type'),
+                        "property_rights": row.get('property_rights'),
+                        "total_houses": safe_int_convert(row.get('total_houses')),
+                        "building_year": safe_int_convert(row.get('building_year')),
+                        "address": row.get('address')
+                    }
+                    
+                    # 如果 Excel 中有 city 列，给出警告但仍使用当前选择的城市
+                    if 'city' in df.columns and pd.notna(row.get('city')) and row.get('city').lower() != city.lower():
+                        error_list.append({
+                            "name": row['name'],
+                            "error": f"Excel中的城市({row.get('city')})与当前选择的城市({city})不一致，将使用当前选择的城市"
+                        })
+                    
+                    # 创建小区
+                    await self.model.create(**community_data)
+                    success_count += 1
+                    
+                except Exception as e:
+                    error_list.append({
+                        "name": row['name'],
+                        "error": str(e)
+                    })
+            
+            return {
+                "code": 200,
+                "msg": f"导入完成: 成功 {success_count} 条，失败 {len(error_list)} 条",
+                "data": {
+                    "success_count": success_count,
+                    "error_count": len(error_list),
+                    "errors": error_list
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "code": 500,
+                "msg": f"导入失败：{str(e)}"
+            }
 
 community_controller = CommunityController()
 

@@ -120,10 +120,14 @@ ErshoufangResponse = pydantic_model_creator(
 
 # Query Parameters
 class CommunityQueryParams(BaseModel):
+    city: str
+    page: int = 1
+    page_size: int = 10
     name: Optional[str] = None
     region: Optional[str] = None
     area: Optional[str] = None
     building_year: Optional[int] = None
+    search_keyword: Optional[str] = None
 
 class ErshoufangQueryParams(BaseModel):
     search_keyword: Optional[str] = Field(None, description='搜索关键词')

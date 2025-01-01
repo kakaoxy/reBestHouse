@@ -176,11 +176,20 @@ const PROPERTY_RIGHTS_OPTIONS = [
 const handleSubmit = async () => {
   try {
     await formRef.value?.validate()
+    
+    // 检查必填字段
+    const { name, city, region, area } = localFormValue
+    if (!name || !city || !region || !area) {
+      message.error('请填写完整的小区信息')
+      return
+    }
+    
     // 处理 property_rights 数组为字符串
     const formData = { 
       ...localFormValue,
       property_rights: localFormValue.property_rights.join(',')  // 转换为逗号分隔的字符串
     }
+    
     emit('submit', formData)
   } catch (error) {
     console.error('Form validation error:', error)

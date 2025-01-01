@@ -1,5 +1,5 @@
 from typing import List, Dict
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile, Query, Form
 from app.controllers.house import community_controller, ershoufang_controller, deal_record_controller, opportunity_controller
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
@@ -29,7 +29,7 @@ async def get_communities(params: CommunityQueryParams = Depends()):
     summary="创建小区"
 )
 async def create_community(data: CommunityCreate):
-    return await community_controller.create_community(data)
+    return await community_controller.create(data)
 
 @router.put(
     "/communities/{id}",
@@ -48,6 +48,25 @@ async def update_community(id: int, data: CommunityUpdate):
 )
 async def delete_community(id: int):
     return await community_controller.delete_community(id)
+
+@router.post(
+    "/communities/import",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="批量导入小区"
+)
+async def import_communities(
+    file: UploadFile = File(..., description="Excel文件"),
+    city: str = Form(..., description="城市")
+):
+    # 验证文件类型
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        return {
+            "code": 422,
+            "msg": "只支持 Excel 文件格式 (.xlsx, .xls)"
+        }
+    
+    return await community_controller.import_communities(file, city)
 
 # Ershoufang routes
 @router.get(

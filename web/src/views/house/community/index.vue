@@ -34,12 +34,26 @@
             </n-button>
           </n-space>
           <!-- 新增按钮 -->
-          <n-button type="primary" @click="handleAdd">
-            <template #icon>
-              <TheIcon icon="material-symbols:add" />
-            </template>
-            新增小区
-          </n-button>
+          <n-space>
+            <n-button @click="handleDownloadTemplate">
+              <template #icon>
+                <TheIcon icon="material-symbols:download" />
+              </template>
+              下载模板
+            </n-button>
+            <n-button @click="handleImport">
+              <template #icon>
+                <TheIcon icon="material-symbols:upload" />
+              </template>
+              批量导入
+            </n-button>
+            <n-button type="primary" @click="handleAdd">
+              <template #icon>
+                <TheIcon icon="material-symbols:add" />
+              </template>
+              新增小区
+            </n-button>
+          </n-space>
         </n-space>
 
         <!-- 表格区域 -->
@@ -48,6 +62,9 @@
           :data="data"
           :loading="loading"
           :pagination="pagination"
+          :bordered="false"
+          :striped="true"
+          remote
           @update:page="handlePageChange"
           @update:page-size="handlePageSizeChange"
         />
@@ -73,7 +90,8 @@ import {
   NSpace,
   NButton, 
   NPopconfirm,
-  NDataTable
+  NDataTable,
+  useDialog
 } from 'naive-ui'
 import { useCommunityStore } from '@/stores/community'
 import { request } from '@/utils'
@@ -82,18 +100,18 @@ import CommunityModal from './components/CommunityModal.vue'
 import TheIcon from '@/components/icon/TheIcon.vue'
 
 const message = useMessage()
+const dialog = useDialog()
 const communityStore = useCommunityStore()
 
 // API 定义
 const api = {
   list: (params = {}) => {
-    const defaultParams = {
-      page: 1,
-      page_size: 10,
-      city: selectedCity.value,
-      search_keyword: ''
+    const queryParams = {
+      city: params.city || selectedCity.value,
+      search_keyword: params.search_keyword || '',
+      page: params.page || 1,
+      page_size: params.page_size || 10
     }
-    const queryParams = { ...defaultParams, ...params }
     console.log('API request params:', queryParams)
     return request.get('/house/communities', { params: queryParams })
   },
@@ -122,8 +140,20 @@ const pagination = reactive({
   page: 1,
   pageSize: 10,
   itemCount: 0,
+  showQuickJumper: true,
+  pageSizes: [10, 20, 50],
   showSizePicker: true,
-  pageSizes: [10, 20, 50]
+  pageSize: 10,
+  page: 1,
+  pageCount: 1,
+  displayOrder: ['size-picker', 'pages', 'quick-jumper'],
+  prefix({ itemCount }) {
+    return `共 ${itemCount} 条`
+  },
+  suffix({ itemCount, pageSize }) {
+    const pages = Math.ceil(itemCount / pageSize)
+    return `共 ${pages} 页`
+  }
 })
 
 // 定义表格列
@@ -218,67 +248,67 @@ const columns = [
   }
 ]
 
+// 处理API返回的数据
+const processData = (response) => {
+  if (response.code === 200) {
+    data.value = response.data.items
+    const total = response.data.total
+    const pageSize = response.data.page_size || 10
+    
+    pagination.itemCount = total
+    pagination.pageCount = Math.ceil(total / pageSize)
+    pagination.page = response.data.page || 1
+    pagination.pageSize = pageSize
+    
+    return {
+      items: response.data.items,
+      total: response.data.total,
+      page: response.data.page,
+      pageSize: response.data.page_size,
+      currentCity: selectedCity.value
+    }
+  }
+  return null
+}
+
 // 加载数据
 const loadData = async () => {
   try {
     loading.value = true
     const params = {
-      ...queryParams,
-      page: pagination.page,
-      page_size: pagination.pageSize,
       city: selectedCity.value,
-      search_keyword: queryParams.search_keyword.trim()
+      search_keyword: queryParams.search_keyword || '',
+      page: pagination.page,
+      page_size: pagination.pageSize
     }
-    
     console.log('Sending request with params:', params)
     const res = await api.list(params)
     console.log('API response:', res)
-    
-    if (res.code === 200) {
-      // 过滤数据：
-      // 1. 只显示当前城市的数据
-      // 2. 如果有搜索关键词，只显示名称中包含关键词的数据
-      const filteredItems = res.data.items.filter(item => {
-        const cityMatch = item.city === selectedCity.value
-        if (!params.search_keyword) {
-          return cityMatch
-        }
-        return cityMatch && item.name.toLowerCase().includes(params.search_keyword.toLowerCase())
-      })
-
-      data.value = filteredItems
-      pagination.itemCount = filteredItems.length
-      pagination.page = res.data.page || 1
-      pagination.pageSize = res.data.page_size || 10
-      
-      console.log('Processed data:', {
-        items: data.value,
-        total: pagination.itemCount,
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-        currentCity: selectedCity.value,
-        searchKeyword: params.search_keyword
-      })
-    } else {
-      message.error(res.msg || '加载失败')
+    const processedData = processData(res)
+    console.log('Processed data:', processedData)
+    if (!processedData) {
+      message.error('加载数据失败')
     }
   } catch (error) {
-    console.error('Failed to load data:', error)
+    console.error('Load data error:', error)
     message.error('加载数据失败')
   } finally {
     loading.value = false
   }
 }
 
-// 处理分页
+// 处理页码变化
 const handlePageChange = (page) => {
+  if (page === pagination.page) return
   pagination.page = page
   loadData()
 }
 
+// 处理每页条数变化
 const handlePageSizeChange = (pageSize) => {
+  if (pageSize === pagination.pageSize) return
   pagination.pageSize = pageSize
-  pagination.page = 1
+  pagination.page = 1  // 切换每页条数时重置到第一页
   loadData()
 }
 
@@ -315,13 +345,25 @@ const handleModalSubmit = async (formData) => {
     // 确保城市字段正确设置
     const submitData = {
       ...formData,
-      city: formData.city || communityStore.currentCity // 如果没有设置城市，使用当前选中的城市
+      city: formData.city || communityStore.currentCity
     }
     const res = await (formData.id ? api.update(formData.id, submitData) : api.create(submitData))
-    if (res.code === 200) {
+    if (res.code === 400) {
+      dialog.warning({
+        title: '小区已存在',
+        content: res.msg,
+        positiveText: '确定',
+        onPositiveClick: () => {
+          // 可以选择是否关闭模态框
+          // showModal.value = false
+        }
+      })
+    } else if (res.code === 200) {
       message.success(res.msg || '操作成功')
       showModal.value = false
       loadData()
+    } else {
+      message.error(res.msg || '操作失败')
     }
   } catch (error) {
     console.error('Submit error:', error)
@@ -372,6 +414,88 @@ const handleSearch = () => {
   pagination.page = 1
   queryParams.city = selectedCity.value // 确保搜索时使用当前城市
   loadData()
+}
+
+// 处理下载模板
+const handleDownloadTemplate = () => {
+  const link = document.createElement('a')
+  link.href = '/templates/community_import_template.xlsx'
+  link.download = '小区导入模板.xlsx'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+// 处理批量导入
+const handleImport = () => {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.xlsx,.xls'
+  
+  input.onchange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    
+    // 验证文件类型
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
+      message.error('请上传 Excel 文件 (.xlsx, .xls)')
+      return
+    }
+    
+    // 提示用户当前选择的城市
+    dialog.info({
+      title: '导入提示',
+      content: `即将导入到城市：${communityStore.CITY_OPTIONS.find(item => item.value === selectedCity.value)?.label}`,
+      positiveText: '继续',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        try {
+          loading.value = true
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('city', selectedCity.value)
+          
+          const res = await request.post('/house/communities/import', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'Accept': 'application/json'
+            }
+          })
+          
+          if ([200, 400, 422].includes(res.code)) {
+            message.success(res.msg)
+            // 显示导入结果
+            if (res.data?.error_count > 0) {
+              dialog.warning({
+                title: '导入结果',
+                content: () => h('div', [
+                  h('p', `成功：${res.data.success_count} 条`),
+                  h('p', `失败：${res.data.error_count} 条`),
+                  h('div', { style: 'max-height: 200px; overflow-y: auto;' }, [
+                    ...res.data.errors.map(error => 
+                      h('p', { style: 'color: #d03050;' }, `${error.name}: ${error.error}`)
+                    )
+                  ])
+                ]),
+                positiveText: '确定'
+              })
+            }
+            if (res.code === 200) {
+              loadData()
+            }
+          } else {
+            throw new Error(res.msg || '导入失败')
+          }
+        } catch (error) {
+          message.error(error.response?.data?.detail || error.message || '导入失败')
+        } finally {
+          loading.value = false
+        }
+      }
+    })
+  }
+  
+  input.click()
 }
 
 // 初始化
