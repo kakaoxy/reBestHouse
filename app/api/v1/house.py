@@ -105,6 +105,25 @@ async def update_ershoufang(id: int, data: ErshoufangUpdate):
 async def delete_ershoufang(id: int):
     return await ershoufang_controller.delete_ershoufang(id)
 
+@router.post(
+    "/ershoufangs/import",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="批量导入二手房"
+)
+async def import_ershoufangs(
+    file: UploadFile = File(..., description="Excel文件"),
+    city: str = Form(..., description="城市")
+):
+    # 验证文件类型
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        return {
+            "code": 422,
+            "msg": "只支持 Excel 文件格式 (.xlsx, .xls)"
+        }
+    
+    return await ershoufang_controller.import_ershoufangs(file, city)
+
 # DealRecord routes
 @router.get(
     "/deal-records",

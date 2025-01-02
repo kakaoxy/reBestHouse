@@ -12,12 +12,23 @@ export function useErshoufangCRUD(api) {
   
   // 表格数据
   const data = ref([])
-  const pagination = reactive({
+  const pagination = ref({
     page: 1,
     pageSize: 10,
     total: 0,
+    pageSizes: [10, 20, 50],
     showSizePicker: true,
-    pageSizes: [10, 20, 30, 40]
+    prefix({ itemCount }) {
+      return `共 ${itemCount} 条`
+    },
+    pageCount: 0,
+    itemCount: 0,
+    onChange: (page) => {
+      handlePageChange(page)
+    },
+    onUpdatePageSize: (pageSize) => {
+      handlePageSizeChange(pageSize)
+    }
   })
 
   // 查询参数
@@ -30,9 +41,7 @@ export function useErshoufangCRUD(api) {
     size_min: null,
     size_max: null,
     sort_by: 'listing_date',
-    sort_direction: 'desc',
-    page: 1,
-    page_size: 20
+    sort_direction: 'desc'
   })
 
   // 添加预定义的选项
@@ -157,52 +166,59 @@ export function useErshoufangCRUD(api) {
 
   // 加载数据
   const loadData = async () => {
-    loading.value = true
     try {
-      // 构建请求参数
+      loading.value = true
       const params = {
-        page: pagination.page,
-        page_size: pagination.pageSize,
-        search_keyword: queryParams.search_keyword,
+        page: pagination.value.page,
+        page_size: pagination.value.pageSize,
         city: queryParams.city || cityStore.currentCity,
+        search_keyword: queryParams.search_keyword,
         layout: queryParams.layout,
         orientation: queryParams.orientation,
         floor: queryParams.floor,
         size_min: queryParams.size_min,
         size_max: queryParams.size_max,
-        sort_by: queryParams.sort_by,
-        sort_direction: queryParams.sort_direction
+        sort_by: queryParams.sort_by || 'listing_date',
+        sort_direction: queryParams.sort_direction || 'desc'
       }
-
-      // 移除空值参数
+      console.log('Loading data with params:', params)
+      
+      // 移除空值参数，但保留分页参数
       const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
+        if (key === 'page' || key === 'page_size' || 
+            (value !== undefined && value !== null && value !== '')) {
           acc[key] = value
         }
         return acc
       }, {})
-
-      console.log('Loading data with params:', cleanParams)
+      
       const res = await api.list(cleanParams)
-
-      if (res?.code === 200 && Array.isArray(res.data?.items)) {
-        data.value = res.data.items.map(item => ({
+      
+      if (res?.code === 200 && res.data) {
+        data.value = (res.data.items || []).map(item => ({
           ...item,
           community_id: parseInt(item.community_id),
-          // 处理楼层显示
           floor_number: parseInt(item.floor_number) || null,
           total_floors: parseInt(item.total_floors) || null,
-          floor_type: item.floor_type || getFloorType(item.floor_number, item.total_floors),
-          created_at: item.created_at || null,
           total_price: Number(item.total_price),
           unit_price: Number(item.unit_price),
           size: Number(item.size)
         }))
-        pagination.total = res.data.total
+        
+        // 更新分页信息
+        pagination.value = {
+          ...pagination.value,
+          page: parseInt(res.data.page) || 1,
+          pageSize: parseInt(res.data.page_size) || 10,
+          total: parseInt(res.data.total) || 0,
+          itemCount: parseInt(res.data.total) || 0,
+          pageCount: Math.ceil((parseInt(res.data.total) || 0) / (parseInt(res.data.page_size) || 10))
+        }
+        console.log('Response data:', res.data)
       }
     } catch (error) {
-      console.error('Failed to load data:', error)
-      message.error('获取数据失败')
+      console.error('Load data error:', error)
+      message.error(error.message || '获取数据失败')
     } finally {
       loading.value = false
     }
@@ -323,13 +339,15 @@ export function useErshoufangCRUD(api) {
 
   // 分页处理
   const handlePageChange = (page) => {
-    pagination.page = page
+    console.log('Page changed to:', page)
+    pagination.value.page = page
     loadData()
   }
 
   const handlePageSizeChange = (pageSize) => {
-    pagination.pageSize = pageSize
-    pagination.page = 1
+    console.log('Page size changed to:', pageSize)
+    pagination.value.page = 1
+    pagination.value.pageSize = pageSize
     loadData()
   }
 
@@ -348,19 +366,19 @@ export function useErshoufangCRUD(api) {
   // 处理筛选条件变化
   const handleLayoutChange = (value) => {
     queryParams.layout = queryParams.layout === value ? null : value
-    pagination.page = 1
+    pagination.value.page = 1
     loadData()
   }
 
   const handleOrientationChange = (value) => {
     queryParams.orientation = queryParams.orientation === value ? null : value
-    pagination.page = 1
+    pagination.value.page = 1
     loadData()
   }
 
   const handleFloorChange = (value) => {
     queryParams.floor = queryParams.floor === value ? null : value
-    pagination.page = 1
+    pagination.value.page = 1
     loadData()
   }
 
@@ -372,7 +390,7 @@ export function useErshoufangCRUD(api) {
       queryParams.size_min = null
       queryParams.size_max = null
     }
-    pagination.page = 1
+    pagination.value.page = 1
     loadData()
   }
 
@@ -388,7 +406,7 @@ export function useErshoufangCRUD(api) {
       sort_by: 'listing_date',
       sort_direction: 'desc'
     })
-    pagination.page = 1
+    pagination.value.page = 1
     loadData()
   }
 

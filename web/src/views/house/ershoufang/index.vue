@@ -34,12 +34,26 @@
             </n-button>
           </n-space>
           <!-- 新增按钮 -->
-          <n-button type="primary" @click="handleAdd">
-            <template #icon>
-              <TheIcon icon="material-symbols:add" />
-            </template>
-            新增房源
-          </n-button>
+          <n-space>
+            <n-button @click="handleDownloadTemplate">
+              <template #icon>
+                <TheIcon icon="material-symbols:download" />
+              </template>
+              下载模板
+            </n-button>
+            <n-button @click="handleImport">
+              <template #icon>
+                <TheIcon icon="material-symbols:upload" />
+              </template>
+              批量导入
+            </n-button>
+            <n-button type="primary" @click="handleAdd">
+              <template #icon>
+                <TheIcon icon="material-symbols:add" />
+              </template>
+              新增房源
+            </n-button>
+          </n-space>
         </n-space>
 
         <!-- 筛选条件 -->
@@ -112,6 +126,8 @@
         :data="data"
         :loading="loading"
         :pagination="pagination"
+        remote
+        :row-key="row => row.id"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
         @update:sorter="handleSorterChange"
@@ -132,7 +148,7 @@
 
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useMessage, useDialog } from 'naive-ui'
 import { request } from '@/utils'
 import CommonPage from '@/components/page/CommonPage.vue'
 import ErshoufangModal from './components/ErshoufangModal.vue'
@@ -141,6 +157,7 @@ import { useErshoufangCRUD } from '@/composables/useErshoufangCRUD'
 import { useCityStore } from '@/stores/city'
 
 const message = useMessage()
+const dialog = useDialog()
 const cityStore = useCityStore()
 
 // API 定义
@@ -214,6 +231,96 @@ onMounted(() => {
   queryParams.city = cityStore.currentCity
   loadData()
 })
+
+// 处理下载模板
+const handleDownloadTemplate = () => {
+  const link = document.createElement('a')
+  link.href = '/templates/ershoufang_import_template.xlsx'
+  link.download = '二手房导入模板.xlsx'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+// 处理批量导入
+const handleImport = () => {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.xlsx,.xls'
+  
+  input.onchange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    
+    // 验证文件类型
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
+      message.error('请上传 Excel 文件 (.xlsx, .xls)')
+      return
+    }
+    
+    // 提示用户当前选择的城市
+    dialog.info({
+      title: '导入提示',
+      content: `即将导入到城市：${cityStore.CITY_OPTIONS.find(item => item.value === cityStore.currentCity)?.label}`,
+      positiveText: '继续',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        try {
+          loading.value = true
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('city', cityStore.currentCity)
+          
+          const res = await request.post('/house/ershoufangs/import', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'Accept': 'application/json'
+            }
+          })
+          
+          if ([200, 400, 422].includes(res.code)) {
+            // 显示导入结果
+            const resultDialog = dialog.success({
+              title: '导入结果',
+              content: () => h('div', [
+                h('p', `成功导入：${res.data.success_count} 条`),
+                h('p', `失败数量：${res.data.error_count} 条`),
+                // 只有存在错误时才显示错误详情
+                res.data.error_count > 0 ? h('div', [
+                  h('p', { style: 'margin-top: 10px; font-weight: bold;' }, '失败详情：'),
+                  h('div', { 
+                    style: 'max-height: 200px; overflow-y: auto; margin-top: 5px; padding: 10px; background-color: #f5f5f5; border-radius: 4px;' 
+                  }, [
+                    ...res.data.errors.map(error => 
+                      h('p', { style: 'color: #d03050; margin: 5px 0;' }, 
+                        `${error.name}: ${error.error}`
+                      )
+                    )
+                  ])
+                ]) : null
+              ]),
+              positiveText: '确定',
+              onPositiveClick: () => {
+                if (res.code === 200) {
+                  // 刷新列表
+                  loadData()
+                }
+              }
+            })
+          } else {
+            throw new Error(res.msg || '导入失败')
+          }
+        } catch (error) {
+          message.error(error.response?.data?.detail || error.message || '导入失败')
+        } finally {
+          loading.value = false
+        }
+      }
+    })
+  }
+  
+  input.click()
+}
 </script>
 
 <style scoped>

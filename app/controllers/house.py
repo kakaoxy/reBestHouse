@@ -1,7 +1,7 @@
 from typing import List, Dict
 from fastapi import HTTPException, UploadFile
 from tortoise.expressions import Q
-from tortoise.functions import Count
+from tortoise.functions import Count, Max
 from app.models.house import Community, Ershoufang, DealRecord, Opportunity
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
@@ -15,6 +15,7 @@ from datetime import datetime
 from app.core.crud import CRUDBase
 import pandas as pd
 from io import BytesIO
+from tortoise.expressions import RawSQL
 
 class CommunityController(CRUDBase[Community, CommunityCreate, CommunityUpdate]):
     def __init__(self):
@@ -264,10 +265,7 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
 
     async def get_ershoufangs(self, params: ErshoufangQueryParams) -> Dict:
         try:
-            print(f"Received query params: {params}")  # 添加调试日志
             query = Q()
-            
-            # 城市筛选
             if params.city:
                 query &= Q(city=params.city.lower())
             
@@ -296,15 +294,24 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
             if params.size_max is not None:
                 query &= Q(size__lte=params.size_max)
             
-            print(f"Final query conditions: {query}")  # 添加调试日志
+            # 获取每个 platform_listing_id 的最新记录
+            latest_ids = await self.model.filter(~Q(platform_listing_id=''))\
+                .group_by('platform_listing_id')\
+                .values_list('id', flat=True)
             
-            # 添加排序参数
-            order_by = f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}"
+            # 构建基础查询
+            base_query = self.model.filter(query)\
+                .filter(
+                    Q(platform_listing_id='') | Q(id__in=latest_ids)
+                )\
+                .prefetch_related('community')
             
-            # 确保关联查询小区信息
-            items = await self.model.filter(query)\
-                .prefetch_related('community')\
-                .order_by(order_by)\
+            # 计算总数
+            total = await base_query.count()
+            
+            # 获取分页数据
+            items = await base_query\
+                .order_by(f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}")\
                 .offset((params.page - 1) * params.page_size)\
                 .limit(params.page_size)
             
@@ -325,26 +332,19 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                     print(f"Error processing item {item.id}: {str(e)}")
                     continue
             
-            total = await self.model.filter(query).count()
-            print(f"Total results: {total}")  # 添加调试日志
-            
             return {
                 "code": 200,
+                "msg": "OK",
                 "data": {
                     "items": result_items,
-                    "total": total
+                    "total": total,
+                    "page": params.page,
+                    "page_size": params.page_size
                 }
             }
         except Exception as e:
-            print(f"Error in get_ershoufangs: {str(e)}")  # 添加错误日志
-            return {
-                "code": 500,
-                "msg": "获取数据失败",
-                "error": {
-                    "message": str(e),
-                    "type": type(e).__name__
-                }
-            }
+            print(f"Error in get_ershoufangs: {str(e)}")
+            return {"code": 500, "msg": "获取数据失败"}
 
     async def _get_filter_options(self) -> Dict:
         """获取筛选选项"""
@@ -508,6 +508,205 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
             "msg": "删除成功",
             "data": None
         }
+
+    async def import_ershoufangs(self, file: UploadFile, city: str) -> Dict:
+        try:
+            contents = await file.read()
+            df = pd.read_excel(BytesIO(contents))
+            df.columns = df.columns.str.replace('*', '').str.strip()
+            
+            # 验证必要的列
+            required_columns = ['小区名称', '户型', '建筑面积', '总价(万)']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                return {
+                    "code": 400,
+                    "msg": f"缺少必要的列: {', '.join(missing_columns)}"
+                }
+            
+            success_count = 0
+            error_list = []
+            
+            for _, row in df.iterrows():
+                try:
+                    # 检查必填字段
+                    if pd.isna(row['小区名称']) or pd.isna(row['户型']) or \
+                       pd.isna(row['建筑面积']) or pd.isna(row['总价(万)']):
+                        error_list.append({
+                            "name": row.get('小区名称', '未知'),
+                            "error": "必填字段不能为空"
+                        })
+                        continue
+                    
+                    # 查找或创建小区
+                    community = await Community.filter(
+                        name=row['小区名称'],
+                        city=city.lower()
+                    ).first()
+                    
+                    if not community:
+                        # 创建新小区
+                        community = await Community.create(
+                            name=row['小区名称'],
+                            city=city.lower(),
+                            region=row.get('所在区域', ''),
+                            area=row.get('所在商圈', ''),
+                            building_year=row.get('建筑年代'),
+                            building_type=row.get('建筑结构')
+                        )
+                    
+                    # 准备数据
+                    ershoufang_data = {
+                        "community_id": community.id,
+                        "community_name": row['小区名称'],
+                        "region": row.get('所在区域', community.region),
+                        "area": row.get('所在商圈', community.area),
+                        "city": city.lower(),
+                        "data_source": row.get('数据来源', 'import'),
+                        "platform_listing_id": row.get('平台房源ID'),  # 保存平台ID，但不用于查重
+                        "updated_at": datetime.now()  # 确保时间戳更新
+                    }
+                    
+                    # 处理楼层信息
+                    if not pd.isna(row.get('楼层信息')):
+                        # 直接使用楼层信息
+                        ershoufang_data['floor'] = row['楼层信息']
+                    elif not pd.isna(row.get('所在楼层')) and not pd.isna(row.get('总楼层')):
+                        # 计算楼层信息
+                        floor_info = self.calculate_floor_info(
+                            int(row['所在楼层']),
+                            int(row['总楼层'])
+                        )
+                        if floor_info:
+                            ershoufang_data['floor'] = floor_info
+                            ershoufang_data['floor_number'] = int(row['所在楼层'])
+                            ershoufang_data['total_floors'] = int(row['总楼层'])
+                    
+                    # 处理其他字段
+                    field_mappings = {
+                        '户型': 'layout',
+                        '建筑面积': 'size',
+                        '房屋朝向': 'orientation',
+                        '梯户比': 'ladder_ratio',
+                        '总价(万)': 'total_price',
+                        '单价(元/平)': 'unit_price',
+                        '挂牌时间': 'listing_date',
+                        '上次交易时间': 'last_transaction_date',
+                        '抵押信息': 'mortgage_info',
+                        '户型图链接': 'layout_image',
+                        '房源链接': 'house_link',
+                        '建筑年代': 'building_year',
+                        '建筑结构': 'building_structure',
+                        '平台房源ID': 'platform_listing_id'
+                    }
+                    
+                    for excel_col, db_col in field_mappings.items():
+                        if excel_col in row and not pd.isna(row[excel_col]):
+                            value = row[excel_col]
+                            # 特殊字段处理
+                            if db_col in ['listing_date', 'last_transaction_date']:
+                                if isinstance(value, str):
+                                    try:
+                                        value = datetime.strptime(value, '%Y-%m-%d')
+                                    except ValueError:
+                                        continue
+                            elif db_col in ['size', 'total_price', 'unit_price']:
+                                try:
+                                    value = float(value)
+                                except (ValueError, TypeError):
+                                    continue
+                            elif db_col in ['building_year']:
+                                try:
+                                    value = int(float(value))
+                                except (ValueError, TypeError):
+                                    continue
+                            ershoufang_data[db_col] = value
+                    
+                    # 如果没有单价，则计算单价
+                    if 'unit_price' not in ershoufang_data and 'size' in ershoufang_data:
+                        ershoufang_data['unit_price'] = \
+                            ershoufang_data['total_price'] * 10000 / ershoufang_data['size']
+                    
+                    # 直接创建新记录，不检查是否存在
+                    await self.model.create(**ershoufang_data)
+                    success_count += 1
+                    
+                except Exception as e:
+                    error_list.append({
+                        "name": row.get('小区名称', '未知'),
+                        "error": str(e)
+                    })
+            
+            return {
+                "code": 200,
+                "msg": "导入完成",
+                "data": {
+                    "success_count": success_count,
+                    "error_count": len(error_list),
+                    "errors": error_list
+                }
+            }
+            
+        except Exception as e:
+            print(f"Import error: {str(e)}")
+            return {
+                "code": 500,
+                "msg": f"导入失败：{str(e)}"
+            }
+
+    # 在 ErshoufangController 类中更新模板列定义
+    IMPORT_COLUMNS = {
+        'community_name': '小区名称*',
+        'house_id': '房源编号',
+        'region': '所在区域',
+        'area': '所在商圈',
+        'layout': '户型*',
+        'size': '建筑面积(㎡)*',
+        'floor': '楼层信息',
+        'floor_number': '所在楼层',
+        'total_floors': '总楼层',
+        'orientation': '朝向',
+        'ladder_ratio': '梯户比',
+        'total_price': '总价(万)*',
+        'unit_price': '单价(元/㎡)',
+        'listing_date': '挂牌时间',
+        'last_transaction_date': '上次交易时间',
+        'mortgage_info': '抵押信息',
+        'layout_image': '户型图链接',
+        'ke_code': '贝壳编号',
+        'house_link': '房源链接',
+        'building_year': '建筑年代',
+        'building_structure': '建筑结构',
+        'platform_listing_id': '平台房源ID',
+        'data_source': '数据来源'
+    }
+
+    # 更新列名映射
+    EXCEL_TO_DB_MAPPING = {
+        '小区名称': 'community_name',
+        '房源编号': 'house_id',
+        '所在区域': 'region',
+        '所在商圈': 'area',
+        '户型': 'layout',
+        '建筑面积(㎡)': 'size',
+        '楼层信息': 'floor',
+        '所在楼层': 'floor_number',
+        '总楼层': 'total_floors',
+        '朝向': 'orientation',
+        '梯户比': 'ladder_ratio',
+        '总价(万)': 'total_price',
+        '单价(元/㎡)': 'unit_price',
+        '挂牌时间': 'listing_date',
+        '上次交易时间': 'last_transaction_date',
+        '抵押信息': 'mortgage_info',
+        '户型图链接': 'layout_image',
+        '贝壳编号': 'ke_code',
+        '房源链接': 'house_link',
+        '建筑年代': 'building_year',
+        '建筑结构': 'building_structure',
+        '平台房源ID': 'platform_listing_id',
+        '数据来源': 'data_source'
+    }
 
 ershoufang_controller = ErshoufangController()
 
