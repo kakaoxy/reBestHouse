@@ -714,173 +714,169 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
     def __init__(self):
         super().__init__(model=DealRecord)
 
+    def _convert_timestamp_to_date(self, timestamp):
+        """将时间戳转换为日期对象"""
+        try:
+            # 尝试处理毫秒级时间戳
+            if len(str(timestamp)) > 10:
+                timestamp = timestamp / 1000
+            return datetime.fromtimestamp(timestamp).date()
+        except (ValueError, OSError, TypeError) as e:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid timestamp format: {timestamp}"
+            )
+
     async def get_deal_records(self, params: DealRecordQueryParams) -> Dict:
         try:
             query = Q()
-            
-            # 添加城市筛选条件
-            if params.city:
-                query &= Q(community__city=params.city)
-            
-            # 基本筛选条件
             if params.search_keyword:
                 query &= (
-                    Q(community__name__icontains=params.search_keyword) |
-                    Q(layout__icontains=params.search_keyword)
+                    Q(community_name__icontains=params.search_keyword) |
+                    Q(region__icontains=params.search_keyword) |
+                    Q(area__icontains=params.search_keyword)
                 )
-            
-            # 户型筛选
+            if params.community_id:
+                query &= Q(community_id=params.community_id)
             if params.layout:
-                if params.layout == 'other':
-                    query &= ~Q(layout__startswith='1室') & \
-                            ~Q(layout__startswith='2室') & \
-                            ~Q(layout__startswith='3室') & \
-                            ~Q(layout__startswith='4室')
-                else:
-                    query &= Q(layout__startswith=f'{params.layout}室')
-
-            # 楼层筛选
+                query &= Q(layout=params.layout)
             if params.floor_info:
-                if params.floor_info == 'low':
-                    query &= Q(floor_info__icontains='低')
-                elif params.floor_info == 'middle':
-                    query &= Q(floor_info__icontains='中')
-                elif params.floor_info == 'high':
-                    query &= Q(floor_info__icontains='高')
+                query &= Q(floor_info=params.floor_info)
+            if params.deal_date_start:
+                query &= Q(deal_date__gte=params.deal_date_start)
+            if params.deal_date_end:
+                query &= Q(deal_date__lte=params.deal_date_end)
+            if params.city:
+                query &= Q(city=params.city)
 
-            # 获取基础查询
-            base_query = self.model.all().prefetch_related('community')
-            if query:
-                base_query = base_query.filter(query)
+            total, items = await self.list(
+                page=params.page,
+                page_size=params.page_size,
+                search=query,
+                order=[f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}"]
+            )
 
-            # 获取总数
-            total = await base_query.count()
-
-            # 排序和分页
-            sort_field = f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}"
-            records = await base_query.order_by(sort_field)\
-                .offset((params.page - 1) * params.page_size)\
-                .limit(params.page_size)
-
-            # 构建响应数据，包含小区名称
-            items = []
-            for record in records:
-                record_dict = {
-                    "id": record.id,
-                    "community_id": record.community_id,
-                    "community_name": record.community.name if record.community else None,
-                    "source": record.source,
-                    "source_transaction_id": record.source_transaction_id,
-                    "deal_date": record.deal_date,
-                    "total_price": record.total_price,
-                    "unit_price": record.unit_price,
-                    "layout": record.layout,
-                    "size": record.size,
-                    "floor_info": record.floor_info,
-                    "orientation": record.orientation,
-                    "building_year": record.building_year,
-                    "agency": record.agency,
-                    "deal_cycle": record.deal_cycle,
-                    "house_link": record.house_link,
-                    "layout_image": record.layout_image,
-                    "entry_time": record.entry_time,
-                    "original_data": record.original_data,
-                    "created_at": record.created_at,
-                    "updated_at": record.updated_at
+            # 确保返回的数据包含区域和商圈信息
+            response_items = []
+            for item in items:
+                item_dict = {
+                    'id': item.id,
+                    'community_id': item.community_id,
+                    'community_name': item.community_name,
+                    'region': item.region,  # 添加区域
+                    'area': item.area,      # 添加商圈
+                    'source': item.source,
+                    'source_transaction_id': item.source_transaction_id,
+                    'layout': item.layout,
+                    'size': item.size,
+                    'floor_info': item.floor_info,
+                    'orientation': item.orientation,
+                    'total_price': item.total_price,
+                    'unit_price': item.unit_price,
+                    'deal_date': item.deal_date.isoformat() if item.deal_date else None,
+                    'deal_cycle': item.deal_cycle,
+                    'agency': item.agency,
+                    'house_link': item.house_link,
+                    'layout_image': item.layout_image,
+                    'entry_time': item.entry_time.isoformat() if item.entry_time else None,
+                    'created_at': item.created_at.isoformat(),
+                    'updated_at': item.updated_at.isoformat()
                 }
-                items.append(record_dict)
-                
+                response_items.append(item_dict)
+
             return {
                 "code": 200,
                 "msg": "OK",
                 "data": {
-                    "items": items,
+                    "items": response_items,
                     "total": total,
                     "page": params.page,
                     "page_size": params.page_size
                 }
             }
         except Exception as e:
-            print(f"Error in get_deal_records: {str(e)}")
-            return {
-                "code": 500,
-                "msg": "获取数据失败",
-                "data": None
-            }
+            raise HTTPException(status_code=400, detail=str(e))
 
     async def create_deal_record(self, data: DealRecordCreate) -> Dict:
         try:
-            # 创建记录
-            record = await self.create(data.model_dump(exclude_unset=True))
+            # 获取小区信息
+            community = await Community.get_or_none(id=data.community_id)
+            if not community:
+                raise HTTPException(status_code=404, detail="Community not found")
             
-            # 手动构建响应数据
-            record_dict = {
-                "id": record.id,
-                "community_id": record.community_id,
-                "source": record.source,
-                "source_transaction_id": record.source_transaction_id,
-                "deal_date": record.deal_date,
-                "total_price": record.total_price,
-                "unit_price": record.unit_price,
-                "layout": record.layout,
-                "size": record.size,
-                "floor_info": record.floor_info,
-                "orientation": record.orientation,
-                "building_year": record.building_year,
-                "agency": record.agency,
-                "deal_cycle": record.deal_cycle,
-                "house_link": record.house_link,
-                "layout_image": record.layout_image,
-                "entry_time": record.entry_time,
-                "original_data": record.original_data,
-                "created_at": record.created_at,
-                "updated_at": record.updated_at
-            }
+            # 添加区域和商圈信息
+            create_data = data.dict()
+            create_data.update({
+                'community_name': community.name,
+                'region': community.region,  # 从小区获取区域
+                'area': community.area,      # 从小区获取商圈
+                'city': community.city
+            })
             
+            deal_record = await self.create(create_data)
             return {
                 "code": 200,
                 "msg": "创建成功",
-                "data": record_dict
+                "data": await deal_record.to_dict()
             }
+        except HTTPException as e:
+            raise e
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 
     async def update_deal_record(self, id: int, data: DealRecordUpdate) -> Dict:
         try:
-            record = await self.update(id, data.model_dump(exclude_unset=True))
+            deal_record = await DealRecord.get_or_none(id=id)
+            if not deal_record:
+                raise HTTPException(status_code=404, detail="Deal record not found")
             
-            # 手动构建响应数据
-            record_dict = {
-                "id": record.id,
-                "community_id": record.community_id,
-                "source": record.source,
-                "source_transaction_id": record.source_transaction_id,
-                "deal_date": record.deal_date,
-                "total_price": record.total_price,
-                "unit_price": record.unit_price,
-                "layout": record.layout,
-                "size": record.size,
-                "floor_info": record.floor_info,
-                "orientation": record.orientation,
-                "building_year": record.building_year,
-                "agency": record.agency,
-                "deal_cycle": record.deal_cycle,
-                "house_link": record.house_link,
-                "layout_image": record.layout_image,
-                "entry_time": record.entry_time,
-                "original_data": record.original_data,
-                "created_at": record.created_at,
-                "updated_at": record.updated_at
-            }
+            # 准备更新数据
+            update_data = data.model_dump(exclude_unset=True)
+            
+            # 处理日期字段
+            deal_date = update_data.get('deal_date')
+            if deal_date:
+                if isinstance(deal_date, (int, float)):
+                    # 处理时间戳
+                    update_data['deal_date'] = self._convert_timestamp_to_date(deal_date)
+                elif isinstance(deal_date, str):
+                    try:
+                        update_data['deal_date'] = datetime.strptime(deal_date, '%Y-%m-%d').date()
+                    except ValueError:
+                        raise HTTPException(
+                            status_code=422,
+                            detail=f"Invalid date format. Expected YYYY-MM-DD"
+                        )
+            
+            # 如果小区 ID 变更，更新相关信息
+            if 'community_id' in update_data:
+                community = await Community.get_or_none(id=update_data['community_id'])
+                if not community:
+                    raise HTTPException(status_code=404, detail="Community not found")
+                update_data.update({
+                    'community_name': community.name,
+                    'region': community.region,
+                    'area': community.area,
+                    'city': community.city
+                })
+            
+            # 更新数据
+            await deal_record.update_from_dict(update_data)
+            await deal_record.save()
+            
+            # 格式化返回数据
+            response_data = await deal_record.to_dict()
             
             return {
                 "code": 200,
                 "msg": "更新成功",
-                "data": record_dict
+                "data": response_data
             }
+            
+        except HTTPException as e:
+            raise e
         except Exception as e:
-            print(f"Error in update_deal_record: {str(e)}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e))
 
     async def delete_deal_record(self, id: int) -> Dict:
         try:

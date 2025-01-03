@@ -1,5 +1,7 @@
 from tortoise import fields
 from tortoise.models import Model
+from app.models.base import BaseModel, TimestampMixin
+from datetime import datetime, date
 
 class Community(Model):
     id = fields.IntField(pk=True)
@@ -92,32 +94,57 @@ class Ershoufang(Model):
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
 
-class DealRecord(Model):
+class DealRecord(BaseModel, TimestampMixin):
     id = fields.IntField(pk=True)
+    house_id = fields.CharField(max_length=50, null=True, description='房源ID')
     community = fields.ForeignKeyField('models.Community', related_name='deal_records')
-    source = fields.CharField(max_length=20, null=False, description='数据来源')
-    source_transaction_id = fields.CharField(max_length=50, null=True, description='来源平台交易ID')
-    deal_date = fields.DateField(null=False, description='成交日期')
-    total_price = fields.FloatField(null=False, description='成交总价')
-    unit_price = fields.FloatField(null=False, description='成交单价')
+    community_name = fields.CharField(max_length=100, null=False, description='小区名称')
+    region = fields.CharField(max_length=50, null=False, description='所在区域')
+    area = fields.CharField(max_length=50, null=False, description='所在商圈')
     layout = fields.CharField(max_length=50, null=True, description='户型')
-    size = fields.FloatField(null=True, description='建筑面积')
+    size = fields.FloatField(null=False, description='建筑面积')
     floor_info = fields.CharField(max_length=50, null=True, description='楼层信息')
+    floor_number = fields.IntField(null=True, description='所在楼层')
+    total_floors = fields.IntField(null=True, description='总楼层')
     orientation = fields.CharField(max_length=50, null=True, description='房屋朝向')
-    building_year = fields.IntField(null=True, description='建筑年代')
-    agency = fields.CharField(max_length=100, null=True, description='中介公司')
+    listing_price = fields.FloatField(null=True, description='挂牌价')
+    total_price = fields.FloatField(null=False, description='成交价')
+    unit_price = fields.FloatField(null=True, description='单价(元/平)')
+    deal_date = fields.DateField(null=False, description='成交日期')
     deal_cycle = fields.IntField(null=True, description='成交周期')
-    house_link = fields.CharField(max_length=500, null=True, description='房源链接')
+    tags = fields.CharField(max_length=200, null=True, description='标签')
     layout_image = fields.CharField(max_length=500, null=True, description='户型图链接')
-    entry_time = fields.DatetimeField(null=True, description='数据入库时间')
+    house_link = fields.CharField(max_length=500, null=True, description='房源链接')
+    city = fields.CharField(max_length=50, null=False, description='所在城市')
+    building_year = fields.IntField(null=True, description='建筑年代')
+    building_structure = fields.CharField(max_length=50, null=True, description='建筑结构')
+    location = fields.CharField(max_length=200, null=True, description='位置')
+    decoration = fields.CharField(max_length=50, null=True, description='装修')
+    agency = fields.CharField(max_length=100, null=True, description='中介公司')
+    source = fields.CharField(max_length=50, null=False, description='数据来源')
+    source_transaction_id = fields.CharField(max_length=50, null=True, description='来源平台交易ID')
+    entry_time = fields.DatetimeField(auto_now_add=True, description='数据入库时间')
     original_data = fields.JSONField(null=True, description='原始数据')
-    created_at = fields.DatetimeField(auto_now_add=True, description='创建时间')
-    updated_at = fields.DatetimeField(auto_now=True, description='更新时间')
+
+    # 标记为已废弃的字段
+    data_source = fields.CharField(max_length=50, null=True, description='数据来源', deprecated=True)
+    platform_listing_id = fields.CharField(max_length=50, null=True, description='平台房源ID', deprecated=True)
 
     class Meta:
         table = "deal_record"
         table_description = "成交记录表"
-        app = "models"
+
+    async def to_dict(self) -> dict:
+        """转换为字典格式"""
+        base_dict = await super().to_dict()
+        base_dict.update({
+            "source": self.source,
+            "source_transaction_id": self.source_transaction_id,
+            "entry_time": self.entry_time.isoformat() if self.entry_time else None,
+            "original_data": self.original_data,
+            "deal_date": self.deal_date.isoformat() if self.deal_date else None
+        })
+        return base_dict
 
 class Opportunity(Model):
     id = fields.IntField(pk=True)

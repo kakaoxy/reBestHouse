@@ -1,8 +1,9 @@
 from datetime import datetime, date
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from tortoise.contrib.pydantic import pydantic_model_creator
 from app.models.house import Community, Ershoufang, DealRecord
+import time
 
 # Community Schemas
 class CommunityBase(BaseModel):
@@ -147,33 +148,81 @@ class ErshoufangQueryParams(BaseModel):
 
 # DealRecord Schemas
 class DealRecordBase(BaseModel):
-    community_id: int = Field(..., description='小区ID')
-    source: str = Field(..., description='数据来源')
-    source_transaction_id: Optional[str] = Field(None, description='来源平台交易ID')
-    deal_date: date = Field(..., description='成交日期')
-    total_price: float = Field(..., description='成交总价')
-    unit_price: float = Field(..., description='成交单价')
-    layout: Optional[str] = Field(None, description='户型')
-    size: Optional[float] = Field(None, description='建筑面积')
-    floor_info: Optional[str] = Field(None, description='楼层信息')
-    orientation: Optional[str] = Field(None, description='房屋朝向')
-    building_year: Optional[int] = Field(None, description='建筑年代')
-    agency: Optional[str] = Field(None, description='中介公司')
-    deal_cycle: Optional[int] = Field(None, description='成交周期')
-    house_link: Optional[str] = Field(None, description='房源链接')
-    layout_image: Optional[str] = Field(None, description='户型图链接')
-    entry_time: Optional[datetime] = Field(None, description='数据入库时间')
-    original_data: Optional[dict] = Field(None, description='原始数据')
+    community_id: int
+    community_name: Optional[str] = None
+    region: Optional[str] = None
+    area: Optional[str] = None
+    size: float
+    total_price: float
+    deal_date: date
+    layout: Optional[str] = None
+    floor_number: Optional[int] = None
+    total_floors: Optional[int] = None
+    floor_info: Optional[str] = None
+    orientation: Optional[str] = None
+    unit_price: Optional[float] = None
+    deal_cycle: Optional[int] = None
+    agency: Optional[str] = None
+    source: Optional[str] = 'store'
+    tags: Optional[str] = None
+    layout_url: Optional[str] = None
+    house_url: Optional[str] = None
+    building_year: Optional[int] = None
+    decoration: Optional[str] = None
+    building_structure: Optional[str] = None
+    platform_house_id: Optional[str] = None
+
+    @validator('deal_date', pre=True)
+    def validate_deal_date(cls, v):
+        if isinstance(v, (date, datetime)):
+            return v.date() if isinstance(v, datetime) else v
+        
+        if isinstance(v, (int, float)):
+            try:
+                # 处理时间戳（秒）
+                if len(str(int(v))) <= 10:
+                    return datetime.fromtimestamp(v).date()
+                # 处理时间戳（毫秒）
+                return datetime.fromtimestamp(v / 1000).date()
+            except (ValueError, OSError):
+                raise ValueError('Invalid timestamp')
+        
+        if isinstance(v, str):
+            try:
+                # 尝试解析 ISO 格式日期
+                return datetime.strptime(v, '%Y-%m-%d').date()
+            except ValueError:
+                try:
+                    # 尝试解析时间戳字符串
+                    ts = float(v)
+                    if len(str(int(ts))) <= 10:
+                        return datetime.fromtimestamp(ts).date()
+                    return datetime.fromtimestamp(ts / 1000).date()
+                except (ValueError, OSError):
+                    raise ValueError('Invalid date format. Expected YYYY-MM-DD or timestamp')
+        
+        raise ValueError('Invalid date format')
+
+    class Config:
+        json_encoders = {
+            date: lambda v: v.isoformat(),
+            datetime: lambda v: v.isoformat()
+        }
 
 class DealRecordCreate(DealRecordBase):
     pass
 
 class DealRecordUpdate(DealRecordBase):
     community_id: Optional[int] = None
-    source: Optional[str] = None
-    deal_date: Optional[date] = None
+    size: Optional[float] = None
     total_price: Optional[float] = None
-    unit_price: Optional[float] = None
+    deal_date: Optional[date] = None
+
+    class Config:
+        json_encoders = {
+            date: lambda v: v.isoformat(),
+            datetime: lambda v: v.isoformat()
+        }
 
 class DealRecordInDB(DealRecordBase):
     id: int
@@ -188,6 +237,8 @@ class DealRecordResponse(BaseModel):
     id: int
     community_id: int
     community_name: Optional[str] = None
+    region: Optional[str] = None
+    area: Optional[str] = None
     source: str
     source_transaction_id: Optional[str] = None
     deal_date: date
