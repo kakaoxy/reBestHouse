@@ -91,7 +91,7 @@ export function useErshoufangCRUD(api) {
     { 
       title: '楼层',
       key: 'floor',
-      width: 100,
+      width: 120,
       render: (row) => {
         return row.floor || (row.floor_number && row.total_floors 
           ? `${row.floor_number}/${row.total_floors}层`
@@ -105,7 +105,7 @@ export function useErshoufangCRUD(api) {
     { 
       title: '朝向',
       key: 'orientation',
-      width: 100
+      width: 60
     },
     { 
       title: '面积(㎡)',

@@ -1,5 +1,5 @@
 from typing import List, Dict
-from fastapi import APIRouter, Depends, File, UploadFile, Query, Form
+from fastapi import APIRouter, Depends, File, UploadFile, Query, Form, HTTPException
 from app.controllers.house import community_controller, ershoufang_controller, deal_record_controller, opportunity_controller
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
@@ -9,6 +9,8 @@ from app.schemas.house import (
     OpportunityQueryParams, OpportunityCreate, OpportunityUpdate
 )
 from app.core.dependency import DependPermisson
+from fastapi.responses import FileResponse
+import os
 
 router = APIRouter()
 
@@ -160,6 +162,37 @@ async def update_deal_record(id: int, data: DealRecordUpdate):
 )
 async def delete_deal_record(id: int):
     return await deal_record_controller.delete_deal_record(id)
+
+@router.post(
+    "/deal-records/import",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="批量导入成交记录"
+)
+async def import_deal_records(
+    file: UploadFile = File(..., description="Excel文件"),
+    city: str = Form(..., description="城市")
+):
+    # 验证文件类型
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        return {
+            "code": 422,
+            "msg": "只支持 Excel 文件格式 (.xlsx, .xls)"
+        }
+    
+    return await deal_record_controller.import_deal_records(file, city)
+
+@router.get("/deal-records/template")
+async def get_import_template():
+    """获取成交记录导入模板"""
+    template_path = "templates/deal_record_import_template.xlsx"
+    if not os.path.exists(template_path):
+        raise HTTPException(status_code=404, detail="Template file not found")
+    return FileResponse(
+        template_path,
+        filename="成交记录导入模板.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 # Opportunity routes
 @router.get(

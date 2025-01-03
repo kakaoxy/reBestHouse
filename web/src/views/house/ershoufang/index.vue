@@ -126,6 +126,7 @@
         :data="data"
         :loading="loading"
         :pagination="pagination"
+        :striped="true"
         remote
         :row-key="row => row.id"
         @update:page="handlePageChange"

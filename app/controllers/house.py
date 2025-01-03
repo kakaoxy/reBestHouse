@@ -763,8 +763,8 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
                     'id': item.id,
                     'community_id': item.community_id,
                     'community_name': item.community_name,
-                    'region': item.region,  # 添加区域
-                    'area': item.area,      # 添加商圈
+                    'region': item.region,
+                    'area': item.area,
                     'source': item.source,
                     'source_transaction_id': item.source_transaction_id,
                     'layout': item.layout,
@@ -773,9 +773,13 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
                     'orientation': item.orientation,
                     'total_price': item.total_price,
                     'unit_price': item.unit_price,
+                    'listing_price': item.listing_price,
+                    'tags': item.tags,
+                    'location': item.location,
+                    'decoration': item.decoration,
+                    'agency': item.agency,
                     'deal_date': item.deal_date.isoformat() if item.deal_date else None,
                     'deal_cycle': item.deal_cycle,
-                    'agency': item.agency,
                     'house_link': item.house_link,
                     'layout_image': item.layout_image,
                     'entry_time': item.entry_time.isoformat() if item.entry_time else None,
@@ -888,6 +892,163 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
             }
         except Exception as e:
             raise HTTPException(status_code=404, detail="Record not found")
+
+    # 添加导入模板列定义
+    IMPORT_COLUMNS = {
+        'community_name': '小区名称*',
+        'region': '所在区域',
+        'area': '所在商圈',
+        'layout': '户型',
+        'size': '建筑面积*',
+        'floor_info': '楼层信息',
+        'floor_number': '所在楼层',
+        'total_floors': '总楼层',
+        'orientation': '房屋朝向',
+        'listing_price': '挂牌价',
+        'total_price': '成交价*',
+        'unit_price': '单价(元/平)',
+        'deal_date': '成交时间*',
+        'deal_cycle': '成交周期',
+        'tags': '标签',
+        'layout_image': '户型图链接',
+        'house_link': '房源链接',
+        'city': '所在城市',
+        'building_year': '建筑年代',
+        'building_structure': '建筑结构',
+        'location': '位置',
+        'decoration': '装修',
+        'agency': '中介公司',
+        'source': '数据来源',
+        'source_transaction_id': '平台房源ID'
+    }
+
+    async def import_deal_records(self, file: UploadFile, city: str) -> Dict:
+        try:
+            contents = await file.read()
+            df = pd.read_excel(BytesIO(contents))
+            df.columns = df.columns.str.replace('*', '').str.strip()
+            
+            # 验证必要的列
+            required_columns = ['小区名称', '建筑面积', '成交价', '成交时间']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                return {
+                    "code": 400,
+                    "msg": f"缺少必要的列: {', '.join(missing_columns)}"
+                }
+            
+            success_count = 0
+            error_list = []
+            
+            for _, row in df.iterrows():
+                try:
+                    # 检查必填字段
+                    if pd.isna(row['小区名称']) or pd.isna(row['建筑面积']) or \
+                       pd.isna(row['成交价']) or pd.isna(row['成交时间']):
+                        error_list.append({
+                            "name": row.get('小区名称', '未知'),
+                            "error": "必填字段不能为空"
+                        })
+                        continue
+                    
+                    # 查找或创建小区
+                    community = await Community.filter(
+                        name=row['小区名称'],
+                        city=city.lower()
+                    ).first()
+                    
+                    if not community:
+                        # 创建新小区
+                        community = await Community.create(
+                            name=row['小区名称'],
+                            city=city.lower(),
+                            region=row.get('所在区域', ''),
+                            area=row.get('所在商圈', ''),
+                            building_year=row.get('建筑年代'),
+                            building_type=row.get('建筑结构')
+                        )
+                    
+                    # 准备数据
+                    deal_record_data = {
+                        "community_id": community.id,
+                        "community_name": row['小区名称'],
+                        "region": row.get('所在区域', community.region),
+                        "area": row.get('所在商圈', community.area),
+                        "city": city.lower(),
+                        "source": row.get('数据来源', 'import'),
+                        "source_transaction_id": row.get('平台房源ID'),
+                        "size": float(row['建筑面积']),
+                        "total_price": float(row['成交价']),
+                        "deal_date": pd.to_datetime(row['成交时间']).date()
+                    }
+                    
+                    # 处理其他可选字段
+                    optional_fields = {
+                        '户型': 'layout',
+                        '楼层信息': 'floor_info',
+                        '所在楼层': 'floor_number',
+                        '总楼层': 'total_floors',
+                        '房屋朝向': 'orientation',
+                        '挂牌价': 'listing_price',
+                        '单价(元/平)': 'unit_price',
+                        '成交周期': 'deal_cycle',
+                        '标签': 'tags',
+                        '户型图链接': 'layout_image',
+                        '房源链接': 'house_link',
+                        '建筑年代': 'building_year',
+                        '建筑结构': 'building_structure',
+                        '位置': 'location',
+                        '装修': 'decoration',
+                        '中介公司': 'agency'
+                    }
+                    
+                    for excel_col, db_col in optional_fields.items():
+                        if excel_col in row and not pd.isna(row[excel_col]):
+                            value = row[excel_col]
+                            # 特殊字段处理
+                            if db_col in ['floor_number', 'total_floors', 'deal_cycle', 'building_year']:
+                                try:
+                                    value = int(float(value))
+                                except (ValueError, TypeError):
+                                    continue
+                            elif db_col in ['listing_price', 'unit_price']:
+                                try:
+                                    value = float(value)
+                                except (ValueError, TypeError):
+                                    continue
+                            deal_record_data[db_col] = value
+                    
+                    # 如果没有单价，则计算单价
+                    if 'unit_price' not in deal_record_data:
+                        deal_record_data['unit_price'] = \
+                            deal_record_data['total_price'] * 10000 / deal_record_data['size']
+                    
+                    # 创建成交记录
+                    await self.model.create(**deal_record_data)
+                    success_count += 1
+                    
+                except Exception as e:
+                    error_list.append({
+                        "name": row.get('小区名称', '未知'),
+                        "error": str(e)
+                    })
+            
+            return {
+                "code": 200,
+                "msg": "导入完成",
+                "data": {
+                    "success_count": success_count,
+                    "error_count": len(error_list),
+                    "errors": error_list
+                }
+            }
+            
+        except Exception as e:
+            print(f"Import error: {str(e)}")
+            return {
+                "code": 500,
+                "msg": f"导入失败：{str(e)}"
+            }
 
 deal_record_controller = DealRecordController()
 

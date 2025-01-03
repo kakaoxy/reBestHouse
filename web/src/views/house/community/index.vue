@@ -62,7 +62,6 @@
           :data="data"
           :loading="loading"
           :pagination="pagination"
-          :bordered="false"
           :striped="true"
           remote
           @update:page="handlePageChange"
@@ -163,15 +162,15 @@ const columns = [
     key: 'name',
     width: 200
   },
-  {
-    title: '城市',
-    key: 'city',
-    width: 100,
-    render(row) {
-      const cityOption = communityStore.CITY_OPTIONS.find(item => item.value === row.city)
-      return cityOption ? cityOption.label : row.city
-    }
-  },
+  // {
+  //   title: '城市',
+  //   key: 'city',
+  //   width: 100,
+  //   render(row) {
+  //     const cityOption = communityStore.CITY_OPTIONS.find(item => item.value === row.city)
+  //     return cityOption ? cityOption.label : row.city
+  //   }
+  // },
   {
     title: '区域',
     key: 'region',

@@ -33,13 +33,27 @@
               重置
             </n-button>
           </n-space>
-          <!-- 新增按钮 -->
-          <n-button type="primary" @click="handleAdd">
-            <template #icon>
-              <TheIcon icon="material-symbols:add" />
-            </template>
-            新增成交
-          </n-button>
+          <!-- 新增按钮组 -->
+          <n-space>
+            <n-button @click="handleDownloadTemplate">
+              <template #icon>
+                <TheIcon icon="material-symbols:download" />
+              </template>
+              下载模板
+            </n-button>
+            <n-button @click="handleImport">
+              <template #icon>
+                <TheIcon icon="material-symbols:upload" />
+              </template>
+              批量导入
+            </n-button>
+            <n-button type="primary" @click="handleAdd">
+              <template #icon>
+                <TheIcon icon="material-symbols:add" />
+              </template>
+              新增成交
+            </n-button>
+          </n-space>
         </n-space>
 
         <!-- 筛选条件 -->
@@ -49,24 +63,24 @@
             <span class="label">户型：</span>
             <n-button-group>
               <n-button
-                v-for="layout in LAYOUT_OPTIONS"
-                :key="layout.value"
-                :type="queryParams.layout === layout.value ? 'primary' : 'default'"
-                @click="handleLayoutChange(layout.value)"
+                v-for="option in LAYOUT_OPTIONS"
+                :key="option.value"
+                :type="queryParams.layout === option.value ? 'primary' : 'default'"
+                @click="handleLayoutChange(option.value)"
               >
-                {{ layout.label }}
+                {{ option.label }}
               </n-button>
             </n-button-group>
 
             <span class="label" style="margin-left: 24px">楼层：</span>
             <n-button-group>
               <n-button
-                v-for="floor in FLOOR_OPTIONS"
-                :key="floor.value"
-                :type="queryParams.floor_info === floor.value ? 'primary' : 'default'"
-                @click="handleFloorChange(floor.value)"
+                v-for="option in FLOOR_OPTIONS"
+                :key="option.value"
+                :type="queryParams.floor_info === option.value ? 'primary' : 'default'"
+                @click="handleFloorChange(option.value)"
               >
-                {{ floor.label }}
+                {{ option.label }}
               </n-button>
             </n-button-group>
           </n-space>
@@ -74,16 +88,17 @@
 
         <!-- 表格区域 -->
         <n-data-table
-          class="mt-4"
           :columns="columns"
           :data="data"
           :loading="loading"
+          :striped="true"
           :pagination="pagination"
           remote
           :row-key="row => row.id"
           @update:page="handlePageChange"
           @update:page-size="handlePageSizeChange"
           @update:sorter="handleSorterChange"
+          v-bind="tableProps"
         />
       </n-space>
     </n-card>
@@ -94,6 +109,10 @@
       :title="modalTitle"
       :form-value="formParams"
       :loading="loading"
+      :ORIENTATION_OPTIONS="ORIENTATION_OPTIONS"
+      :DECORATION_OPTIONS="DECORATION_OPTIONS"
+      :STRUCTURE_OPTIONS="STRUCTURE_OPTIONS"
+      :SOURCE_OPTIONS="SOURCE_OPTIONS"
       @submit="handleModalSubmit"
       @cancel="handleModalCancel"
     />
@@ -101,7 +120,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue'
+import { onMounted, h } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import { request } from '@/utils'
 import CommonPage from '@/components/page/CommonPage.vue'
@@ -114,13 +133,39 @@ const message = useMessage()
 const dialog = useDialog()
 const cityStore = useCityStore()
 
-// API 定义 - 修正重复的 API 路径
+// API 定义
 const api = {
   list: (params = {}) => request.get('/house/deal-records', { params }),
   create: (data) => request.post('/house/deal-records', data),
   update: (id, data) => request.put(`/house/deal-records/${id}`, data),
   delete: (id) => request.delete(`/house/deal-records/${id}`)
 }
+
+// 预定义选项
+const ORIENTATION_OPTIONS = [
+  { label: '南', value: '朝南' },
+  { label: '北', value: '朝北' },
+  { label: '东', value: '朝东' },
+  { label: '西', value: '朝西' }
+]
+
+const DECORATION_OPTIONS = [
+  { label: '毛坯', value: '毛坯' },
+  { label: '简装', value: '简装' },
+  { label: '精装', value: '精装' },
+  { label: '豪装', value: '豪装' }
+]
+
+const STRUCTURE_OPTIONS = [
+  { label: '板楼', value: '板楼' },
+  { label: '塔楼', value: '塔楼' },
+  { label: '板塔结合', value: '板塔结合' }
+]
+
+const SOURCE_OPTIONS = [
+  { label: '门店', value: 'store' },
+  { label: '爬虫', value: 'spider' }
+]
 
 // 使用 CRUD 函数
 const {
@@ -129,51 +174,124 @@ const {
   data,
   pagination,
   queryParams,
-  loadData,
-  handlePageChange,
-  handlePageSizeChange,
-  handleSorterChange,
-  handleLayoutChange,
-  handleFloorChange,
-  LAYOUT_OPTIONS,
-  FLOOR_OPTIONS,
   showModal,
   modalTitle,
   formParams,
+  LAYOUT_OPTIONS,
+  FLOOR_OPTIONS,
+  loadData,
   handleAdd,
   handleEdit,
   handleDelete,
   handleModalSubmit,
   handleModalCancel,
-  handleReset
+  handlePageChange,
+  handlePageSizeChange,
+  handleSorterChange,
+  handleLayoutChange,
+  handleFloorChange,
+  handleReset,
+  handleCityChange
 } = useDealRecordCRUD(api)
 
-// 处理城市变化
-const handleCityChange = async (city) => {
-  try {
-    cityStore.setCurrentCity(city)
-    queryParams.city = city
-    await loadData()
-  } catch (error) {
-    message.error('加载数据失败：' + (error.message || '未知错误'))
-  }
+// 初始化
+onMounted(() => {
+  queryParams.city = cityStore.currentCity
+  loadData()
+})
+
+// 添加处理下载模板函数
+const handleDownloadTemplate = () => {
+  const link = document.createElement('a')
+  link.href = '/templates/deal_record_import_template.xlsx'
+  link.download = '成交记录导入模板.xlsx'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 
-// 在组件挂载时加载数据，并设置默认城市
-onMounted(async () => {
-  try {
-    queryParams.city = cityStore.currentCity
-    await loadData()
-  } catch (error) {
-    message.error('加载数据失败：' + (error.message || '未知错误'))
+// 添加处理批量导入函数
+const handleImport = () => {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.xlsx,.xls'
+  
+  input.onchange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    
+    // 验证文件类型
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
+      message.error('请上传 Excel 文件 (.xlsx, .xls)')
+      return
+    }
+    
+    // 提示用户当前选择的城市
+    dialog.info({
+      title: '导入提示',
+      content: `即将导入到城市：${cityStore.CITY_OPTIONS.find(item => item.value === cityStore.currentCity)?.label}`,
+      positiveText: '继续',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        try {
+          loading.value = true
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('city', cityStore.currentCity)
+          
+          const res = await request.post('/house/deal-records/import', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          })
+          
+          if ([200, 400, 422].includes(res.code)) {
+            // 显示导入结果
+            dialog.success({
+              title: '导入结果',
+              content: () => h('div', [
+                h('p', `成功导入：${res.data.success_count} 条`),
+                h('p', `失败数量：${res.data.error_count} 条`),
+                res.data.error_count > 0 ? h('div', [
+                  h('p', { style: 'margin-top: 10px; font-weight: bold;' }, '失败详情：'),
+                  h('div', { 
+                    style: 'max-height: 200px; overflow-y: auto; margin-top: 5px; padding: 10px; background-color: #f5f5f5; border-radius: 4px;' 
+                  }, [
+                    ...res.data.errors.map(error => 
+                      h('p', { style: 'color: #d03050; margin: 5px 0;' }, 
+                        `${error.name}: ${error.error}`
+                      )
+                    )
+                  ])
+                ]) : null
+              ]),
+              positiveText: '确定',
+              onPositiveClick: () => {
+                if (res.code === 200) {
+                  loadData()
+                }
+              }
+            })
+          } else {
+            throw new Error(res.msg || '导入失败')
+          }
+        } catch (error) {
+          message.error(error.response?.data?.msg || error.message || '导入失败')
+        } finally {
+          loading.value = false
+        }
+      }
+    })
   }
-})
+  
+  input.click()
+}
 </script>
 
 <style scoped>
-.n-space {
+/* .n-space {
   width: 100%;
-}
+} */
 
 .n-button-group {
   display: flex;
