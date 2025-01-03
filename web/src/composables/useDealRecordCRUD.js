@@ -39,19 +39,17 @@ export function useDealRecordCRUD(api) {
     city: '',
     layout: null,
     floor_info: null,
-    deal_date_start: null,
-    deal_date_end: null,
     sort_by: 'deal_date',
     sort_direction: 'desc'
   })
 
-  // 预定义选项
-  const LAYOUT_OPTIONS = [
-    { label: '一室', value: '1室' },
-    { label: '二室', value: '2室' },
-    { label: '三室', value: '3室' },
-    { label: '四室', value: '4室' },
-    { label: '五室及以上', value: '5室及以上' }
+  // 修改预定义选项
+  const CUSTOM_LAYOUT_OPTIONS = [
+    { label: '一房', value: '一房', dbValue: '1室1厅' },
+    { label: '二房', value: '二房', dbValue: '2室1厅' },
+    { label: '三房', value: '三房', dbValue: '3室1厅' },
+    { label: '四房', value: '四房', dbValue: '4室1厅' },
+    { label: '其他', value: '其他', dbValue: '其他' }
   ]
 
   const FLOOR_OPTIONS = [
@@ -74,12 +72,12 @@ export function useDealRecordCRUD(api) {
     { 
       title: '区域',
       key: 'region',
-      width: 80
+      width: 60
     },
     { 
       title: '商圈',
       key: 'area',
-      width: 80
+      width: 60
     },
     { 
       title: '户型',
@@ -95,7 +93,10 @@ export function useDealRecordCRUD(api) {
     { 
       title: '楼层信息',
       key: 'floor_info',
-      width: 120
+      width: 120,
+      render: (row) => {
+        return row.floor_info || row.floor_info_display || '-'
+      }
     },
     { 
       title: '成交价',
@@ -114,7 +115,7 @@ export function useDealRecordCRUD(api) {
     { 
       title: '单价',
       key: 'unit_price',
-      width: 100,
+      width: 120,
       render: (row) => row.unit_price ? `${Math.round(row.unit_price)}元/㎡` : '-',
       sorter: true
     },
@@ -430,7 +431,7 @@ export function useDealRecordCRUD(api) {
     loadData()
   }
 
-  // 处理筛选条件变化
+  // 修改筛选条件处理函数
   const handleLayoutChange = (value) => {
     queryParams.layout = queryParams.layout === value ? null : value
     pagination.value.page = 1
@@ -438,7 +439,11 @@ export function useDealRecordCRUD(api) {
   }
 
   const handleFloorChange = (value) => {
-    queryParams.floor_info = queryParams.floor_info === value ? null : value
+    if (queryParams.floor_info === value) {
+      queryParams.floor_info = null
+    } else {
+      queryParams.floor_info = value
+    }
     pagination.value.page = 1
     loadData()
   }
@@ -451,8 +456,6 @@ export function useDealRecordCRUD(api) {
       city: currentCity,
       layout: null,
       floor_info: null,
-      deal_date_start: null,
-      deal_date_end: null,
       sort_by: 'deal_date',
       sort_direction: 'desc'
     })
@@ -487,7 +490,7 @@ export function useDealRecordCRUD(api) {
     showModal,
     modalTitle,
     formParams,
-    LAYOUT_OPTIONS,
+    CUSTOM_LAYOUT_OPTIONS,
     FLOOR_OPTIONS,
     loadData,
     handleAdd,

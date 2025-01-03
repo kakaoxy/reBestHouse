@@ -63,24 +63,24 @@
             <span class="label">户型：</span>
             <n-button-group>
               <n-button
-                v-for="option in LAYOUT_OPTIONS"
-                :key="option.value"
-                :type="queryParams.layout === option.value ? 'primary' : 'default'"
-                @click="handleLayoutChange(option.value)"
+                v-for="layout in CUSTOM_LAYOUT_OPTIONS"
+                :key="layout.value"
+                :type="queryParams.layout === layout.dbValue ? 'primary' : 'default'"
+                @click="handleLayoutChange(layout.dbValue)"
               >
-                {{ option.label }}
+                {{ layout.label }}
               </n-button>
             </n-button-group>
 
             <span class="label" style="margin-left: 24px">楼层：</span>
             <n-button-group>
               <n-button
-                v-for="option in FLOOR_OPTIONS"
-                :key="option.value"
-                :type="queryParams.floor_info === option.value ? 'primary' : 'default'"
-                @click="handleFloorChange(option.value)"
+                v-for="floor in FLOOR_OPTIONS"
+                :key="floor.value"
+                :type="queryParams.floor_info === floor.value ? 'primary' : 'default'"
+                @click="handleFloorChange(floor.value)"
               >
-                {{ option.label }}
+                {{ floor.label }}
               </n-button>
             </n-button-group>
           </n-space>
@@ -177,7 +177,7 @@ const {
   showModal,
   modalTitle,
   formParams,
-  LAYOUT_OPTIONS,
+  CUSTOM_LAYOUT_OPTIONS,
   FLOOR_OPTIONS,
   loadData,
   handleAdd,

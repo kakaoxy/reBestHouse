@@ -728,78 +728,71 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
             )
 
     async def get_deal_records(self, params: DealRecordQueryParams) -> Dict:
-        try:
-            query = Q()
-            if params.search_keyword:
-                query &= (
-                    Q(community_name__icontains=params.search_keyword) |
-                    Q(region__icontains=params.search_keyword) |
-                    Q(area__icontains=params.search_keyword)
-                )
-            if params.community_id:
-                query &= Q(community_id=params.community_id)
-            if params.layout:
-                query &= Q(layout=params.layout)
-            if params.floor_info:
-                query &= Q(floor_info=params.floor_info)
-            if params.deal_date_start:
-                query &= Q(deal_date__gte=params.deal_date_start)
-            if params.deal_date_end:
-                query &= Q(deal_date__lte=params.deal_date_end)
-            if params.city:
-                query &= Q(city=params.city)
-
-            total, items = await self.list(
-                page=params.page,
-                page_size=params.page_size,
-                search=query,
-                order=[f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}"]
+        query = Q()
+        if params.city:
+            query &= Q(city=params.city.lower())
+        if params.search_keyword:
+            query &= (
+                Q(community_name__icontains=params.search_keyword) |
+                Q(region__icontains=params.search_keyword) |
+                Q(area__icontains=params.search_keyword)
             )
+        if params.layout:
+            query &= Q(layout=params.layout)
+        if params.floor_info:
+            # 移除 % 并使用 startswith
+            floor_value = params.floor_info.replace('%', '')
+            query &= Q(floor_info__startswith=floor_value)
 
-            # 确保返回的数据包含区域和商圈信息
-            response_items = []
-            for item in items:
-                item_dict = {
-                    'id': item.id,
-                    'community_id': item.community_id,
-                    'community_name': item.community_name,
-                    'region': item.region,
-                    'area': item.area,
-                    'source': item.source,
-                    'source_transaction_id': item.source_transaction_id,
-                    'layout': item.layout,
-                    'size': item.size,
-                    'floor_info': item.floor_info,
-                    'orientation': item.orientation,
-                    'total_price': item.total_price,
-                    'unit_price': item.unit_price,
-                    'listing_price': item.listing_price,
-                    'tags': item.tags,
-                    'location': item.location,
-                    'decoration': item.decoration,
-                    'agency': item.agency,
-                    'deal_date': item.deal_date.isoformat() if item.deal_date else None,
-                    'deal_cycle': item.deal_cycle,
-                    'house_link': item.house_link,
-                    'layout_image': item.layout_image,
-                    'entry_time': item.entry_time.isoformat() if item.entry_time else None,
-                    'created_at': item.created_at.isoformat(),
-                    'updated_at': item.updated_at.isoformat()
-                }
-                response_items.append(item_dict)
+        total, items = await self.list(
+            page=params.page,
+            page_size=params.page_size,
+            search=query,
+            order=[f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}"]
+        )
 
-            return {
-                "code": 200,
-                "msg": "OK",
-                "data": {
-                    "items": response_items,
-                    "total": total,
-                    "page": params.page,
-                    "page_size": params.page_size
-                }
+        # 确保返回的数据包含区域和商圈信息
+        response_items = []
+        for item in items:
+            item_dict = {
+                'id': item.id,
+                'community_id': item.community_id,
+                'community_name': item.community_name,
+                'region': item.region,
+                'area': item.area,
+                'source': item.source,
+                'source_transaction_id': item.source_transaction_id,
+                'layout': item.layout,
+                'size': item.size,
+                'floor_info': item.floor_info,
+                'orientation': item.orientation,
+                'total_price': item.total_price,
+                'unit_price': item.unit_price,
+                'listing_price': item.listing_price,
+                'tags': item.tags,
+                'location': item.location,
+                'decoration': item.decoration,
+                'agency': item.agency,
+                'deal_date': item.deal_date.isoformat() if item.deal_date else None,
+                'deal_cycle': item.deal_cycle,
+                'house_link': item.house_link,
+                'layout_image': item.layout_image,
+                'entry_time': item.entry_time.isoformat() if item.entry_time else None,
+                'created_at': item.created_at.isoformat(),
+                'updated_at': item.updated_at.isoformat()
             }
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            response_items.append(item_dict)
+
+        return {
+            "code": 200,
+            "msg": "OK",
+            "data": {
+                "items": response_items,
+                "total": total,
+                "page": params.page,
+                "page_size": params.page_size
+            }
+        }
 
     async def create_deal_record(self, data: DealRecordCreate) -> Dict:
         try:
