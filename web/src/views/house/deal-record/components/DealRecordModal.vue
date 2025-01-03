@@ -356,30 +356,31 @@ const layoutInfo = ref({
   halls: null
 })
 const localFormValue = ref({
-  city: cityStore.currentCity,
-  community_id: null,
+  id: undefined,
+  community_id: undefined,
   community_name: '',
   region: '',
   area: '',
-  layout: null,
+  layout: '',
   size: null,
   floor_number: null,
   total_floors: null,
-  floor_info: null,
+  floor_info: '',
   orientation: null,
   total_price: null,
   unit_price: null,
   deal_date: null,
   deal_cycle: null,
-  agency: null,
+  agency: '',
   source: 'store',
   tags: [],
   layout_url: '',
   house_url: '',
   building_year: null,
-  decoration: null,
-  building_structure: null,
-  platform_house_id: ''
+  decoration: '',
+  building_structure: '',
+  platform_house_id: '',
+  city: cityStore.currentCity
 })
 
 // Props 定义
@@ -418,7 +419,7 @@ const filteredCommunityOptions = computed(() => {
   return communityOptions.value.filter(option => option.city === cityStore.currentCity)
 })
 
-// 处理小区选择变化
+// 修改处理小区选择变化的函数
 const handleCommunityChange = async (communityId) => {
   if (communityId) {
     const selectedCommunity = filteredCommunityOptions.value.find(
@@ -429,16 +430,33 @@ const handleCommunityChange = async (communityId) => {
       localFormValue.value = {
         ...localFormValue.value,
         community_id: communityId,
-        building_year: selectedCommunity.building_year,
-        // 确保使用当前城市
+        community_name: selectedCommunity.label,  // 添加小区名称
+        region: selectedCommunity.region,         // 添加区域
+        area: selectedCommunity.area,            // 添加商圈
+        building_year: selectedCommunity.raw?.building_year,
         city: currentCity.value
       }
+    }
+  } else {
+    // 当清空选择时，重置相关字段
+    localFormValue.value = {
+      ...localFormValue.value,
+      community_id: undefined,
+      community_name: '',
+      region: '',
+      area: '',
+      building_year: null
     }
   }
 }
 
-// 处理小区搜索
+// 修改小区搜索处理函数
 const handleCommunitySearch = debounce(async (query) => {
+  if (!query) {
+    communityOptions.value = []
+    return
+  }
+
   loadingCommunities.value = true
   try {
     const res = await communityApi.list({
@@ -453,7 +471,7 @@ const handleCommunitySearch = debounce(async (query) => {
         region: item.region,
         area: item.area,
         city: item.city,
-        raw: item // 保存原始数据，以备需要
+        raw: item
       }))
     }
   } catch (error) {
@@ -464,10 +482,32 @@ const handleCommunitySearch = debounce(async (query) => {
   }
 }, 300)
 
-// 处理小区选择框获得焦点
-const handleCommunityFocus = () => {
+// 添加小区选择器获得焦点时的处理
+const handleCommunityFocus = async () => {
   if (communityOptions.value.length === 0) {
-    handleCommunitySearch('')
+    // 当获得焦点且没有选项时，加载数据
+    loadingCommunities.value = true
+    try {
+      const res = await communityApi.list({
+        city: cityStore.currentCity,
+        page_size: 100
+      })
+      if (res.code === 200) {
+        communityOptions.value = res.data.items.map(item => ({
+          label: item.name,
+          value: item.id,
+          region: item.region,
+          area: item.area,
+          city: item.city,
+          raw: item
+        }))
+      }
+    } catch (error) {
+      console.error('Load communities error:', error)
+      message.error('加载小区列表失败')
+    } finally {
+      loadingCommunities.value = false
+    }
   }
 }
 
@@ -603,16 +643,49 @@ const resetForm = () => {
 // 监听表单值变化
 watch(
   () => props.formValue,
-  (newVal) => {
+  async (newVal) => {
     if (newVal) {
+      // 如果有小区ID，先加载小区数据
+      if (newVal.community_id) {
+        loadingCommunities.value = true
+        try {
+          const res = await communityApi.list({
+            city: cityStore.currentCity,
+            page_size: 100
+          })
+          if (res.code === 200) {
+            communityOptions.value = res.data.items.map(item => ({
+              label: item.name,
+              value: item.id,
+              region: item.region,
+              area: item.area,
+              city: item.city,
+              raw: item
+            }))
+          }
+        } catch (error) {
+          console.error('Load communities error:', error)
+        } finally {
+          loadingCommunities.value = false
+        }
+      }
+
+      // 处理日期格式
       const formData = {
         ...newVal,
-        deal_date: newVal.deal_date || null,  // 直接使用后端返回的日期字符串
+        deal_date: newVal.deal_date ? new Date(newVal.deal_date).getTime() : null,
         tags: newVal.tags ? newVal.tags.split(',') : []
       }
-      nextTick(() => {
-        Object.assign(localFormValue.value, formData)
-      })
+
+      // 更新本地表单数据
+      Object.assign(localFormValue.value, formData)
+
+      // 解析并设置户型数据
+      if (formData.layout) {
+        const { rooms, halls } = parseLayout(formData.layout)
+        layoutInfo.value.rooms = rooms
+        layoutInfo.value.halls = halls
+      }
     }
   },
   { deep: true, immediate: true }
@@ -621,8 +694,11 @@ watch(
 // 监听弹窗显示状态
 watch(
   () => props.show,
-  (newVal) => {
-    if (!newVal) {
+  async (newVal) => {
+    if (newVal && props.formValue?.community_id) {
+      // 当弹窗打开且有小区ID时，确保小区数据已加载
+      await handleCommunityFocus()
+    } else if (!newVal) {
       resetForm()
     }
   }
@@ -694,6 +770,19 @@ const rules = {
 const datePickerProps = {
   valueFormat: 'yyyy-MM-dd',  // 直接使用 YYYY-MM-DD 格式
   format: 'yyyy-MM-dd'
+}
+
+// 修改户型解析函数
+const parseLayout = (layout) => {
+  if (!layout) return { rooms: null, halls: null }
+  const match = layout.match(/(\d+)\s*[室房]\s*(\d+)\s*[厅]?/)
+  if (match) {
+    return {
+      rooms: parseInt(match[1]),
+      halls: parseInt(match[2])
+    }
+  }
+  return { rooms: null, halls: null }
 }
 </script>
 

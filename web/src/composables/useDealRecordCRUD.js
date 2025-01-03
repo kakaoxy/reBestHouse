@@ -316,32 +316,54 @@ export function useDealRecordCRUD(api) {
   // 处理编辑
   const handleEdit = (row) => {
     modalTitle.value = '编辑成交'
+    
     // 处理日期格式
     const dealDate = row.deal_date ? new Date(row.deal_date).getTime() : null
 
     // 处理户型数据
-    const layoutMatch = row.layout ? row.layout.match(/(\d+)室(\d+)厅/) : null
-    const rooms = layoutMatch ? parseInt(layoutMatch[1]) : null
-    const halls = layoutMatch ? parseInt(layoutMatch[2]) : null
+    let rooms = null
+    let halls = null
+    if (row.layout) {
+      // 使用更宽松的正则表达式匹配户型
+      const match = row.layout.match(/(\d+)\s*[室房]\s*(\d+)\s*[厅]?/)
+      if (match) {
+        rooms = parseInt(match[1])
+        halls = parseInt(match[2])
+      }
+    }
 
     formParams.value = {
-      ...row,
+      id: row.id,
+      community_id: row.community_id,
+      community_name: row.community_name,  // 小区名称用于显示
+      region: row.region,
+      area: row.area,
+      city: row.city,
+      source: row.source || 'store',
+      source_transaction_id: row.source_transaction_id,
       deal_date: dealDate,
-      community_name: row.community_name,  // 确保小区名称正确显示
-      community_id: parseInt(row.community_id),
-      total_price: parseFloat(row.total_price),
-      unit_price: parseFloat(row.unit_price),
-      size: parseFloat(row.size),
-      building_year: row.building_year ? parseInt(row.building_year) : null,
-      deal_cycle: row.deal_cycle ? parseInt(row.deal_cycle) : null,
+      total_price: row.total_price ? parseFloat(row.total_price) : null,
+      unit_price: row.unit_price ? parseFloat(row.unit_price) : null,
+      size: row.size ? parseFloat(row.size) : null,
+      floor_info: row.floor_info,
+      floor_number: row.floor_number,
+      total_floors: row.total_floors,
+      orientation: row.orientation,
+      building_year: row.building_year,
+      agency: row.agency,
+      deal_cycle: row.deal_cycle,
+      house_link: row.house_link,
+      layout_image: row.layout_image,
       listing_price: row.listing_price ? parseFloat(row.listing_price) : null,
-      floor_number: row.floor_info ? parseInt(row.floor_info.split('/')[0]) : null,
-      total_floors: row.floor_info ? parseInt(row.floor_info.split('/共')[1]) : null,
-      // 分别设置户型的室和厅
-      rooms: rooms,
-      halls: halls,
-      layout: row.layout  // 保留原始户型字符串
+      tags: row.tags,
+      location: row.location,
+      decoration: row.decoration,
+      // 户型相关
+      rooms,
+      halls,
+      layout: row.layout
     }
+
     showModal.value = true
   }
 
