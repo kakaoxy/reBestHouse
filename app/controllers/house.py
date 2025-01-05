@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from fastapi import HTTPException, UploadFile
 from tortoise.expressions import Q
 from tortoise.functions import Count, Max
@@ -264,87 +264,88 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
             return None
 
     async def get_ershoufangs(self, params: ErshoufangQueryParams) -> Dict:
-        try:
-            query = Q()
-            if params.city:
-                query &= Q(city=params.city.lower())
-            
-            # 关键词搜索
-            if params.search_keyword:
-                query &= (
-                    Q(community_name__icontains=params.search_keyword) |
-                    Q(community__name__icontains=params.search_keyword)
-                )
-            
-            # 户型筛选
-            if params.layout:
-                query &= Q(layout=params.layout)
-            
-            # 朝向筛选
-            if params.orientation:
-                query &= Q(orientation=params.orientation)
-            
-            # 楼层筛选
-            if params.floor:
-                query &= Q(floor__icontains=params.floor)
-            
-            # 面积范围筛选
-            if params.size_min is not None:
-                query &= Q(size__gte=params.size_min)
-            if params.size_max is not None:
-                query &= Q(size__lte=params.size_max)
-            
-            # 获取每个 platform_listing_id 的最新记录
-            latest_ids = await self.model.filter(~Q(platform_listing_id=''))\
-                .group_by('platform_listing_id')\
-                .values_list('id', flat=True)
-            
-            # 构建基础查询
-            base_query = self.model.filter(query)\
-                .filter(
-                    Q(platform_listing_id='') | Q(id__in=latest_ids)
-                )\
-                .prefetch_related('community')
-            
-            # 计算总数
-            total = await base_query.count()
-            
-            # 获取分页数据
-            items = await base_query\
-                .order_by(f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}")\
-                .offset((params.page - 1) * params.page_size)\
-                .limit(params.page_size)
-            
-            # 处理返回数据
-            result_items = []
-            for item in items:
-                try:
-                    item_dict = await item.to_dict()
-                    if item.community:
-                        item_dict.update({
-                            'community_name': item.community.name,
-                            'community_id': item.community.id,
-                            'region': item.community.region,
-                            'area': item.community.area
-                        })
-                    result_items.append(item_dict)
-                except Exception as e:
-                    print(f"Error processing item {item.id}: {str(e)}")
-                    continue
-            
-            return {
-                "code": 200,
-                "msg": "OK",
-                "data": {
-                    "items": result_items,
-                    "total": total,
-                    "page": params.page,
-                    "page_size": params.page_size
-                }
+        query = Q()
+        if params.community_id:
+            query &= Q(community_id=params.community_id)
+        if params.city:
+            query &= Q(city=params.city.lower())
+        
+        # 关键词搜索
+        if params.search_keyword:
+            query &= (
+                Q(community_name__icontains=params.search_keyword) |
+                Q(community__name__icontains=params.search_keyword)
+            )
+        
+        # 户型筛选
+        if params.layout:
+            query &= Q(layout=params.layout)
+        # 小区ID筛选
+        if params.community_id:
+            query &= Q(community_id=params.community_id)
+        
+        # 朝向筛选
+        if params.orientation:
+            query &= Q(orientation=params.orientation)
+        
+        # 楼层筛选
+        if params.floor:
+            query &= Q(floor__icontains=params.floor)
+        
+        # 面积范围筛选
+        if params.size_min is not None:
+            query &= Q(size__gte=params.size_min)
+        if params.size_max is not None:
+            query &= Q(size__lte=params.size_max)
+        
+        # 获取每个 platform_listing_id 的最新记录
+        latest_ids = await self.model.filter(~Q(platform_listing_id=''))\
+            .group_by('platform_listing_id')\
+            .values_list('id', flat=True)
+        
+        # 构建基础查询
+        base_query = self.model.filter(query)\
+            .filter(
+                Q(platform_listing_id='') | Q(id__in=latest_ids)
+            )\
+            .prefetch_related('community')
+        
+        # 计算总数
+        total = await base_query.count()
+        
+        # 获取分页数据
+        items = await base_query\
+            .order_by(f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}")\
+            .offset((params.page - 1) * params.page_size)\
+            .limit(params.page_size)
+        
+        # 处理返回数据
+        result_items = []
+        for item in items:
+            try:
+                item_dict = await item.to_dict()
+                if item.community:
+                    item_dict.update({
+                        'community_name': item.community.name,
+                        'community_id': item.community.id,
+                        'region': item.community.region,
+                        'area': item.community.area
+                    })
+                result_items.append(item_dict)
+            except Exception as e:
+                print(f"Error processing item {item.id}: {str(e)}")
+                continue
+        
+        return {
+            "code": 200,
+            "msg": "OK",
+            "data": {
+                "items": result_items,
+                "total": total,
+                "page": params.page,
+                "page_size": params.page_size
             }
-        except Exception as e:
-            print(f"Error in get_ershoufangs: {str(e)}")
-            return {"code": 500, "msg": "获取数据失败"}
+        }
 
     async def _get_filter_options(self) -> Dict:
         """获取筛选选项"""
@@ -727,10 +728,37 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
                 detail=f"Invalid timestamp format: {timestamp}"
             )
 
+    async def list(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        search: Q = None,
+        order: List[str] = None,
+    ) -> Tuple[int, List[DealRecord]]:
+        """
+        获取列表数据
+        """
+        query = self.model.all()
+        if search:
+            query = query.filter(search)
+        
+        total = await query.count()
+        
+        if order:
+            query = query.order_by(*order)
+        
+        items = await query.offset((page - 1) * page_size).limit(page_size)
+        
+        return total, items
+
     async def get_deal_records(self, params: DealRecordQueryParams) -> Dict:
         query = Q()
         if params.city:
             query &= Q(city=params.city.lower())
+
+        if params.community_id:
+            query &= Q(community_id=params.community_id)
+            
         if params.search_keyword:
             query &= (
                 Q(community_name__icontains=params.search_keyword) |
@@ -750,8 +778,7 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
             search=query,
             order=[f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}"]
         )
-
-        # 确保返回的数据包含区域和商圈信息
+        
         response_items = []
         for item in items:
             item_dict = {

@@ -142,9 +142,25 @@ class ErshoufangQueryParams(BaseModel):
     size_max: Optional[float] = None
     sort_by: str = 'listing_date'
     sort_direction: str = 'desc'
+    community_id: Optional[int] = None
 
     class Config:
         from_attributes = True
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.search_keyword = data.get('search_keyword')
+        self.community_id = data.get('community_id')
+        self.layout = data.get('layout')
+        self.orientation = data.get('orientation')
+        self.floor = data.get('floor')
+        self.size_min = data.get('size_min')
+        self.size_max = data.get('size_max')
+        self.city = data.get('city')
+        self.page = data.get('page', 1)
+        self.page_size = data.get('page_size', 10)
+        self.sort_by = data.get('sort_by', 'listing_date')
+        self.sort_direction = data.get('sort_direction', 'desc')
 
 # DealRecord Schemas
 class DealRecordBase(BaseModel):

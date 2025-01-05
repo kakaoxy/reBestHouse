@@ -1,11 +1,10 @@
 <template>
   <n-modal
     :show="show"
-    @update:show="handleUpdateShow"
-    style="width: 100vw; height: 100vh;"
     :mask-closable="false"
-    class="opportunity-detail-modal"
-    transform-origin="center"
+    preset="card"
+    style="max-width: 90vw; width: 90vw; max-height: 90vh"
+    @update:show="handleUpdateShow"
   >
     <div class="modal-content">
       <div class="modal-header">
@@ -173,44 +172,89 @@
 
               <!-- 右下部分 -->
               <div class="right-bottom">
-                <n-divider>交易信息</n-divider>
-                <n-descriptions bordered>
-                  <n-descriptions-item label="满五年">
-                    {{ opportunityData.is_full_five ? '是' : '否' }}
-                  </n-descriptions-item>
-                  <n-descriptions-item label="满二年">
-                    {{ opportunityData.is_full_two ? '是' : '否' }}
-                  </n-descriptions-item>
-                  <n-descriptions-item label="唯一住房">
-                    {{ opportunityData.is_unique ? '是' : '否' }}
-                  </n-descriptions-item>
-                  <n-descriptions-item label="交易来源">
-                    {{ opportunityData.transaction_source }}
-                  </n-descriptions-item>
-                </n-descriptions>
-
-                <n-divider>业务信息</n-divider>
-                <n-descriptions bordered>
-                  <n-descriptions-item label="商机方">
-                    {{ opportunityData.opportunity_owner }}
-                  </n-descriptions-item>
-                  <n-descriptions-item label="归属方">
-                    {{ opportunityData.belonging_owner }}
-                  </n-descriptions-item>
-                  <n-descriptions-item label="创建时间">
-                    {{ formatDate(opportunityData.created_at) }}
-                  </n-descriptions-item>
-                  <n-descriptions-item label="更新时间">
-                    {{ formatDate(opportunityData.updated_at) }}
-                  </n-descriptions-item>
-                </n-descriptions>
-
-                <template v-if="opportunityData.remarks">
-                  <n-divider>备注</n-divider>
-                  <div class="remarks">
-                    {{ opportunityData.remarks }}
+                <n-divider>同小区房源信息</n-divider>
+                
+                <div class="flex gap-4">
+                  <!-- 左侧在售房源列表 -->
+                  <div class="w-[48%]">
+                    <div class="mb-2 font-bold text-lg flex items-center">
+                      <span class="mr-2">在售房源</span>
+                      <n-tag type="success" size="small">
+                        {{ ershoufangList?.length || 0 }}套
+                      </n-tag>
+                    </div>
+                    
+                    <n-spin :show="ershoufangLoading">
+                      <div class="h-[calc(100vh-500px)] overflow-y-auto pr-2">
+                        <n-card
+                          v-for="item in ershoufangList"
+                          :key="item.id"
+                          class="mb-4 cursor-pointer hover:shadow-md transition-shadow"
+                          size="small"
+                          @click="handleViewErshoufang(item)"
+                        >
+                          <div class="flex justify-between items-start">
+                            <div>
+                              <div class="text-16 font-medium mb-2">{{ item.layout }}</div>
+                              <div class="text-gray-500 text-14">
+                                {{ item.floor_info }} | {{ item.size }}㎡ | {{ item.orientation }}
+                              </div>
+                            </div>
+                            <div class="text-right">
+                              <div class="text-18 font-bold text-primary mb-1">
+                                {{ item.total_price }}万
+                              </div>
+                              <div class="text-gray-400 text-12">
+                                {{ Math.round(item.unit_price) }}元/㎡
+                              </div>
+                            </div>
+                          </div>
+                        </n-card>
+                        <n-empty v-if="ershoufangList.length === 0" description="暂无在售房源" />
+                      </div>
+                    </n-spin>
                   </div>
-                </template>
+
+                  <!-- 右侧成交房源列表 -->
+                  <div class="w-[48%]">
+                    <div class="mb-2 font-bold text-lg flex items-center">
+                      <span class="mr-2">成交记录</span>
+                      <n-tag type="info" size="small">
+                        {{ dealRecordList?.length || 0 }}套
+                      </n-tag>
+                    </div>
+                    
+                    <n-spin :show="dealRecordLoading">
+                      <div class="h-[calc(100vh-500px)] overflow-y-auto pr-2">
+                        <n-card
+                          v-for="item in dealRecordList"
+                          :key="item.id"
+                          class="mb-4 cursor-pointer hover:shadow-md transition-shadow"
+                          size="small"
+                          @click="handleViewDealRecord(item)"
+                        >
+                          <div class="flex justify-between items-start">
+                            <div>
+                              <div class="text-16 font-medium mb-2">{{ item.layout }}</div>
+                              <div class="text-gray-500 text-14">
+                                {{ item.floor_info || item.floor }} | {{ item.area }}㎡ | {{ formatDate(item.deal_date) }}
+                              </div>
+                            </div>
+                            <div class="text-right">
+                              <div class="text-18 font-bold text-success mb-1">
+                                {{ item.total_price }}万
+                              </div>
+                              <div class="text-gray-400 text-12">
+                                {{ Math.round(item.unit_price) }}元/㎡
+                              </div>
+                            </div>
+                          </div>
+                        </n-card>
+                        <n-empty v-if="dealRecordList.length === 0" description="暂无成交记录" />
+                      </div>
+                    </n-spin>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -222,76 +266,184 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { opportunityApi } from '@/api/house'
+import { opportunityApi, ershoufangApi, dealRecordApi } from '@/api/house'
 import { OPPORTUNITY_STATUS_TAG_TYPE } from '../constants'
 import { useMessage } from 'naive-ui'
+import { formatDate } from '@/utils'
 
-defineOptions({
-  name: 'OpportunityDetail'
-})
+const message = useMessage()
+const loading = ref(false)
+const opportunityData = ref(null)
+const ershoufangList = ref([])
+const dealRecordList = ref([])
+const ershoufangLoading = ref(false)
+const dealRecordLoading = ref(false)
 
+// Props 定义
 const props = defineProps({
   show: {
     type: Boolean,
     default: false
   },
   id: {
-    type: Number,
-    required: true
+    type: [Number, String],
+    default: ''
   }
 })
 
+// 添加 emit 定义
 const emit = defineEmits(['update:show'])
 
-const message = useMessage()
-const loading = ref(false)
-const opportunityData = ref(null)
-
+// 处理模态框显示状态
 const handleUpdateShow = (value) => {
   emit('update:show', value)
 }
 
+// 处理关闭按钮点击
 const handleClose = () => {
   handleUpdateShow(false)
 }
 
-const getStatusType = (status) => OPPORTUNITY_STATUS_TAG_TYPE[status] || 'default'
-
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-const loadOpportunityDetail = async () => {
-  if (!props.id) return
+// 加载商机详情
+const loadOpportunityDetail = async (id) => {
+  if (!id) return
   
   loading.value = true
   try {
-    const res = await opportunityApi.getDetail(props.id)
+    const res = await opportunityApi.getDetail(id)
+    
     if (res.code === 200) {
-      opportunityData.value = res.data
-    } else {
-      message.error('加载商机详情失败')
+      opportunityData.value = {
+        ...res.data,
+        city: 'shanghai'
+      }
     }
   } catch (error) {
-    console.error('加载商机详情失败:', error)
     message.error('加载商机详情失败')
   } finally {
     loading.value = false
   }
 }
 
-watch(() => props.show, (newVal) => {
-  if (newVal) {
-    loadOpportunityDetail()
+// 加载同小区房源
+const loadCommunityErshoufang = async (communityId) => {
+  ershoufangLoading.value = true
+  try {
+    const city = opportunityData.value?.city?.toLowerCase()
+    if (!city || !communityId) {
+      console.warn('Missing required params:', { city, communityId })
+      return
+    }
+
+    const params = {
+      community_id: Number(communityId),
+      city,
+      page: 1,
+      page_size: 10,
+      sort_by: 'listing_date',
+      sort_direction: 'desc'
+    }
+
+    const res = await ershoufangApi.list(params)
+    
+    if (res.code === 200 && res.data?.items) {
+      ershoufangList.value = res.data.items
+    } else {
+      console.warn('Failed to load ershoufang:', res)
+      ershoufangList.value = []
+    }
+  } catch (error) {
+    console.error('Load community ershoufang error:', error)
+    message.error('加载同小区在售房源失败')
+    ershoufangList.value = []
+  } finally {
+    ershoufangLoading.value = false
   }
+}
+
+// 加载同小区成交记录
+const loadCommunityDealRecords = async (communityId) => {
+  dealRecordLoading.value = true
+  try {
+    const city = opportunityData.value?.city?.toLowerCase()
+    if (!city || !communityId) {
+      console.warn('Missing required params:', { city, communityId })
+      return
+    }
+
+    const params = {
+      community_id: Number(communityId),
+      city,
+      page: 1,
+      page_size: 10,
+      sort_by: 'deal_date',
+      sort_direction: 'desc'
+    }
+
+    const res = await dealRecordApi.list(params)
+    
+    if (res.code === 200 && res.data?.items) {
+      dealRecordList.value = res.data.items
+    } else {
+      console.warn('Failed to load deal records:', res)
+      dealRecordList.value = []
+    }
+  } catch (error) {
+    console.error('Load community deal records error:', error)
+    message.error('加载同小区成交记录失败')
+    dealRecordList.value = []
+  } finally {
+    dealRecordLoading.value = false
+  }
+}
+
+// 加载所有数据
+const loadAllData = async (id) => {
+  if (!id) return
+  
+  try {
+    await loadOpportunityDetail(id)
+    
+    if (opportunityData.value?.community_id) {
+      await Promise.all([
+        loadCommunityErshoufang(opportunityData.value.community_id),
+        loadCommunityDealRecords(opportunityData.value.community_id)
+      ])
+    }
+  } catch (error) {
+    console.error('Load all data error:', error)
+    message.error('加载数据失败')
+  }
+}
+
+// 监听 show 和 id 的变化
+watch(
+  () => [props.show, props.id],
+  ([newShow, newId]) => {
+    if (newShow && newId) {
+      loadAllData(newId)
+    }
+  },
+  { immediate: true }
+)
+
+// 查看在售房源详情
+const handleViewErshoufang = (item) => {
+  message.info('查看在售房源详情功能开发中')
+}
+
+// 查看成交记录详情  
+const handleViewDealRecord = (item) => {
+  message.info('查看成交记录详情功能开发中')
+}
+
+// 获取状态类型
+const getStatusType = (status) => {
+  return OPPORTUNITY_STATUS_TAG_TYPE[status] || 'default'
+}
+
+defineOptions({
+  name: 'OpportunityDetail'
 })
 </script>
 
@@ -509,5 +661,32 @@ watch(() => props.show, (newVal) => {
 .modal-title {
   font-size: 3.5rem;
   font-weight: bold;
+}
+
+.right-bottom {
+  padding: 16px;
+}
+
+/* 自定义滚动条样式 */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: #ddd;
+  border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background-color: #f5f5f5;
+}
+
+/* 主色调 */
+.text-primary {
+  color: #2080f0;
+}
+
+.text-success {
+  color: #18a058;
 }
 </style> 

@@ -3,7 +3,15 @@ import { request } from '@/utils'
 const baseUrl = '/house'
 
 export const ershoufangApi = {
-  list: (params = {}) => request.get(`${baseUrl}/ershoufangs`, { params }),
+  list: (params = {}) => {
+    console.log('Calling ershoufang API with params:', params)
+    return request.get(`${baseUrl}/ershoufangs`, { 
+      params: {
+        ...params,
+        community_id: Number(params.community_id)
+      }
+    })
+  },
   create: (data) => request.post(`${baseUrl}/ershoufangs`, data),
   update: (id, data) => request.put(`${baseUrl}/ershoufangs/${id}`, data),
   delete: (id) => request.delete(`${baseUrl}/ershoufangs/${id}`)
@@ -17,7 +25,15 @@ export const communityApi = {
 }
 
 export const dealRecordApi = {
-  list: (params = {}) => request.get(`${baseUrl}/deal-records`, { params }),
+  list: (params = {}) => {
+    console.log('Calling deal records API with params:', params)
+    return request.get(`${baseUrl}/deal-records`, { 
+      params: {
+        ...params,
+        community_id: Number(params.community_id)
+      }
+    })
+  },
   create: (data) => request.post(`${baseUrl}/deal-records`, data),
   update: (id, data) => request.put(`${baseUrl}/deal-records/${id}`, data),
   delete: (id) => request.delete(`${baseUrl}/deal-records/${id}`)
