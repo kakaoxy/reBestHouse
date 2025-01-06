@@ -274,7 +274,9 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
         if params.search_keyword:
             query &= (
                 Q(community_name__icontains=params.search_keyword) |
-                Q(community__name__icontains=params.search_keyword)
+                Q(community__name__icontains=params.search_keyword) |
+                Q(region__icontains=params.search_keyword) |
+                Q(area__icontains=params.search_keyword)
             )
         
         # 户型筛选
@@ -303,10 +305,12 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
             .group_by('platform_listing_id')\
             .values_list('id', flat=True)
         
-        # 构建基础查询
+        # 构建基础查询，包含手动创建的记录
         base_query = self.model.filter(query)\
             .filter(
-                Q(platform_listing_id='') | Q(id__in=latest_ids)
+                Q(platform_listing_id='') | 
+                Q(id__in=latest_ids) |
+                Q(data_source='store')  # 包含手动创建的记录
             )\
             .prefetch_related('community')
         
