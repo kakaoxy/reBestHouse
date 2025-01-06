@@ -13,10 +13,20 @@
     <div class="modal-content">
       <n-spin :show="loading">
         <div v-if="opportunityData" class="opportunity-detail">
-          <div class="detail-layout">
-            <!-- 左侧区域 -->
+          <n-layout has-sider class="detail-layout">
+            <!-- 左侧区域改为可折叠侧边栏 -->
+            <n-layout-sider
+              collapse-mode="width"
+              :collapsed-width="80"
+              :width="360"
+              :show-collapsed-content="false"
+              show-trigger="arrow-circle"
+              bordered
+              :collapsed="collapsed"
+              @update:collapsed="handleCollapse"
+            >
             <div class="left-section">
-              <!-- 图片轮播 -->
+                <!-- 原有的左侧内容保持不变 -->
               <div class="carousel-section">
                 <n-carousel
                   show-arrow
@@ -51,7 +61,6 @@
                 </n-carousel>
               </div>
 
-              <!-- 基础信息卡片 -->
               <n-card class="info-card" :bordered="false">
                 <div class="info-header">
                   <div class="community-title">
@@ -98,7 +107,6 @@
                 </div>
               </n-card>
 
-              <!-- 交易标签 -->
               <div class="tags-section">
                 <n-space>
                   <n-tag v-if="opportunityData.is_full_five" type="success">满五</n-tag>
@@ -107,7 +115,6 @@
                 </n-space>
               </div>
 
-              <!-- 业务信息 -->
               <n-card class="business-card" :bordered="false">
                 <n-descriptions :column="1" label-placement="left">
                   <n-descriptions-item label="商机方">
@@ -125,10 +132,11 @@
                 </n-descriptions>
               </n-card>
             </div>
+            </n-layout-sider>
 
-            <!-- 右侧信息区域 -->
-            <div class="right-section">
-              <!-- 右上部分 -->
+            <!-- 右侧内容区域 -->
+            <n-layout-content class="right-section">
+              <!-- 原有的右侧内容保持不变 -->
               <div class="right-top">
                 <div class="flex justify-between items-center mb-4">
                   <h2 class="text-2xl font-bold">{{ opportunityData.community_name }}</h2>
@@ -158,18 +166,17 @@
                   </n-descriptions-item>
                 </n-descriptions>
               </div>
-
-              <!-- 右下部分 -->
               <div class="right-bottom">
                 <n-divider>同小区房源统计</n-divider>
                 
                 <!-- 使用外层表格包裹四个统计表 -->
                 <n-card :bordered="false" class="stats-wrapper">
-                  <n-grid :cols="2" :x-gap="0" :y-gap="0" class="stats-grid">
-                    <!-- 在售户型统计 -->
-                    <n-grid-item class="stats-grid-item">
+                  <!-- 在售统计 -->
+                  <div class="stats-section">
+                    <div class="stats-section-title">在售房源统计</div>
+                    <div class="stats-tables">
                       <div class="stats-table">
-                        <div class="text-lg font-bold">在售户型分布</div>
+                        <div class="text-lg font-bold">户型分布</div>
                         <n-data-table
                           :columns="layoutColumns"
                           :data="layoutStats"
@@ -179,27 +186,8 @@
                           v-bind="layoutTableProps"
                         />
                       </div>
-                    </n-grid-item>
-
-                    <!-- 成交户型统计 -->
-                    <n-grid-item class="stats-grid-item">
                       <div class="stats-table">
-                        <div class="text-lg font-bold">成交户型分布</div>
-                        <n-data-table
-                          :columns="dealLayoutColumns"
-                          :data="dealLayoutStats"
-                          :bordered="false"
-                          :single-line="false"
-                          size="small"
-                          v-bind="layoutTableProps"
-                        />
-                  </div>
-                    </n-grid-item>
-
-                    <!-- 在售楼层统计 -->
-                    <n-grid-item class="stats-grid-item">
-                      <div class="stats-table">
-                        <div class="text-lg font-bold">在售楼层分布</div>
+                        <div class="text-lg font-bold">楼层分布</div>
                         <n-data-table
                           :columns="floorColumns"
                           :data="floorStats"
@@ -208,13 +196,27 @@
                           size="small"
                           v-bind="floorTableProps"
                         />
-              </div>
-                    </n-grid-item>
+                      </div>
+                    </div>
+                  </div>
 
-                    <!-- 成交楼层统计 -->
-                    <n-grid-item class="stats-grid-item">
+                  <!-- 成交统计 -->
+                  <div class="stats-section">
+                    <div class="stats-section-title">成交房源统计</div>
+                    <div class="stats-tables">
                       <div class="stats-table">
-                        <div class="text-lg font-bold">成交楼层分布</div>
+                        <div class="text-lg font-bold">户型分布</div>
+                        <n-data-table
+                          :columns="dealLayoutColumns"
+                          :data="dealLayoutStats"
+                          :bordered="false"
+                          :single-line="false"
+                          size="small"
+                          v-bind="layoutTableProps"
+                        />
+                      </div>
+                      <div class="stats-table">
+                        <div class="text-lg font-bold">楼层分布</div>
                         <n-data-table
                           :columns="dealFloorColumns"
                           :data="dealFloorStats"
@@ -223,9 +225,9 @@
                           size="small"
                           v-bind="floorTableProps"
                         />
-            </div>
-                    </n-grid-item>
-                  </n-grid>
+                      </div>
+                    </div>
+                  </div>
 
                   <!-- 成交统计时间范围提示 -->
                   <div class="text-gray-400 text-sm time-range-tip">
@@ -317,8 +319,8 @@
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </n-layout-content>
+          </n-layout>
         </div>
       </n-spin>
     </div>
@@ -1171,6 +1173,14 @@ const floorTableProps = {
   rowClassName: (row) => getRowClass(row, 'floor')
 }
 
+// 添加侧边栏折叠状态控制
+const collapsed = ref(false)
+
+// 处理侧边栏折叠状态变化
+const handleCollapse = (value) => {
+  collapsed.value = value
+}
+
 defineOptions({
   name: 'OpportunityDetail'
 })
@@ -1224,6 +1234,7 @@ defineOptions({
   display: flex;
   gap: 24px;
   height: 100%;
+  position: relative; /* 添加相对定位 */
   
   @media (max-width: 1280px) {
     flex-direction: column;
@@ -1245,13 +1256,11 @@ defineOptions({
 }
 
 .right-section {
-  flex: 0 0 75%;
-  
-  @media (max-width: 1280px) {
-    flex: none;
-    /* 移除固定高度，允许内容自然延伸 */
-    height: auto;
-  }
+  flex: 1; /* 让右侧区域自动填充剩余空间 */
+  padding: 24px;
+  overflow-y: auto;
+  background-color: #fff;
+  min-width: 0; /* 防止内容溢出 */
 }
 
 .right-top {
@@ -1633,11 +1642,11 @@ defineOptions({
 
 /* 右侧区域响应式 */
 .right-section {
-  flex: 0 0 75%;
-  
-  @media (max-width: 1280px) {
-    flex: none;
-  }
+  flex: 1; /* 让右侧区域自动填充剩余空间 */
+  padding: 24px;
+  overflow-y: auto;
+  background-color: #fff;
+  min-width: 0; /* 防止内容溢出 */
 }
 
 /* 统计表格响应式 */
@@ -1758,6 +1767,245 @@ defineOptions({
     padding: 0 16px;
     /* 确保内容可以正常滚动 */
     overflow: visible;
+  }
+}
+
+/* 调整布局相关样式 */
+.detail-layout {
+  height: 100%;
+  display: flex !important; /* 强制使用 flex 布局 */
+  
+  :deep(.n-layout-sider) {
+    background-color: #fff;
+    flex-shrink: 0; /* 防止侧边栏被压缩 */
+  }
+  
+  :deep(.n-layout-sider-border) {
+    border-right: 1px solid #eee;
+  }
+}
+
+/* 调整右侧区域样式 */
+.right-section {
+  padding: 24px;
+  overflow-y: auto;
+  background-color: #fff;
+  min-width: 0; /* 防止内容溢出 */
+}
+
+/* 优化表格布局 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  width: 100%;
+  min-width: 1200px; /* 确保表格有足够的最小宽度 */
+  margin: 0 auto; /* 居中显示 */
+}
+
+/* 调整表格容器样式 */
+.stats-wrapper {
+  overflow-x: auto; /* 允许在必要时横向滚动 */
+  margin: 0 -24px; /* 抵消父容器的内边距 */
+  padding: 0 24px; /* 添加内边距保持视觉一致性 */
+}
+
+/* 优化表格单元格宽度 */
+.stats-table :deep(.n-data-table) {
+  width: 100%;
+  
+  /* 调整列宽 */
+  .n-data-table-td,
+  .n-data-table-th {
+    &:first-child {
+      width: 100px; /* 户型/楼层列 */
+    }
+    &:nth-child(2) {
+      width: 80px; /* 套数列 */
+    }
+    &:nth-child(3) {
+      width: 100px; /* 平均面积列 */
+    }
+    &:nth-child(4) {
+      width: 120px; /* 平均单价列 */
+    }
+    &:nth-child(5),
+    &:nth-child(6),
+    &:nth-child(7) {
+      width: 100px; /* 总价相关列 */
+    }
+    &:last-child {
+      width: 100px; /* 平均挂牌列 */
+    }
+  }
+}
+
+/* 响应式调整 */
+@media (max-width: 1280px) {
+  .detail-layout {
+    :deep(.n-layout-sider) {
+      display: none;
+    }
+  }
+  
+  .right-section {
+    padding: 16px;
+  }
+  
+  .stats-wrapper {
+    margin: 0 -16px;
+    padding: 0 16px;
+  }
+}
+
+/* 优化表格在宽屏下的显示 */
+.stats-grid {
+  @media (min-width: 1281px) {
+    /* 当左侧折叠时，增加表格列宽 */
+    :deep(.n-data-table-wrapper) {
+      transition: all 0.3s ease;
+    }
+  }
+}
+
+/* 确保表格内容在折叠时能完整显示 */
+.stats-table :deep(.n-data-table) {
+  @media (min-width: 1281px) {
+    width: 100%;
+    transition: width 0.3s ease;
+  }
+}
+
+/* 统计表格容器样式 */
+.stats-wrapper {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  overflow: hidden; /* 防止内容溢出 */
+}
+
+/* 统计区域样式 */
+.stats-section {
+  & + .stats-section {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #eee;
+  }
+}
+
+/* 统计区域标题 */
+.stats-section-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 16px;
+  color: #666;
+}
+
+/* 表格布局 */
+.stats-tables {
+  display: flex;
+  flex-wrap: wrap; /* 允许表格自动换行 */
+  gap: 24px;
+  width: 100%;
+  
+  @media (max-width: 1400px) {
+    gap: 16px;
+  }
+}
+
+/* 单个表格容器 */
+.stats-table {
+  flex: 1 1 auto; /* 允许表格自动伸缩 */
+  min-width: min(800px, 100%); /* 最小宽度，但不超过容器宽度 */
+  max-width: 100%; /* 确保不会超出容器 */
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  
+  /* 当容器宽度不足时，表格占满整行 */
+  @media (max-width: 1700px) {
+    flex-basis: 100%;
+  }
+}
+
+/* 表格滚动容器 */
+.table-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  padding: 16px;
+  
+  /* 美化滚动条 */
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+    
+    &:hover {
+      background: #999;
+    }
+  }
+}
+
+/* 表格内容样式 */
+.stats-table :deep(.n-data-table) {
+  width: 100%;
+  min-width: 780px; /* 确保所有列的最小总宽度 */
+  
+  .n-data-table-td,
+  .n-data-table-th {
+    padding: 8px 12px;
+    white-space: nowrap;
+    
+    &:first-child {
+      width: 80px;
+      position: sticky;
+      left: 0;
+      background: inherit;
+      z-index: 2;
+    }
+    &:nth-child(2) { width: 60px; }
+    &:nth-child(3) { width: 100px; }
+    &:nth-child(4) { width: 120px; }
+    &:nth-child(5) { width: 100px; }
+    &:nth-child(6) { width: 100px; }
+    &:nth-child(7) { width: 100px; }
+    &:last-child { width: 120px; }
+  }
+}
+
+/* 优化表格间距 */
+.stats-section {
+  & + .stats-section {
+    margin-top: 32px; /* 增加区域间距 */
+    padding-top: 24px;
+    border-top: 1px solid #eee;
+  }
+}
+
+/* 响应式调整 */
+@media (max-width: 1400px) {
+  .stats-wrapper {
+    padding: 16px;
+  }
+  
+  .stats-table {
+    margin-bottom: 16px; /* 在小屏幕下增加表格间距 */
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
+  .table-scroll-container {
+    padding: 12px;
   }
 }
 </style> 
