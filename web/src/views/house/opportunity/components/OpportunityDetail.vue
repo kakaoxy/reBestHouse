@@ -3,25 +3,14 @@
     :show="show"
     :mask-closable="false"
     preset="card"
-    style="max-width: 90vw; width: 90vw; max-height: 90vh"
+    class="opportunity-detail-modal"
     @update:show="handleUpdateShow"
   >
+    <template #header>
+      商机详情
+    </template>
+    
     <div class="modal-content">
-      <div class="modal-header">
-        <div class="flex justify-between items-center">
-          <h3 class="modal-title">商机详情</h3>
-          <n-button circle text @click="handleClose">
-            <template #icon>
-              <n-icon>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-                  <path fill="currentColor" d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41z"/>
-                </svg>
-              </n-icon>
-            </template>
-          </n-button>
-        </div>
-      </div>
-
       <n-spin :show="loading">
         <div v-if="opportunityData" class="opportunity-detail">
           <div class="detail-layout">
@@ -172,6 +161,43 @@
 
               <!-- 右下部分 -->
               <div class="right-bottom">
+                <n-divider>同小区房源统计</n-divider>
+                
+                <div class="flex gap-8">
+                  <!-- 左侧统计表格 -->
+                  <div class="w-1/2">
+                    <!-- 户型统计表格 -->
+                    <div class="mb-6">
+                      <div class="text-lg font-bold mb-2">户型分布</div>
+                      <n-data-table
+                        :columns="layoutColumns"
+                        :data="layoutStats"
+                        :bordered="false"
+                        :single-line="false"
+                        size="small"
+                      />
+                    </div>
+
+                    <!-- 楼层统计表格 -->
+                    <div class="mb-6">
+                      <div class="text-lg font-bold mb-2">楼层分布</div>
+                      <n-data-table
+                        :columns="floorColumns"
+                        :data="floorStats"
+                        :bordered="false"
+                        :single-line="false"
+                        size="small"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- 右侧成交统计 -->
+                  <div class="w-1/2">
+                    <div class="text-lg font-bold mb-2">成交统计</div>
+                    <!-- TODO: 添加成交统计表格 -->
+                  </div>
+                </div>
+
                 <n-divider>同小区房源信息</n-divider>
                 
                 <div class="flex gap-4">
@@ -265,7 +291,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { opportunityApi, ershoufangApi, dealRecordApi } from '@/api/house'
 import { OPPORTUNITY_STATUS_TAG_TYPE } from '../constants'
 import { useMessage } from 'naive-ui'
@@ -339,7 +365,7 @@ const loadCommunityErshoufang = async (communityId) => {
       community_id: Number(communityId),
       city,
       page: 1,
-      page_size: 10,
+      page_size: 1000,
       sort_by: 'listing_date',
       sort_direction: 'desc'
     }
@@ -347,10 +373,8 @@ const loadCommunityErshoufang = async (communityId) => {
     const res = await ershoufangApi.list(params)
     
     if (res.code === 200 && res.data?.items) {
+      console.log('Ershoufang data:', res.data.items)
       ershoufangList.value = res.data.items
-    } else {
-      console.warn('Failed to load ershoufang:', res)
-      ershoufangList.value = []
     }
   } catch (error) {
     console.error('Load community ershoufang error:', error)
@@ -375,7 +399,7 @@ const loadCommunityDealRecords = async (communityId) => {
       community_id: Number(communityId),
       city,
       page: 1,
-      page_size: 10,
+      page_size: 1000,
       sort_by: 'deal_date',
       sort_direction: 'desc'
     }
@@ -442,6 +466,255 @@ const getStatusType = (status) => {
   return OPPORTUNITY_STATUS_TAG_TYPE[status] || 'default'
 }
 
+// 计算天数差异
+const getDaysDiff = (dateStr) => {
+  if (!dateStr) return 0
+  const today = new Date()
+  const listingDate = new Date(dateStr)
+  
+  // 检查日期是否有效
+  if (isNaN(listingDate.getTime())) {
+    console.warn('Invalid date:', dateStr)
+    return 0
+  }
+  
+  const diffTime = Math.abs(today - listingDate)
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+}
+
+// 统计列定义 - 添加宽度配置
+const commonColumns = [
+  { title: '套数', key: 'count', width: 80 },
+  { title: '平均面积', key: 'avgSize', width: 100, render: (row) => `${row.avgSize.toFixed(1)}㎡` },
+  { title: '平均单价', key: 'avgUnitPrice', width: 120, render: (row) => `${Math.round(row.avgUnitPrice)}元/㎡` },
+  { title: '平均总价', key: 'avgTotalPrice', width: 100, render: (row) => `${row.avgTotalPrice.toFixed(1)}万` },
+  { title: '最高总价', key: 'maxTotalPrice', width: 100, render: (row) => `${row.maxTotalPrice}万` },
+  { title: '最低总价', key: 'minTotalPrice', width: 100, render: (row) => `${row.minTotalPrice}万` },
+  { title: '平均挂牌', key: 'avgListingDays', width: 100, render: (row) => `${Math.round(row.avgListingDays)}天` }
+]
+
+const layoutColumns = [
+  { title: '户型', key: 'layout', width: 100 },
+  ...commonColumns
+]
+
+const floorColumns = [
+  { title: '楼层', key: 'floor', width: 100 },
+  ...commonColumns
+]
+
+// 修改户型统计逻辑
+const layoutStats = computed(() => {
+  const stats = {}
+  const total = { 
+    layout: '合计', 
+    count: 0, 
+    totalSize: 0, 
+    totalUnitPrice: 0, 
+    totalPrice: 0, 
+    maxTotalPrice: 0, 
+    minTotalPrice: Infinity,
+    totalListingDays: 0
+  }
+  
+  ershoufangList.value.forEach(item => {
+    const match = item.layout?.match(/^(\d)/)
+    const layout = match ? `${match[1]}室` : '其他'
+    if (!stats[layout]) {
+      stats[layout] = {
+        layout,
+        count: 0,
+        totalSize: 0,
+        totalUnitPrice: 0,
+        totalPrice: 0,
+        maxTotalPrice: 0,
+        minTotalPrice: Infinity,
+        totalListingDays: 0
+      }
+    }
+    
+    const listingDays = getDaysDiff(item.listing_date || item.created_at)
+    
+    stats[layout].count++
+    stats[layout].totalSize += item.size
+    stats[layout].totalUnitPrice += item.unit_price
+    stats[layout].totalPrice += item.total_price
+    stats[layout].maxTotalPrice = Math.max(stats[layout].maxTotalPrice, item.total_price)
+    stats[layout].minTotalPrice = Math.min(stats[layout].minTotalPrice, item.total_price)
+    stats[layout].totalListingDays += listingDays
+    
+    // 更新总计
+    total.count++
+    total.totalSize += item.size
+    total.totalUnitPrice += item.unit_price
+    total.totalPrice += item.total_price
+    total.maxTotalPrice = Math.max(total.maxTotalPrice, item.total_price)
+    total.minTotalPrice = Math.min(total.minTotalPrice, item.total_price)
+    total.totalListingDays += listingDays
+  })
+  
+  // 计算平均值并按户型排序
+  const result = Object.values(stats)
+    .map(stat => ({
+      ...stat,
+      avgSize: stat.totalSize / stat.count,
+      avgUnitPrice: stat.totalUnitPrice / stat.count,
+      avgTotalPrice: stat.totalPrice / stat.count,
+      avgListingDays: stat.totalListingDays / stat.count,
+      minTotalPrice: stat.minTotalPrice === Infinity ? 0 : stat.minTotalPrice
+    }))
+    .sort((a, b) => {
+      const numA = parseInt(a.layout) || Infinity
+      const numB = parseInt(b.layout) || Infinity
+      return numA - numB
+    })
+  
+  // 添加总计行
+  if (total.count > 0) {
+    result.push({
+      layout: '合计',
+      count: total.count,
+      avgSize: total.totalSize / total.count,
+      avgUnitPrice: total.totalUnitPrice / total.count,
+      avgTotalPrice: total.totalPrice / total.count,
+      avgListingDays: total.totalListingDays / total.count,
+      maxTotalPrice: total.maxTotalPrice,
+      minTotalPrice: total.minTotalPrice === Infinity ? 0 : total.minTotalPrice
+    })
+  }
+  
+  return result
+})
+
+// 修改楼层统计逻辑，添加挂牌时长
+const floorStats = computed(() => {
+  const stats = {
+    '低楼层': {
+      floor: '低楼层',
+      count: 0,
+      totalSize: 0,
+      totalUnitPrice: 0,
+      totalPrice: 0,
+      maxTotalPrice: 0,
+      minTotalPrice: Infinity,
+      totalListingDays: 0
+    },
+    '中楼层': {
+      floor: '中楼层',
+      count: 0,
+      totalSize: 0,
+      totalUnitPrice: 0,
+      totalPrice: 0,
+      maxTotalPrice: 0,
+      minTotalPrice: Infinity,
+      totalListingDays: 0
+    },
+    '高楼层': {
+      floor: '高楼层',
+      count: 0,
+      totalSize: 0,
+      totalUnitPrice: 0,
+      totalPrice: 0,
+      maxTotalPrice: 0,
+      minTotalPrice: Infinity,
+      totalListingDays: 0
+    },
+    '其他': {
+      floor: '其他',
+      count: 0,
+      totalSize: 0,
+      totalUnitPrice: 0,
+      totalPrice: 0,
+      maxTotalPrice: 0,
+      minTotalPrice: Infinity,
+      totalListingDays: 0
+    }
+  }
+  
+  const total = { 
+    floor: '合计', 
+    count: 0, 
+    totalSize: 0, 
+    totalUnitPrice: 0, 
+    totalPrice: 0, 
+    maxTotalPrice: 0, 
+    minTotalPrice: Infinity,
+    totalListingDays: 0
+  }
+  
+  ershoufangList.value.forEach(item => {
+    let floor = '其他'
+    if (item.floor_info) {
+      if (item.floor_info.includes('低楼层')) {
+        floor = '低楼层'
+      } else if (item.floor_info.includes('中楼层')) {
+        floor = '中楼层'
+      } else if (item.floor_info.includes('高楼层')) {
+        floor = '高楼层'
+      }
+    } else if (item.floor) {
+      if (item.floor.includes('低')) {
+        floor = '低楼层'
+      } else if (item.floor.includes('中')) {
+        floor = '中楼层'
+      } else if (item.floor.includes('高')) {
+        floor = '高楼层'
+      }
+    }
+    
+    const listingDays = getDaysDiff(item.listing_date || item.created_at)
+    
+    stats[floor].count++
+    stats[floor].totalSize += item.size
+    stats[floor].totalUnitPrice += item.unit_price
+    stats[floor].totalPrice += item.total_price
+    stats[floor].maxTotalPrice = Math.max(stats[floor].maxTotalPrice, item.total_price)
+    stats[floor].minTotalPrice = Math.min(stats[floor].minTotalPrice, item.total_price)
+    stats[floor].totalListingDays += listingDays
+    
+    // 更新总计
+    total.count++
+    total.totalSize += item.size
+    total.totalUnitPrice += item.unit_price
+    total.totalPrice += item.total_price
+    total.maxTotalPrice = Math.max(total.maxTotalPrice, item.total_price)
+    total.minTotalPrice = Math.min(total.minTotalPrice, item.total_price)
+    total.totalListingDays += listingDays
+  })
+  
+  // 计算平均值并按楼层排序
+  const result = Object.values(stats)
+    .filter(stat => stat.count > 0)  // 只显示有数据的楼层
+    .map(stat => ({
+      ...stat,
+      avgSize: stat.totalSize / stat.count,
+      avgUnitPrice: stat.totalUnitPrice / stat.count,
+      avgTotalPrice: stat.totalPrice / stat.count,
+      avgListingDays: stat.totalListingDays / stat.count,
+      minTotalPrice: stat.minTotalPrice === Infinity ? 0 : stat.minTotalPrice
+    }))
+    .sort((a, b) => {
+      const order = { '低楼层': 1, '中楼层': 2, '高楼层': 3, '其他': 4 }
+      return order[a.floor] - order[b.floor]
+    })
+  
+  // 添加总计行
+  if (total.count > 0) {
+    result.push({
+      floor: '合计',
+      count: total.count,
+      avgSize: total.totalSize / total.count,
+      avgUnitPrice: total.totalUnitPrice / total.count,
+      avgTotalPrice: total.totalPrice / total.count,
+      avgListingDays: total.totalListingDays / total.count,
+      maxTotalPrice: total.maxTotalPrice,
+      minTotalPrice: total.minTotalPrice === Infinity ? 0 : total.minTotalPrice
+    })
+  }
+  
+  return result
+})
+
 defineOptions({
   name: 'OpportunityDetail'
 })
@@ -449,27 +722,39 @@ defineOptions({
 
 <style scoped>
 .opportunity-detail-modal {
-  display: flex;
-  flex-direction: column;
-  max-width: 100vw !important;
-  max-height: 100vh !important;
+  :deep(.n-modal) {
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  :deep(.n-modal-body) {
+    padding: 0 !important;
+    height: 100vh !important;
+  }
+
+  :deep(.n-card) {
+    height: 100vh;
+  }
+
+  :deep(.n-card-header) {
+    padding: 16px 24px;
+    border-bottom: 1px solid #eee;
+  }
+
+  :deep(.n-card-content) {
+    padding: 0;
+    height: calc(100vh - 60px); /* 减去header高度 */
+  }
 }
 
 .modal-content {
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  width: 100vw;
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
-}
-
-.modal-header {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #eee;
-  flex-shrink: 0;
 }
 
 .opportunity-detail {
@@ -482,8 +767,9 @@ defineOptions({
 .detail-layout {
   display: flex;
   gap: 24px;
-  height: 100%;
+  height: calc(100vh - 120px); /* 减去header和padding的高度 */
   min-height: 0;
+  padding: 24px;
 }
 
 .left-section {
@@ -494,6 +780,7 @@ defineOptions({
   gap: 16px;
   padding-right: 16px;
   border-right: 1px solid #eee;
+  height: 100%;
 }
 
 .right-section {
@@ -501,16 +788,19 @@ defineOptions({
   display: flex;
   flex-direction: column;
   gap: 24px;
+  height: 100%;
+  overflow: hidden;
 }
 
 .right-top {
-  flex: 0 0 25%;
-  overflow-y: auto;
+  flex: 0 0 auto;
+  padding: 0 24px;
 }
 
 .right-bottom {
-  flex: 0 0 75%;
-  overflow-y: auto;
+  flex: 1;
+  overflow: hidden;
+  padding: 0 24px;
 }
 
 .remarks {
@@ -540,20 +830,6 @@ defineOptions({
 /* 覆盖 naive-ui 的默认样式 */
 :deep(.n-modal-mask) {
   backdrop-filter: blur(2px);
-}
-
-:deep(.n-modal) {
-  max-width: 100vw !important;
-  max-height: 100vh !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-:deep(.n-modal-body) {
-  padding: 0 !important;
-  height: 100vh !important;
 }
 
 .carousel-section {
@@ -688,5 +964,18 @@ defineOptions({
 
 .text-success {
   color: #18a058;
+}
+
+/* 添加表格样式 */
+:deep(.n-data-table) {
+  --n-merged-th-color: #f5f7fa;
+  --n-merged-td-color: transparent;
+  --n-th-color: #f5f7fa;
+  --n-td-color: transparent;
+}
+
+:deep(.n-data-table-wrapper) {
+  border-radius: 8px;
+  border: 1px solid #eee;
 }
 </style> 

@@ -16,6 +16,7 @@ from app.core.crud import CRUDBase
 import pandas as pd
 from io import BytesIO
 from tortoise.expressions import RawSQL
+import re
 
 class CommunityController(CRUDBase[Community, CommunityCreate, CommunityUpdate]):
     def __init__(self):
@@ -335,6 +336,32 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                         'region': item.community.region,
                         'area': item.community.area
                     })
+                
+                # 确保返回 listing_date
+                if item.listing_date:
+                    item_dict['listing_date'] = item.listing_date.isoformat()
+                
+                # 计算楼层信息的逻辑修改
+                if item.floor_number and item.total_floors:
+                    # 优先使用楼层号计算
+                    item_dict['floor_info'] = self.calculate_floor_info(
+                        item.floor_number, 
+                        item.total_floors
+                    )
+                elif item.floor:
+                    # 如果没有具体楼层号，但有楼层描述，直接使用
+                    floor_match = re.search(r'(低|中|高)楼层', item.floor)
+                    if floor_match:
+                        item_dict['floor_info'] = item.floor
+                    else:
+                        # 尝试从描述中提取信息
+                        if '低' in item.floor:
+                            item_dict['floor_info'] = '低楼层'
+                        elif '中' in item.floor:
+                            item_dict['floor_info'] = '中楼层'
+                        elif '高' in item.floor:
+                            item_dict['floor_info'] = '高楼层'
+                
                 result_items.append(item_dict)
             except Exception as e:
                 print(f"Error processing item {item.id}: {str(e)}")
@@ -517,8 +544,15 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
     async def import_ershoufangs(self, file: UploadFile, city: str) -> Dict:
         try:
             contents = await file.read()
+            # 不使用 parse_dates，先读取原始数据
             df = pd.read_excel(BytesIO(contents))
             df.columns = df.columns.str.replace('*', '').str.strip()
+            
+            # 打印 DataFrame 的日期列信息
+            print("DataFrame info:")
+            print(df[['挂牌时间', '上次交易时间']].info())
+            print("\nSample dates:")
+            print(df[['挂牌时间', '上次交易时间']].head())
             
             # 验证必要的列
             required_columns = ['小区名称', '户型', '建筑面积', '总价(万)']
@@ -610,11 +644,47 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                             value = row[excel_col]
                             # 特殊字段处理
                             if db_col in ['listing_date', 'last_transaction_date']:
-                                if isinstance(value, str):
-                                    try:
-                                        value = datetime.strptime(value, '%Y-%m-%d')
-                                    except ValueError:
+                                print(f"\nProcessing date: {value}")
+                                print(f"Type: {type(value)}")
+                                
+                                try:
+                                    if isinstance(value, str):
+                                        if value.isdigit():
+                                            # 处理 Excel 日期序列号（字符串形式）
+                                            value = pd.Timestamp('1899-12-30') + pd.Timedelta(days=int(value))
+                                            value = value.date()
+                                            print(f"Converted Excel serial number: {value}")
+                                        else:
+                                            try:
+                                                # 尝试解析 YYYY年MM月DD日 格式
+                                                value = datetime.strptime(value, '%Y年%m月%d日').date()
+                                                print(f"Parsed with strptime: {value}")
+                                            except ValueError:
+                                                # 尝试其他格式
+                                                value = pd.to_datetime(value).date()
+                                                print(f"Parsed with pd.to_datetime: {value}")
+                                    elif isinstance(value, (int, float)):
+                                        # 处理 Excel 日期序列号（数值形式）
+                                        value = pd.Timestamp('1899-12-30') + pd.Timedelta(days=int(value))
+                                        value = value.date()
+                                        print(f"Converted numeric Excel date: {value}")
+                                    elif isinstance(value, pd.Timestamp):
+                                        value = value.date()
+                                        print(f"Converted Timestamp to date: {value}")
+                                    elif isinstance(value, datetime):
+                                        value = value.date()
+                                        print(f"Converted datetime to date: {value}")
+                                    else:
+                                        print(f"Unhandled date type: {type(value)}")
                                         continue
+                                    
+                                    print(f"Final date value: {value}")
+                                    ershoufang_data[db_col] = value
+                                    
+                                except Exception as e:
+                                    print(f"Date conversion error: {str(e)}")
+                                    continue
+                                
                             elif db_col in ['size', 'total_price', 'unit_price']:
                                 try:
                                     value = float(value)
@@ -632,15 +702,22 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                         ershoufang_data['unit_price'] = \
                             ershoufang_data['total_price'] * 10000 / ershoufang_data['size']
                     
-                    # 直接创建新记录，不检查是否存在
+                    # 打印最终的日期数据
+                    print("\nFinal data:")
+                    print(f"listing_date: {ershoufang_data.get('listing_date')}")
+                    print(f"last_transaction_date: {ershoufang_data.get('last_transaction_date')}")
+                    
+                    # 创建记录
                     await self.model.create(**ershoufang_data)
                     success_count += 1
                     
                 except Exception as e:
+                    print(f"Error processing row: {str(e)}")
                     error_list.append({
                         "name": row.get('小区名称', '未知'),
                         "error": str(e)
                     })
+                    continue
             
             return {
                 "code": 200,

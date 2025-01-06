@@ -131,11 +131,11 @@ export function useErshoufangCRUD(api) {
       render: (row) => row.unit_price?.toFixed(0) || '-'
     },
     { 
-      title: '创建时间',
-      key: 'created_at',
+      title: '挂牌时间',
+      key: 'listing_date',
       width: 150,
       sorter: true,
-      render: (row) => row.created_at?.split('T')[0] || '-'
+      render: (row) => row.listing_date?.split('T')[0] || '-'
     },
     {
       title: '操作',
@@ -202,7 +202,8 @@ export function useErshoufangCRUD(api) {
           total_floors: parseInt(item.total_floors) || null,
           total_price: Number(item.total_price),
           unit_price: Number(item.unit_price),
-          size: Number(item.size)
+          size: Number(item.size),
+          listing_date: item.listing_date || item.created_at
         }))
         
         // 更新分页信息

@@ -50,8 +50,8 @@ class Ershoufang(Model):
     ladder_ratio = fields.CharField(max_length=50, null=True)  # 梯户比
     total_price = fields.FloatField()  # 总价
     unit_price = fields.FloatField(null=True)  # 单价
-    listing_date = fields.DatetimeField(null=True)  # 挂牌时间
-    last_transaction_date = fields.DatetimeField(null=True)  # 上次交易时间
+    listing_date = fields.DateField(null=True)  # 挂牌时间
+    last_transaction_date = fields.DateField(null=True)  # 上次交易时间
     mortgage_info = fields.CharField(max_length=200, null=True)  # 抵押信息
     layout_image = fields.CharField(max_length=500, null=True)  # 户型图链接
     ke_code = fields.CharField(max_length=50, null=True)  # 贝壳编号
