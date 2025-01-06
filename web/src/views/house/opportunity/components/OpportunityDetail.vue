@@ -8,8 +8,8 @@
   >
     <template #header>
       商机详情
-    </template>
-    
+            </template>
+
     <div class="modal-content">
       <n-spin :show="loading">
         <div v-if="opportunityData" class="opportunity-detail">
@@ -163,40 +163,75 @@
               <div class="right-bottom">
                 <n-divider>同小区房源统计</n-divider>
                 
-                <div class="flex gap-8">
-                  <!-- 左侧统计表格 -->
-                  <div class="w-1/2">
-                    <!-- 户型统计表格 -->
-                    <div class="mb-6">
-                      <div class="text-lg font-bold mb-2">户型分布</div>
-                      <n-data-table
-                        :columns="layoutColumns"
-                        :data="layoutStats"
-                        :bordered="false"
-                        :single-line="false"
-                        size="small"
-                      />
-                    </div>
+                <!-- 使用外层表格包裹四个统计表 -->
+                <n-card :bordered="false" class="stats-wrapper">
+                  <n-grid :cols="2" :x-gap="0" :y-gap="0" class="stats-grid">
+                    <!-- 在售户型统计 -->
+                    <n-grid-item class="stats-grid-item">
+                      <div class="stats-table">
+                        <div class="text-lg font-bold">在售户型分布</div>
+                        <n-data-table
+                          :columns="layoutColumns"
+                          :data="layoutStats"
+                          :bordered="false"
+                          :single-line="false"
+                          size="small"
+                          v-bind="layoutTableProps"
+                        />
+                      </div>
+                    </n-grid-item>
 
-                    <!-- 楼层统计表格 -->
-                    <div class="mb-6">
-                      <div class="text-lg font-bold mb-2">楼层分布</div>
-                      <n-data-table
-                        :columns="floorColumns"
-                        :data="floorStats"
-                        :bordered="false"
-                        :single-line="false"
-                        size="small"
-                      />
-                    </div>
+                    <!-- 成交户型统计 -->
+                    <n-grid-item class="stats-grid-item">
+                      <div class="stats-table">
+                        <div class="text-lg font-bold">成交户型分布</div>
+                        <n-data-table
+                          :columns="dealLayoutColumns"
+                          :data="dealLayoutStats"
+                          :bordered="false"
+                          :single-line="false"
+                          size="small"
+                          v-bind="layoutTableProps"
+                        />
                   </div>
+                    </n-grid-item>
 
-                  <!-- 右侧成交统计 -->
-                  <div class="w-1/2">
-                    <div class="text-lg font-bold mb-2">成交统计</div>
-                    <!-- TODO: 添加成交统计表格 -->
+                    <!-- 在售楼层统计 -->
+                    <n-grid-item class="stats-grid-item">
+                      <div class="stats-table">
+                        <div class="text-lg font-bold">在售楼层分布</div>
+                        <n-data-table
+                          :columns="floorColumns"
+                          :data="floorStats"
+                          :bordered="false"
+                          :single-line="false"
+                          size="small"
+                          v-bind="floorTableProps"
+                        />
+              </div>
+                    </n-grid-item>
+
+                    <!-- 成交楼层统计 -->
+                    <n-grid-item class="stats-grid-item">
+                      <div class="stats-table">
+                        <div class="text-lg font-bold">成交楼层分布</div>
+                        <n-data-table
+                          :columns="dealFloorColumns"
+                          :data="dealFloorStats"
+                          :bordered="false"
+                          :single-line="false"
+                          size="small"
+                          v-bind="floorTableProps"
+                        />
+            </div>
+                    </n-grid-item>
+                  </n-grid>
+
+                  <!-- 成交统计时间范围提示 -->
+                  <div class="text-gray-400 text-sm time-range-tip">
+                    * 成交统计范围：{{ formatDate(dealDateRange.endDate) }} 至 {{ formatDate(dealDateRange.startDate) }}
                   </div>
-                </div>
+                </n-card>
 
                 <n-divider>同小区房源信息</n-divider>
                 
@@ -494,17 +529,413 @@ const commonColumns = [
 ]
 
 const layoutColumns = [
-  { title: '户型', key: 'layout', width: 100 },
-  ...commonColumns
+  { 
+    title: '户型', 
+    key: 'layout',
+    width: 100,
+    fixed: 'left'
+  },
+  { 
+    title: '套数', 
+    key: 'count',
+    width: 80,
+    align: 'right'
+  },
+  { 
+    title: '平均面积', 
+    key: 'avgSize',
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.avgSize}㎡`
+  },
+  { 
+    title: '平均单价', 
+    key: 'avgUnitPrice',
+    width: 120,
+    align: 'right',
+    render: (row) => `${row.avgUnitPrice}元/㎡`
+  },
+  { 
+    title: '平均总价', 
+    key: 'avgPrice',
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.avgPrice}万`
+  },
+  { 
+    title: '最高总价', 
+    key: 'maxTotalPrice',
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.maxTotalPrice}万`
+  },
+  { 
+    title: '最低总价', 
+    key: 'minTotalPrice',
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.minTotalPrice}万`
+  },
+  { 
+    title: '平均挂牌', 
+    key: 'avgListingDays',
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.avgListingDays}天`
+  }
 ]
 
 const floorColumns = [
-  { title: '楼层', key: 'floor', width: 100 },
-  ...commonColumns
+  { 
+    title: '楼层', 
+    key: 'floor',
+    width: 100,
+    fixed: 'left'
+  },
+  { 
+    title: '套数', 
+    key: 'count',
+    width: 80,
+    align: 'right',
+    titleAlign: 'right'
+  },
+  { 
+    title: '平均面积', 
+    key: 'avgSize',
+    width: 100,
+    align: 'right',
+    titleAlign: 'right',
+    render: (row) => `${row.avgSize}㎡`
+  },
+  { 
+    title: '平均单价', 
+    key: 'avgUnitPrice',
+    width: 120,
+    align: 'right',
+    titleAlign: 'right',
+    render: (row) => `${row.avgUnitPrice}元/㎡`
+  },
+  { 
+    title: '平均总价', 
+    key: 'avgPrice',
+    width: 100,
+    align: 'right',
+    titleAlign: 'right',
+    render: (row) => `${row.avgPrice}万`
+  },
+  { 
+    title: '最高总价', 
+    key: 'maxTotalPrice',
+    width: 100,
+    align: 'right',
+    titleAlign: 'right',
+    render: (row) => `${row.maxTotalPrice}万`
+  },
+  { 
+    title: '最低总价', 
+    key: 'minTotalPrice',
+    width: 100,
+    align: 'right',
+    titleAlign: 'right',
+    render: (row) => `${row.minTotalPrice}万`
+  },
+  { 
+    title: '平均挂牌', 
+    key: 'avgListingDays',
+    width: 100,
+    align: 'right',
+    titleAlign: 'right',
+    render: (row) => `${row.avgListingDays}天`
+  }
 ]
 
-// 修改户型统计逻辑
+// 在售房源户型统计
 const layoutStats = computed(() => {
+  const stats = {}
+  const total = {
+    layout: '合计',
+    count: 0,
+    totalSize: 0,
+    totalPrice: 0,
+    totalUnitPrice: 0,
+    maxTotalPrice: 0,
+    minTotalPrice: Infinity,
+    totalListingDays: 0
+  }
+
+  // 预定义户型顺序和映射关系
+  const layoutOrder = ['一房', '两房', '三房', '四房', '其他']
+  const layoutMapping = {
+    '1': '一房',
+    '2': '两房',
+    '3': '三房',
+    '4': '四房'
+  }
+
+  // 初始化统计对象
+  layoutOrder.forEach(layout => {
+    stats[layout] = {
+      layout,
+      count: 0,
+      totalSize: 0,
+      totalPrice: 0,
+      totalUnitPrice: 0,
+      maxTotalPrice: 0,
+      minTotalPrice: Infinity,
+      totalListingDays: 0
+    }
+  })
+
+  // 确保 ershoufangList 存在且是数组
+  if (Array.isArray(ershoufangList.value)) {
+    ershoufangList.value.forEach(item => {
+      // 确保所有需要的数值都存在且为数字
+      const size = Number(item.size) || 0
+      const totalPrice = Number(item.total_price) || 0
+      const unitPrice = Number(item.unit_price) || 0
+      const listingDays = getDaysDiff(item.listing_date || item.created_at)
+      
+      const match = item.layout?.match(/^(\d)/)
+      let layout = match ? layoutMapping[match[1]] || '其他' : '其他'
+
+      stats[layout].count++
+      stats[layout].totalSize += size
+      stats[layout].totalPrice += totalPrice
+      stats[layout].totalUnitPrice += unitPrice
+      stats[layout].maxTotalPrice = Math.max(stats[layout].maxTotalPrice, totalPrice)
+      stats[layout].minTotalPrice = Math.min(stats[layout].minTotalPrice, totalPrice)
+      stats[layout].totalListingDays += listingDays
+
+      total.count++
+      total.totalSize += size
+      total.totalPrice += totalPrice
+      total.totalUnitPrice += unitPrice
+      total.maxTotalPrice = Math.max(total.maxTotalPrice, totalPrice)
+      total.minTotalPrice = Math.min(total.minTotalPrice, totalPrice)
+      total.totalListingDays += listingDays
+    })
+  }
+
+  // 按预定义顺序返回结果，只返回有数据的分类
+  const result = layoutOrder
+    .filter(layout => stats[layout].count > 0)
+    .map(layout => ({
+      ...stats[layout],
+      avgSize: stats[layout].count ? (stats[layout].totalSize / stats[layout].count).toFixed(1) : '0.0',
+      avgPrice: stats[layout].count ? (stats[layout].totalPrice / stats[layout].count).toFixed(1) : '0.0',
+      avgUnitPrice: stats[layout].count ? Math.round(stats[layout].totalUnitPrice / stats[layout].count) : 0,
+      maxTotalPrice: stats[layout].maxTotalPrice === -Infinity ? 0 : stats[layout].maxTotalPrice,
+      minTotalPrice: stats[layout].minTotalPrice === Infinity ? 0 : stats[layout].minTotalPrice,
+      avgListingDays: stats[layout].count ? Math.round(stats[layout].totalListingDays / stats[layout].count) : 0
+    }))
+
+  // 添加总计行
+  if (total.count > 0) {
+    result.push({
+      ...total,
+      layout: '合计',
+      avgSize: (total.totalSize / total.count).toFixed(1),
+      avgPrice: (total.totalPrice / total.count).toFixed(1),
+      avgUnitPrice: Math.round(total.totalUnitPrice / total.count),
+      maxTotalPrice: total.maxTotalPrice === -Infinity ? 0 : total.maxTotalPrice,
+      minTotalPrice: total.minTotalPrice === Infinity ? 0 : total.minTotalPrice,
+      avgListingDays: Math.round(total.totalListingDays / total.count)
+    })
+  }
+
+  return result
+})
+
+// 修改楼层统计数据计算
+const floorStats = computed(() => {
+  const stats = {}
+  const total = {
+    floor: '合计',
+    count: 0,
+    totalSize: 0,
+    totalPrice: 0,
+    totalUnitPrice: 0,
+    maxTotalPrice: 0,
+    minTotalPrice: Infinity,
+    totalListingDays: 0
+  }
+
+  // 预定义楼层顺序
+  const floorOrder = ['低楼层', '中楼层', '高楼层']
+  floorOrder.forEach(floor => {
+    stats[floor] = {
+      floor,
+      count: 0,
+      totalSize: 0,
+      totalPrice: 0,
+      totalUnitPrice: 0,
+      maxTotalPrice: 0,
+      minTotalPrice: Infinity,
+      totalListingDays: 0
+    }
+  })
+
+  // 统计数据
+  ershoufangList.value?.forEach(item => {
+    let floor = '其他'
+    if (item.floor_info) {
+      if (item.floor_info.includes('低楼层')) floor = '低楼层'
+      else if (item.floor_info.includes('中楼层')) floor = '中楼层'
+      else if (item.floor_info.includes('高楼层')) floor = '高楼层'
+    }
+
+    if (!stats[floor]) {
+      stats[floor] = {
+        floor,
+        count: 0,
+        totalSize: 0,
+        totalPrice: 0,
+        totalUnitPrice: 0,
+        maxTotalPrice: 0,
+        minTotalPrice: Infinity,
+        totalListingDays: 0
+      }
+    }
+
+    const size = Number(item.size) || 0
+    const totalPrice = Number(item.total_price) || 0
+    const unitPrice = Number(item.unit_price) || 0
+    const listingDays = getDaysDiff(item.listing_date || item.created_at)
+
+    stats[floor].count++
+    stats[floor].totalSize += size
+    stats[floor].totalPrice += totalPrice
+    stats[floor].totalUnitPrice += unitPrice
+    stats[floor].maxTotalPrice = Math.max(stats[floor].maxTotalPrice, totalPrice)
+    stats[floor].minTotalPrice = Math.min(stats[floor].minTotalPrice, totalPrice)
+    stats[floor].totalListingDays += listingDays
+
+    total.count++
+    total.totalSize += size
+    total.totalPrice += totalPrice
+    total.totalUnitPrice += unitPrice
+    total.maxTotalPrice = Math.max(total.maxTotalPrice, totalPrice)
+    total.minTotalPrice = Math.min(total.minTotalPrice, totalPrice)
+    total.totalListingDays += listingDays
+  })
+
+  // 格式化数据
+  const result = Object.entries(stats)
+    .filter(([floor]) => floorOrder.includes(floor))
+    .sort((a, b) => floorOrder.indexOf(a[0]) - floorOrder.indexOf(b[0]))
+    .map(([floor, stat]) => ({
+      floor,
+      count: stat.count,
+      avgSize: stat.count ? Number((stat.totalSize / stat.count).toFixed(1)) : 0,
+      avgUnitPrice: stat.count ? Math.round(stat.totalUnitPrice / stat.count) : 0,
+      avgPrice: stat.count ? Number((stat.totalPrice / stat.count).toFixed(1)) : 0,
+      maxTotalPrice: stat.maxTotalPrice === -Infinity ? 0 : stat.maxTotalPrice,
+      minTotalPrice: stat.minTotalPrice === Infinity ? 0 : stat.minTotalPrice,
+      avgListingDays: stat.count ? Math.round(stat.totalListingDays / stat.count) : 0
+    }))
+
+  // 添加总计行
+  if (total.count > 0) {
+    result.push({
+      ...total,
+      avgSize: Number((total.totalSize / total.count).toFixed(1)),
+      avgUnitPrice: Math.round(total.totalUnitPrice / total.count),
+      avgPrice: Number((total.totalPrice / total.count).toFixed(1)),
+      maxTotalPrice: total.maxTotalPrice,
+      minTotalPrice: total.minTotalPrice,
+      avgListingDays: Math.round(total.totalListingDays / total.count)
+    })
+  }
+
+  return result
+})
+
+// 计算统计时间范围
+const dealDateRange = computed(() => {
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - 15)
+  const endDate = new Date(startDate)
+  endDate.setMonth(endDate.getMonth() - 6)
+  return {
+    startDate,
+    endDate
+  }
+})
+
+// 修改列定义，保持与在售房源统计一致的样式
+const dealCommonColumns = [
+  { 
+    title: '套数', 
+    key: 'count', 
+    width: 80,
+    align: 'right'
+  },
+  { 
+    title: '平均面积', 
+    key: 'avgSize', 
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.avgSize.toFixed(1)}㎡` 
+  },
+  { 
+    title: '平均单价', 
+    key: 'avgUnitPrice', 
+    width: 120,
+    align: 'right',
+    render: (row) => `${Math.round(row.avgUnitPrice)}元/㎡` 
+  },
+  { 
+    title: '平均总价', 
+    key: 'avgTotalPrice', 
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.avgTotalPrice.toFixed(1)}万` 
+  },
+  { 
+    title: '最高总价', 
+    key: 'maxTotalPrice', 
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.maxTotalPrice}万` 
+  },
+  { 
+    title: '最低总价', 
+    key: 'minTotalPrice', 
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.minTotalPrice}万` 
+  },
+  { 
+    title: '平均周期', 
+    key: 'avgDealCycle', 
+    width: 100,
+    align: 'right',
+    render: (row) => `${Math.round(row.avgDealCycle)}天` 
+  }
+]
+
+const dealLayoutColumns = [
+  { 
+    title: '户型', 
+    key: 'layout', 
+    width: 100,
+    fixed: 'left'
+  },
+  ...dealCommonColumns
+]
+
+const dealFloorColumns = [
+  { 
+    title: '楼层', 
+    key: 'floor', 
+    width: 100,
+    fixed: 'left'
+  },
+  ...dealCommonColumns
+]
+
+// 户型成交统计数据
+const dealLayoutStats = computed(() => {
   const stats = {}
   const total = { 
     layout: '合计', 
@@ -514,123 +945,85 @@ const layoutStats = computed(() => {
     totalPrice: 0, 
     maxTotalPrice: 0, 
     minTotalPrice: Infinity,
-    totalListingDays: 0
+    totalDealCycle: 0
   }
-  
-  ershoufangList.value.forEach(item => {
-    const match = item.layout?.match(/^(\d)/)
-    const layout = match ? `${match[1]}室` : '其他'
-    if (!stats[layout]) {
-      stats[layout] = {
-        layout,
-        count: 0,
-        totalSize: 0,
-        totalUnitPrice: 0,
-        totalPrice: 0,
-        maxTotalPrice: 0,
-        minTotalPrice: Infinity,
-        totalListingDays: 0
-      }
+
+  // 预定义户型顺序和映射关系
+  const layoutOrder = ['一房', '两房', '三房', '四房', '其他']
+  const layoutMapping = {
+    '1': '一房',
+    '2': '两房',
+    '3': '三房',
+    '4': '四房'
+  }
+
+  // 初始化统计对象
+  layoutOrder.forEach(layout => {
+    stats[layout] = {
+      layout,
+      count: 0,
+      totalSize: 0,
+      totalUnitPrice: 0,
+      totalPrice: 0,
+      maxTotalPrice: 0,
+      minTotalPrice: Infinity,
+      totalDealCycle: 0
     }
-    
-    const listingDays = getDaysDiff(item.listing_date || item.created_at)
-    
-    stats[layout].count++
-    stats[layout].totalSize += item.size
-    stats[layout].totalUnitPrice += item.unit_price
-    stats[layout].totalPrice += item.total_price
-    stats[layout].maxTotalPrice = Math.max(stats[layout].maxTotalPrice, item.total_price)
-    stats[layout].minTotalPrice = Math.min(stats[layout].minTotalPrice, item.total_price)
-    stats[layout].totalListingDays += listingDays
-    
-    // 更新总计
-    total.count++
-    total.totalSize += item.size
-    total.totalUnitPrice += item.unit_price
-    total.totalPrice += item.total_price
-    total.maxTotalPrice = Math.max(total.maxTotalPrice, item.total_price)
-    total.minTotalPrice = Math.min(total.minTotalPrice, item.total_price)
-    total.totalListingDays += listingDays
   })
-  
-  // 计算平均值并按户型排序
-  const result = Object.values(stats)
-    .map(stat => ({
-      ...stat,
-      avgSize: stat.totalSize / stat.count,
-      avgUnitPrice: stat.totalUnitPrice / stat.count,
-      avgTotalPrice: stat.totalPrice / stat.count,
-      avgListingDays: stat.totalListingDays / stat.count,
-      minTotalPrice: stat.minTotalPrice === Infinity ? 0 : stat.minTotalPrice
+
+  dealRecordList.value.forEach(item => {
+    const dealDate = new Date(item.deal_date)
+    if (dealDate > dealDateRange.value.endDate && dealDate <= dealDateRange.value.startDate) {
+      const match = item.layout?.match(/^(\d)/)
+      let layout = match ? layoutMapping[match[1]] || '其他' : '其他'
+
+      stats[layout].count++
+      stats[layout].totalSize += item.size
+      stats[layout].totalUnitPrice += item.unit_price
+      stats[layout].totalPrice += item.total_price
+      stats[layout].maxTotalPrice = Math.max(stats[layout].maxTotalPrice, item.total_price)
+      stats[layout].minTotalPrice = Math.min(stats[layout].minTotalPrice, item.total_price)
+      stats[layout].totalDealCycle += item.deal_cycle || 0
+
+      // 更新总计
+      total.count++
+      total.totalSize += item.size
+      total.totalUnitPrice += item.unit_price
+      total.totalPrice += item.total_price
+      total.maxTotalPrice = Math.max(total.maxTotalPrice, item.total_price)
+      total.minTotalPrice = Math.min(total.minTotalPrice, item.total_price)
+      total.totalDealCycle += item.deal_cycle || 0
+    }
+  })
+
+  // 按预定义顺序返回结果
+  const result = layoutOrder
+    .filter(layout => stats[layout].count > 0)
+    .map(layout => ({
+      ...stats[layout],
+      avgSize: stats[layout].totalSize / stats[layout].count,
+      avgUnitPrice: stats[layout].totalUnitPrice / stats[layout].count,
+      avgTotalPrice: stats[layout].totalPrice / stats[layout].count,
+      avgDealCycle: stats[layout].totalDealCycle / stats[layout].count
     }))
-    .sort((a, b) => {
-      const numA = parseInt(a.layout) || Infinity
-      const numB = parseInt(b.layout) || Infinity
-      return numA - numB
-    })
-  
+
   // 添加总计行
   if (total.count > 0) {
     result.push({
-      layout: '合计',
-      count: total.count,
+      ...total,
       avgSize: total.totalSize / total.count,
       avgUnitPrice: total.totalUnitPrice / total.count,
       avgTotalPrice: total.totalPrice / total.count,
-      avgListingDays: total.totalListingDays / total.count,
-      maxTotalPrice: total.maxTotalPrice,
-      minTotalPrice: total.minTotalPrice === Infinity ? 0 : total.minTotalPrice
+      avgDealCycle: total.totalDealCycle / total.count
     })
   }
-  
+
   return result
 })
 
-// 修改楼层统计逻辑，添加挂牌时长
-const floorStats = computed(() => {
-  const stats = {
-    '低楼层': {
-      floor: '低楼层',
-      count: 0,
-      totalSize: 0,
-      totalUnitPrice: 0,
-      totalPrice: 0,
-      maxTotalPrice: 0,
-      minTotalPrice: Infinity,
-      totalListingDays: 0
-    },
-    '中楼层': {
-      floor: '中楼层',
-      count: 0,
-      totalSize: 0,
-      totalUnitPrice: 0,
-      totalPrice: 0,
-      maxTotalPrice: 0,
-      minTotalPrice: Infinity,
-      totalListingDays: 0
-    },
-    '高楼层': {
-      floor: '高楼层',
-      count: 0,
-      totalSize: 0,
-      totalUnitPrice: 0,
-      totalPrice: 0,
-      maxTotalPrice: 0,
-      minTotalPrice: Infinity,
-      totalListingDays: 0
-    },
-    '其他': {
-      floor: '其他',
-      count: 0,
-      totalSize: 0,
-      totalUnitPrice: 0,
-      totalPrice: 0,
-      maxTotalPrice: 0,
-      minTotalPrice: Infinity,
-      totalListingDays: 0
-    }
-  }
-  
+// 楼层成交统计数据
+const dealFloorStats = computed(() => {
+  const stats = {}
   const total = { 
     floor: '合计', 
     count: 0, 
@@ -639,81 +1032,144 @@ const floorStats = computed(() => {
     totalPrice: 0, 
     maxTotalPrice: 0, 
     minTotalPrice: Infinity,
-    totalListingDays: 0
+    totalDealCycle: 0
   }
-  
-  ershoufangList.value.forEach(item => {
-    let floor = '其他'
-    if (item.floor_info) {
-      if (item.floor_info.includes('低楼层')) {
-        floor = '低楼层'
-      } else if (item.floor_info.includes('中楼层')) {
-        floor = '中楼层'
-      } else if (item.floor_info.includes('高楼层')) {
-        floor = '高楼层'
-      }
-    } else if (item.floor) {
-      if (item.floor.includes('低')) {
-        floor = '低楼层'
-      } else if (item.floor.includes('中')) {
-        floor = '中楼层'
-      } else if (item.floor.includes('高')) {
-        floor = '高楼层'
-      }
+
+  // 预定义楼层顺序
+  const floorOrder = ['低楼层', '中楼层', '高楼层', '其他']
+  floorOrder.forEach(floor => {
+    stats[floor] = {
+      floor,
+      count: 0,
+      totalSize: 0,
+      totalUnitPrice: 0,
+      totalPrice: 0,
+      maxTotalPrice: 0,
+      minTotalPrice: Infinity,
+      totalDealCycle: 0
     }
-    
-    const listingDays = getDaysDiff(item.listing_date || item.created_at)
-    
-    stats[floor].count++
-    stats[floor].totalSize += item.size
-    stats[floor].totalUnitPrice += item.unit_price
-    stats[floor].totalPrice += item.total_price
-    stats[floor].maxTotalPrice = Math.max(stats[floor].maxTotalPrice, item.total_price)
-    stats[floor].minTotalPrice = Math.min(stats[floor].minTotalPrice, item.total_price)
-    stats[floor].totalListingDays += listingDays
-    
-    // 更新总计
-    total.count++
-    total.totalSize += item.size
-    total.totalUnitPrice += item.unit_price
-    total.totalPrice += item.total_price
-    total.maxTotalPrice = Math.max(total.maxTotalPrice, item.total_price)
-    total.minTotalPrice = Math.min(total.minTotalPrice, item.total_price)
-    total.totalListingDays += listingDays
   })
-  
-  // 计算平均值并按楼层排序
-  const result = Object.values(stats)
-    .filter(stat => stat.count > 0)  // 只显示有数据的楼层
-    .map(stat => ({
-      ...stat,
-      avgSize: stat.totalSize / stat.count,
-      avgUnitPrice: stat.totalUnitPrice / stat.count,
-      avgTotalPrice: stat.totalPrice / stat.count,
-      avgListingDays: stat.totalListingDays / stat.count,
-      minTotalPrice: stat.minTotalPrice === Infinity ? 0 : stat.minTotalPrice
+
+  dealRecordList.value.forEach(item => {
+    const dealDate = new Date(item.deal_date)
+    if (dealDate > dealDateRange.value.endDate && dealDate <= dealDateRange.value.startDate) {
+      let floor = '其他'
+      if (item.floor_info) {
+        if (item.floor_info.includes('低楼层')) {
+          floor = '低楼层'
+        } else if (item.floor_info.includes('中楼层')) {
+          floor = '中楼层'
+        } else if (item.floor_info.includes('高楼层')) {
+          floor = '高楼层'
+        }
+      }
+
+      stats[floor].count++
+      stats[floor].totalSize += item.size
+      stats[floor].totalUnitPrice += item.unit_price
+      stats[floor].totalPrice += item.total_price
+      stats[floor].maxTotalPrice = Math.max(stats[floor].maxTotalPrice, item.total_price)
+      stats[floor].minTotalPrice = Math.min(stats[floor].minTotalPrice, item.total_price)
+      stats[floor].totalDealCycle += item.deal_cycle || 0
+
+      // 更新总计
+      total.count++
+      total.totalSize += item.size
+      total.totalUnitPrice += item.unit_price
+      total.totalPrice += item.total_price
+      total.maxTotalPrice = Math.max(total.maxTotalPrice, item.total_price)
+      total.minTotalPrice = Math.min(total.minTotalPrice, item.total_price)
+      total.totalDealCycle += item.deal_cycle || 0
+    }
+  })
+
+  // 按预定义顺序返回结果
+  const result = floorOrder
+    .filter(floor => stats[floor].count > 0)
+    .map(floor => ({
+      ...stats[floor],
+      avgSize: stats[floor].totalSize / stats[floor].count,
+      avgUnitPrice: stats[floor].totalUnitPrice / stats[floor].count,
+      avgTotalPrice: stats[floor].totalPrice / stats[floor].count,
+      avgDealCycle: stats[floor].totalDealCycle / stats[floor].count
     }))
-    .sort((a, b) => {
-      const order = { '低楼层': 1, '中楼层': 2, '高楼层': 3, '其他': 4 }
-      return order[a.floor] - order[b.floor]
-    })
-  
+
   // 添加总计行
   if (total.count > 0) {
     result.push({
-      floor: '合计',
-      count: total.count,
+      ...total,
       avgSize: total.totalSize / total.count,
       avgUnitPrice: total.totalUnitPrice / total.count,
       avgTotalPrice: total.totalPrice / total.count,
-      avgListingDays: total.totalListingDays / total.count,
-      maxTotalPrice: total.maxTotalPrice,
-      minTotalPrice: total.minTotalPrice === Infinity ? 0 : total.minTotalPrice
+      avgDealCycle: total.totalDealCycle / total.count
     })
   }
-  
+
   return result
 })
+
+// 添加行样式计算函数
+const getRowClass = (row, type) => {
+  if (!opportunityData.value) return ''
+  
+  // 户型匹配
+  if (type === 'layout') {
+    const match = opportunityData.value.layout?.match(/^(\d)/)
+    if (match) {
+      const roomCount = match[1]
+      const layoutMap = {
+        '1': '一房',
+        '2': '两房',
+        '3': '三房',
+        '4': '四房'
+      }
+      if (row.layout === layoutMap[roomCount]) {
+        return 'highlight-row'
+      }
+    }
+  }
+  
+  // 楼层匹配
+  if (type === 'floor') {
+    // 获取商机房源的楼层信息
+    const floorInfo = opportunityData.value.floor_info || opportunityData.value.floor || ''
+    
+    // 从楼层信息中提取楼层位置
+    let targetFloor = ''
+    
+    // 尝试从数字格式解析（如 6/17）
+    const floorMatch = floorInfo.match(/(\d+)\/(\d+)/)
+    if (floorMatch) {
+      const [, current, total] = floorMatch
+      const ratio = current / total
+      if (ratio <= 0.33) targetFloor = '低楼层'
+      else if (ratio <= 0.66) targetFloor = '中楼层'
+      else targetFloor = '高楼层'
+    } 
+    // 尝试从文字描述解析
+    else {
+      if (floorInfo.includes('低')) targetFloor = '低楼层'
+      else if (floorInfo.includes('中')) targetFloor = '中楼层'
+      else if (floorInfo.includes('高')) targetFloor = '高楼层'
+    }
+
+    // 匹配当前行是否为目标楼层
+    if (targetFloor && row.floor === targetFloor) {
+      return 'highlight-row'
+    }
+  }
+  
+  return ''
+}
+
+// 修改表格组件，添加行类名
+const layoutTableProps = {
+  rowClassName: (row) => getRowClass(row, 'layout')
+}
+
+const floorTableProps = {
+  rowClassName: (row) => getRowClass(row, 'floor')
+}
 
 defineOptions({
   name: 'OpportunityDetail'
@@ -723,8 +1179,8 @@ defineOptions({
 <style scoped>
 .opportunity-detail-modal {
   :deep(.n-modal) {
-    max-width: 100vw !important;
-    max-height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
     width: 100vw !important;
     height: 100vh !important;
     margin: 0 !important;
@@ -737,12 +1193,12 @@ defineOptions({
   }
 
   :deep(.n-card) {
-    height: 100vh;
-  }
+  height: 100vh;
+}
 
   :deep(.n-card-header) {
     padding: 16px 24px;
-    border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #eee;
   }
 
   :deep(.n-card-content) {
@@ -752,9 +1208,9 @@ defineOptions({
 }
 
 .modal-content {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  height: calc(var(--modal-height) - 60px); /* 减去头部高度 */
+  overflow-y: auto; /* 改为 auto */
+  overflow-x: hidden;
 }
 
 .opportunity-detail {
@@ -767,9 +1223,14 @@ defineOptions({
 .detail-layout {
   display: flex;
   gap: 24px;
-  height: calc(100vh - 120px); /* 减去header和padding的高度 */
-  min-height: 0;
-  padding: 24px;
+  height: 100%;
+  
+  @media (max-width: 1280px) {
+    flex-direction: column;
+    gap: 16px;
+    height: auto; /* 移除固定高度限制 */
+    min-height: 0; /* 确保内容可以正常滚动 */
+  }
 }
 
 .left-section {
@@ -785,11 +1246,12 @@ defineOptions({
 
 .right-section {
   flex: 0 0 75%;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  height: 100%;
-  overflow: hidden;
+  
+  @media (max-width: 1280px) {
+    flex: none;
+    /* 移除固定高度，允许内容自然延伸 */
+    height: auto;
+  }
 }
 
 .right-top {
@@ -977,5 +1439,325 @@ defineOptions({
 :deep(.n-data-table-wrapper) {
   border-radius: 8px;
   border: 1px solid #eee;
+}
+
+/* 添加合计行样式 */
+:deep(.n-data-table .n-data-table-tr:last-child) {
+  font-weight: bold;
+}
+
+.stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px; /* 添加垂直间距 */
+  min-height: 0;
+}
+
+.stats-table {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 移除之前的 margin-bottom */
+.mb-6 {
+  margin-bottom: 0;
+}
+
+.stats-table :deep(.n-data-table-wrapper) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* 添加表格边框和圆角 */
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.stats-table :deep(.n-data-table) {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 确保表格容器高度一致 */
+.flex.gap-8 {
+  align-items: stretch;
+}
+
+/* 添加表格头部样式 */
+.text-lg.font-bold {
+  padding: 0 4px;
+}
+
+.stats-wrapper {
+  background-color: #f9f9f9;
+  border-radius: 12px;
+  padding: 0; /* 移除内边距 */
+  overflow: visible;
+}
+
+/* 移除 n-card 的默认内边距 */
+.stats-wrapper :deep(.n-card__content) {
+  padding: 0;
+}
+
+.stats-wrapper :deep(.n-card__content-wrapper) {
+  padding: 0;
+}
+
+.stats-grid {
+  border: 1px solid #eee;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.stats-grid-item {
+  border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  padding: 0; /* 移除内边距 */
+}
+
+/* 移除最右边的边框 */
+.stats-grid-item:nth-child(2n) {
+  border-right: none;
+}
+
+/* 移除最底部的边框 */
+.stats-grid-item:nth-child(3),
+.stats-grid-item:nth-child(4) {
+  border-bottom: none;
+}
+
+.stats-table {
+  background-color: #fff;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.stats-table .text-lg.font-bold {
+  margin: 0 0 12px 0; /* 只保留底部间距 */
+}
+
+.stats-table :deep(.n-data-table-wrapper) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: none; /* 移除表格边框 */
+  border-radius: 0; /* 移除圆角 */
+}
+
+.time-range-tip {
+  padding: 12px 16px; /* 保持提示文本的内边距 */
+}
+
+/* 移除所有之前定义的间距相关样式 */
+.mb-6,
+.mt-6,
+.gap-8,
+.gap-24 {
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+
+/* 确保表格内容对齐 */
+.stats-table :deep(.n-data-table) {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 移除表格单元格的内边距 */
+.stats-table :deep(.n-data-table-td),
+.stats-table :deep(.n-data-table-th) {
+  padding: 8px; /* 保持最小的内边距以确保可读性 */
+}
+
+/* 高亮行样式 */
+.stats-table :deep(.highlight-row) {
+  background-color: rgba(32, 128, 240, 0.1); /* 使用主题色，添加透明度 */
+}
+
+/* 确保最后一行（合计行）的样式优先级更高 */
+.stats-table :deep(.n-data-table-tr:last-child) {
+  background-color: var(--n-merged-th-color) !important;
+}
+
+/* 响应式布局样式 */
+.opportunity-detail-modal {
+  /* 默认宽度 */
+  --modal-width: 90vw;
+  --modal-height: 90vh;
+  width: var(--modal-width) !important;
+  max-width: 1600px;
+}
+
+/* 调整模态框内容区域 */
+.modal-content {
+  height: calc(var(--modal-height) - 60px); /* 减去头部高度 */
+  overflow: hidden;
+}
+
+/* 调整主布局 */
+.detail-layout {
+  display: flex;
+  gap: 24px;
+  height: 100%;
+  
+  @media (max-width: 1280px) {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+/* 左侧区域响应式 */
+.left-section {
+  flex: 0 0 25%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  
+  @media (max-width: 1280px) {
+    flex: none;
+    flex-direction: row;
+    gap: 16px;
+  }
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+}
+
+/* 右侧区域响应式 */
+.right-section {
+  flex: 0 0 75%;
+  
+  @media (max-width: 1280px) {
+    flex: none;
+  }
+}
+
+/* 统计表格响应式 */
+.stats-grid {
+  @media (max-width: 1024px) {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.stats-grid-item {
+  @media (max-width: 1024px) {
+    border-right: none;
+    border-bottom: 1px solid #eee;
+  }
+  
+  &:last-child {
+    @media (max-width: 1024px) {
+      border-bottom: none;
+    }
+  }
+}
+
+/* 房源列表响应式 */
+.flex.gap-4 {
+  @media (max-width: 1024px) {
+    flex-direction: column;
+  }
+  
+  > div {
+    @media (max-width: 1024px) {
+      width: 100% !important;
+    }
+  }
+}
+
+/* 表格内容响应式 */
+.stats-table {
+  @media (max-width: 768px) {
+    padding: 12px;
+    
+    .text-lg.font-bold {
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+  }
+}
+
+/* 调整表格滚动 */
+.stats-table :deep(.n-data-table-wrapper) {
+  @media (max-width: 768px) {
+    overflow-x: auto;
+  }
+}
+
+/* 调整房源列表高度 */
+.h-\[calc\(100vh-500px\)\] {
+  @media (max-width: 1280px) {
+    height: 400px;
+    overflow-y: auto;
+  }
+  
+  @media (max-width: 768px) {
+    height: 300px;
+    overflow-y: auto;
+  }
+}
+
+/* 优化小屏幕下的内边距 */
+.right-top,
+.right-bottom {
+  @media (max-width: 768px) {
+    padding: 0 16px;
+  }
+}
+
+/* 优化轮播图响应式 */
+.carousel-section {
+  @media (max-width: 1280px) {
+    width: 50%;
+  }
+  
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+/* 优化业务信息卡片响应式 */
+.business-card {
+  @media (max-width: 1280px) {
+    width: 50%;
+  }
+  
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+/* 确保表格在小屏幕上可以横向滚动 */
+.stats-table :deep(.n-data-table) {
+  @media (max-width: 768px) {
+    width: max-content;
+    min-width: 100%;
+  }
+}
+
+/* 优化时间范围提示的响应式显示 */
+.time-range-tip {
+  @media (max-width: 768px) {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+/* 优化小屏幕下的内容布局 */
+.right-bottom {
+  @media (max-width: 768px) {
+    padding: 0 16px;
+    /* 确保内容可以正常滚动 */
+    overflow: visible;
+  }
 }
 </style> 
