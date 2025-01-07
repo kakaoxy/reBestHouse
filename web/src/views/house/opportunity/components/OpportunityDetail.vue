@@ -231,10 +231,7 @@
                   <!-- 左侧在售房源列表 -->
                   <div class="w-[48%]">
                     <div class="mb-2 font-bold text-lg flex items-center">
-                      <span class="mr-2">在售房源</span>
-                      <n-tag type="success" size="small">
-                        {{ ershoufangList?.length || 0 }}套
-                      </n-tag>
+                      <span class="mr-2 text-12 text-gray-400">在售房源{{ ershoufangList?.length || 0 }}套</span>
                   </div>
                     
                     <n-spin :show="ershoufangLoading">
@@ -250,7 +247,7 @@
                             <div>
                               <div class="text-16 font-medium mb-2">{{ item.layout }}</div>
                               <div class="text-gray-500 text-14">
-                                {{ item.floor_info }} | {{ item.size }}㎡ | {{ item.orientation }}
+                                {{ item.floor_info }} | {{ item.size }}㎡ | {{ formatDate(item.listing_date) }}
               </div>
             </div>
                             <div class="text-right">
@@ -271,10 +268,7 @@
                   <!-- 右侧成交房源列表 -->
                   <div class="w-[48%]">
                     <div class="mb-2 font-bold text-lg flex items-center">
-                      <span class="mr-2">成交记录</span>
-                      <n-tag type="info" size="small">
-                        {{ dealRecordList?.length || 0 }}套
-                      </n-tag>
+                      <span class="mr-2 text-12 text-gray-400">成交记录{{ dealRecordList?.length || 0 }}套</span>
                     </div>
                     
                     <n-spin :show="dealRecordLoading">
@@ -290,7 +284,7 @@
                             <div>
                               <div class="text-16 font-medium mb-2">{{ item.layout }}</div>
                               <div class="text-gray-500 text-14">
-                                {{ item.floor_info || item.floor }} | {{ item.area }}㎡ | {{ formatDate(item.deal_date) }}
+                                {{ item.floor_info || item.floor }} | {{ item.size }}㎡ | {{ formatDate(item.deal_date) }}
                               </div>
                             </div>
                             <div class="text-right">
