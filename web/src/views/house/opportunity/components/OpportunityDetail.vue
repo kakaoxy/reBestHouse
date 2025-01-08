@@ -237,7 +237,7 @@
                     <n-spin :show="ershoufangLoading">
                       <div class="h-[calc(100vh-500px)] overflow-y-auto pr-2">
                         <n-card
-                          v-for="item in ershoufangList"
+                          v-for="item in sortedErshoufangList"
                           :key="item.id"
                           class="mb-4 cursor-pointer hover:shadow-md transition-shadow"
                           size="small"
@@ -260,7 +260,7 @@
                             </div>
                           </div>
                         </n-card>
-                        <n-empty v-if="ershoufangList.length === 0" description="暂无在售房源" />
+                        <n-empty v-if="sortedErshoufangList.length === 0" description="暂无在售房源" />
                       </div>
                     </n-spin>
                   </div>
@@ -1474,6 +1474,26 @@ const rightSectionClass = computed(() => ({
   'right-section': true,
   'collapsed': collapsed.value
 }))
+
+// 排序函数 - 获取户型数字
+const getLayoutNumber = (layout) => {
+  const match = layout?.match(/^(\d)/)
+  return match ? parseInt(match[1]) : 0
+}
+
+// 排序后的在售房源列表
+const sortedErshoufangList = computed(() => {
+  if (!ershoufangList.value) return []
+  
+  return [...ershoufangList.value].sort((a, b) => {
+    // 先按户型数字降序
+    const layoutDiff = getLayoutNumber(b.layout) - getLayoutNumber(a.layout)
+    if (layoutDiff !== 0) return layoutDiff
+    
+    // 户型相同时按单价升序
+    return (a.unit_price || 0) - (b.unit_price || 0)
+  })
+})
 </script>
 
 <style scoped>

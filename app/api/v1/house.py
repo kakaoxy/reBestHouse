@@ -182,7 +182,11 @@ async def import_deal_records(
     
     return await deal_record_controller.import_deal_records(file, city)
 
-@router.get("/deal-records/template")
+@router.get(
+        "/deal-records/template",
+        summary="获取成交记录导入模板",
+        dependencies=[DependPermisson]
+)
 async def get_import_template():
     """获取成交记录导入模板"""
     template_path = "templates/deal_record_import_template.xlsx"
