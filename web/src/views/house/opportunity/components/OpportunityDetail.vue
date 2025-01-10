@@ -1367,6 +1367,7 @@ const initScatterChart = async (echarts) => {
       type: 'value',
       name: '建筑面积(㎡)',
       nameGap: 20,
+      min: 30,
     },
     yAxis: {
       type: 'value',
