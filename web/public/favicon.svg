@@ -1,6 +1,6 @@
 <?xml version="1.0" standalone="yes"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">
-<path style="fill:#ffffff; stroke:none;" d="M0 0L0 512L512 512L512 0L0 0z"/>
+<path style="fill:none; stroke:none;" d="M0 0L0 512L512 512L512 0L0 0z"/>
 <path style="fill:#f9e4e4; stroke:none;" d="M250 85C252.613 86.0977 255.164 85.9928 258 86C255.387 84.9023 252.836 85.0072 250 85z"/>
 <path style="fill:#fddbdb; stroke:none;" d="M247 86C248.248 86.6848 248.548 86.7488 250 87C248.752 86.3152 248.452 86.2512 247 86z"/>
 <path style="fill:#fc8b8b; stroke:none;" d="M250 86C252.613 87.0977 255.164 86.9928 258 87C255.387 85.9023 252.836 86.0072 250 86z"/>

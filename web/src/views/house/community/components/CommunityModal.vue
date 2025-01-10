@@ -128,9 +128,11 @@ watch(() => props.formValue, (newVal) => {
     const formData = { ...newVal }
     // 确保城市字段存在
     formData.city = formData.city || communityStore.currentCity
-    // 如果 property_rights 是字符串，转换为数组
+    // 处理 property_rights 字段
     if (typeof formData.property_rights === 'string') {
       formData.property_rights = formData.property_rights.split(',').filter(Boolean)
+    } else if (!Array.isArray(formData.property_rights)) {
+      formData.property_rights = [] // 如果不是数组也不是字符串，设为空数组
     }
     Object.assign(localFormValue, formData)
   }
@@ -184,10 +186,10 @@ const handleSubmit = async () => {
       return
     }
     
-    // 处理 property_rights 数组为字符串
+    // 处理 property_rights 数组为字符串，确保非空
     const formData = { 
       ...localFormValue,
-      property_rights: localFormValue.property_rights.join(',')  // 转换为逗号分隔的字符串
+      property_rights: (localFormValue.property_rights || []).join(',')  // 添加空数组作为默认值
     }
     
     emit('submit', formData)
