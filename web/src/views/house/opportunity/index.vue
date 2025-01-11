@@ -302,6 +302,7 @@
             :options="userOptions"
             placeholder="请选择归属方"
             filterable
+            :default-value="currentUser?.username"
           />
         </n-form-item>
         <n-form-item label="商机状态" path="status">
@@ -334,6 +335,7 @@ import { useMessage } from 'naive-ui'
 import { NPopconfirm, NIcon } from 'naive-ui'
 import { h } from 'vue'
 import OpportunityDetail from './components/OpportunityDetail.vue'
+import { request } from '@/utils'
 
 const message = useMessage()
 
@@ -399,11 +401,83 @@ const transactionSourceOptions = [
   { label: '开发商', value: '开发商' }
 ]
 
-const userOptions = [
-  { label: '张三', value: '张三' },
-  { label: '李四', value: '李四' },
-  { label: '王五', value: '王五' }
-]
+const userOptions = ref([])
+const currentUser = ref(null)
+
+// 获取当前用户信息
+const getCurrentUser = async () => {
+  try {
+    const res = await request.get('/base/userinfo')
+    if (res.code === 200) {
+      currentUser.value = res.data
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+  }
+}
+
+// 加载用户选项
+const loadUserOptions = async () => {
+  try {
+    const res = await request.get('/user/list', {
+      params: {
+        page: 1,
+        page_size: 100,
+        dept_id: currentUser.value?.dept_id || undefined
+      }
+    })
+    
+    console.log('用户列表请求参数:', {
+      dept_id: currentUser.value?.dept_id,
+      currentUser: currentUser.value
+    })
+    console.log('用户列表原始数据:', res)
+    
+    if (res.code === 200 && res.data) {
+      // 打印过滤前的数据
+      console.log('过滤前的用户列表:', res.data)
+      
+      const filteredUsers = res.data.filter(user => {
+        // 如果当前用户是超级管理员，显示所有用户
+        if (currentUser.value?.is_superuser) {
+          return true
+        }
+        
+        // 如果当前用户有部门
+        if (currentUser.value?.dept_id) {
+          // 同部门
+          if (user.dept_id === currentUser.value.dept_id) {
+            return true
+          }
+          // 下级部门（当前用户部门是父部门）
+          if (user.dept?.parent_id === currentUser.value.dept_id) {
+            return true
+          }
+          // 上级部门（当前用户部门是子部门）
+          if (currentUser.value.dept?.parent_id === user.dept_id) {
+            return true
+          }
+        }
+        
+        // 如果没有部门，只显示自己
+        return user.id === currentUser.value?.id
+      })
+      
+      console.log('过滤后的用户列表:', filteredUsers)
+      
+      userOptions.value = filteredUsers.map(user => ({
+        label: `${user.username}${user.dept?.name ? ` (${user.dept.name})` : ''}`,
+        value: user.username,
+        dept_id: user.dept_id
+      }))
+      
+      console.log('最终的用户选项:', userOptions.value)
+    }
+  } catch (error) {
+    console.error('加载用户列表失败:', error)
+    message.error('加载用户列表失败')
+  }
+}
 
 const rules = {
   community_name: {
@@ -467,8 +541,6 @@ const loadOpportunities = async () => {
     params.page_size = params.page_size || 30
 
     const res = await opportunityApi.list(params)
-    console.log('商机列表请求参数:', params)
-    console.log('商机列表响应数据:', res)
     if (!res.data || !Array.isArray(res.data.items)) {
       console.error('响应数据格式错误:', res)
       return
@@ -499,7 +571,6 @@ const loadOpportunities = async () => {
         : newItems
       opportunityList.value.push(...filteredNewItems)
     }
-    console.log('处理后的商机列表:', opportunityList.value)
   } catch (error) {
     console.error('加载商机列表失败:', error)
     message.error('加载商机列表失败')
@@ -521,11 +592,6 @@ const loadCommunities = async () => {
       page: 1,
       page_size: 100
     })
-    console.log('小区列表请求参数:', {
-      city: searchParams.city,
-      name: searchParams.communityName
-    })
-    console.log('小区列表响应数据:', res)
     communityOptions.value = res.data.items
       .filter(item => item.city === searchParams.city)
       .map(item => ({
@@ -533,7 +599,6 @@ const loadCommunities = async () => {
         value: item.id,
         community: item
       }))
-    console.log('处理后的小区选项:', communityOptions)
   } catch (error) {
     console.error('加载小区列表失败:', error)
     message.error('加载小区列表失败')
@@ -600,11 +665,13 @@ const handleAdd = () => {
     is_unique: false,
     transaction_source: null,
     status: OPPORTUNITY_STATUS.PENDING,
-    remarks: ''
+    remarks: '',
+    belonging_owner: currentUser.value?.username || '',
   })
   formRef.value?.restoreValidation()
   showModal.value = true
   loadCommunities()
+  loadUserOptions()
 }
 
 const handleEdit = (item) => {
@@ -620,6 +687,7 @@ const handleEdit = (item) => {
   })
   showModal.value = true
   loadCommunities()
+  loadUserOptions()
 }
 
 const formatDate = (date) => {
@@ -798,9 +866,11 @@ const handleSearch = () => {
   resetList()
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await getCurrentUser() // 先获取当前用户信息
   loadOpportunities()
   loadCommunities()
+  loadUserOptions()
 })
 </script>
 
