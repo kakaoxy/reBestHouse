@@ -1,5 +1,5 @@
 from typing import Optional
-
+import re
 import jwt
 from fastapi import Depends, Header, HTTPException, Request
 
@@ -33,20 +33,44 @@ class AuthControl:
 
 class PermissionControl:
     @classmethod
+    def normalize_path(cls, path: str) -> str:
+        """
+        将实际路径转换为权限模式
+        例如: /api/v1/house/opportunities/20 -> /api/v1/house/opportunities/{id}
+        """
+        # 使用正则表达式匹配数字部分并替换为 {id}
+        return re.sub(r'/\d+(?=/|$)', '/{id}', path)
+
+    @classmethod
     async def has_permission(cls, request: Request, current_user: User = Depends(AuthControl.is_authed)) -> None:
         if current_user.is_superuser:
             return
+            
         method = request.method
         path = request.url.path
+        normalized_path = cls.normalize_path(path)
+        
         roles: list[Role] = await current_user.roles
         if not roles:
             raise HTTPException(status_code=403, detail="The user is not bound to a role")
+            
         apis = [await role.apis for role in roles]
-        permission_apis = list(set((api.method, api.path) for api in sum(apis, [])))
-        # path = "/api/v1/auth/userinfo"
-        # method = "GET"
-        if (method, path) not in permission_apis:
-            raise HTTPException(status_code=403, detail=f"Permission denied method:{method} path:{path}")
+        permission_apis = []
+        
+        # 收集所有权限路径模式
+        for api_list in apis:
+            for api in api_list:
+                # 将数据库中存储的API路径也标准化
+                normalized_api_path = cls.normalize_path(api.path)
+                permission_apis.append((api.method, normalized_api_path))
+                
+        permission_apis = list(set(permission_apis))
+        
+        if (method, normalized_path) not in permission_apis:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Permission denied method:{method} path:{normalized_path}"
+            )
 
 
 DependAuth = Depends(AuthControl.is_authed)
