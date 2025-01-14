@@ -173,6 +173,9 @@ class Opportunity(Model):
     updated_at = fields.DatetimeField(auto_now=True)
     ershoufang = fields.ForeignKeyField('models.Ershoufang', null=True, related_name='opportunities')
 
+    # 保留关联字段
+    follow_ups: fields.ReverseRelation["OpportunityFollowUp"]
+
     class Meta:
         table = "opportunity"
         table_description = "商机信息表"
@@ -201,4 +204,61 @@ class Opportunity(Model):
             "remarks": self.remarks,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
+
+class OpportunityFollowUp(Model):
+    """商机跟进记录"""
+    id = fields.IntField(pk=True, description='跟进记录ID')
+    opportunity = fields.ForeignKeyField(
+        'models.Opportunity', 
+        related_name='follow_ups',
+        description='关联的商机',
+        on_delete=fields.CASCADE
+    )
+    follow_up_time = fields.DatetimeField(description='跟进时间')
+    follow_up_method = fields.CharField(max_length=20, description='跟进方式')
+    follow_up_content = fields.TextField(description='跟进内容')
+    authorized_price = fields.FloatField(
+        null=True,
+        description='本次授权价格'
+    )
+    price_adjusted = fields.BooleanField(default=False, description='价格是否调整')
+    adjust_reason = fields.TextField(null=True, description='价格调整原因')
+    follow_up_result = fields.CharField(max_length=20, description='跟进结果')
+    user = fields.ForeignKeyField(
+        'models.User',
+        related_name='follow_ups',
+        description='跟进人',
+        on_delete=fields.CASCADE
+    )
+    created_at = fields.DatetimeField(auto_now_add=True, description='创建时间')
+    updated_at = fields.DatetimeField(auto_now=True, description='更新时间')
+
+    class Meta:
+        table = "opportunity_follow_up"
+        table_description = "商机跟进记录表"
+        ordering = ["-follow_up_time"]
+        indexes = [
+            "opportunity_id",
+            "user_id",
+            "follow_up_time"
+        ]
+
+    async def to_dict(self) -> dict:
+        """转换为字典"""
+        user = await self.user.first()
+        return {
+            'id': self.id,
+            'opportunity_id': self.opportunity_id,
+            'follow_up_time': self.follow_up_time,
+            'follow_up_method': self.follow_up_method,
+            'follow_up_content': self.follow_up_content,
+            'authorized_price': self.authorized_price,
+            'price_adjusted': self.price_adjusted,
+            'adjust_reason': self.adjust_reason,
+            'follow_up_result': self.follow_up_result,
+            'user_id': self.user_id,
+            'user_name': user.username if user else None,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
         }

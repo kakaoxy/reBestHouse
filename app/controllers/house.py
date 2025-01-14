@@ -2,14 +2,16 @@ from typing import List, Dict, Tuple
 from fastapi import HTTPException, UploadFile
 from tortoise.expressions import Q
 from tortoise.functions import Count, Max
-from app.models.house import Community, Ershoufang, DealRecord, Opportunity
+from app.models import User
+from app.models.house import Community, Ershoufang, DealRecord, Opportunity, OpportunityFollowUp
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
     ErshoufangCreate, ErshoufangUpdate, ErshoufangResponse,
     CommunityQueryParams, ErshoufangQueryParams,
     DealRecordCreate, DealRecordUpdate, DealRecordResponse,
     DealRecordQueryParams,
-    OpportunityCreate, OpportunityUpdate, OpportunityQueryParams
+    OpportunityCreate, OpportunityUpdate, OpportunityQueryParams,
+    OpportunityFollowUpCreate
 )
 from datetime import datetime
 from app.core.crud import CRUDBase
@@ -1228,4 +1230,81 @@ class OpportunityController(CRUDBase[Opportunity, OpportunityCreate, Opportunity
         except Exception:
             return {"code": 404, "message": "商机不存在"}
 
-opportunity_controller = OpportunityController() 
+opportunity_controller = OpportunityController()
+
+class OpportunityFollowUpController(CRUDBase[OpportunityFollowUp, OpportunityFollowUpCreate, None]):
+    async def create_follow_up(self, obj_in: OpportunityFollowUpCreate, user_id: int) -> dict:
+        """创建跟进记录"""
+        # 获取商机
+        opportunity = await Opportunity.get(id=obj_in.opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="商机不存在")
+            
+        # 创建跟进记录
+        follow_up_dict = obj_in.model_dump()
+        follow_up_dict['user_id'] = user_id
+        follow_up = await self.model.create(**follow_up_dict)
+        
+        # 根据跟进结果更新商机状态
+        if obj_in.follow_up_result == '已签约':
+            opportunity.status = '已签约'
+        elif obj_in.follow_up_result == '已放弃':
+            opportunity.status = '已放弃'
+        elif obj_in.follow_up_result == '已评估':
+            opportunity.status = '已评估'
+            
+        await opportunity.save()
+        
+        # 构造返回数据
+        user = await User.get(id=user_id)
+        return {
+            'code': 200,
+            'msg': '创建成功',
+            'data': {
+                'id': follow_up.id,
+                'opportunity_id': follow_up.opportunity_id,
+                'follow_up_time': follow_up.follow_up_time,
+                'follow_up_method': follow_up.follow_up_method,
+                'follow_up_content': follow_up.follow_up_content,
+                'authorized_price': follow_up.authorized_price,
+                'price_adjusted': follow_up.price_adjusted,
+                'adjust_reason': follow_up.adjust_reason,
+                'follow_up_result': follow_up.follow_up_result,
+                'user_id': user.id,
+                'user_name': user.username,
+                'created_at': follow_up.created_at,
+                'updated_at': follow_up.updated_at
+            }
+        }
+
+    async def get_follow_ups(self, opportunity_id: int) -> dict:
+        """获取商机的所有跟进记录"""
+        follow_ups = await self.model.filter(
+            opportunity_id=opportunity_id
+        ).order_by('-follow_up_time').prefetch_related('user')
+        
+        data = []
+        for follow_up in follow_ups:
+            data.append({
+                'id': follow_up.id,
+                'opportunity_id': follow_up.opportunity_id,
+                'follow_up_time': follow_up.follow_up_time,
+                'follow_up_method': follow_up.follow_up_method,
+                'follow_up_content': follow_up.follow_up_content,
+                'authorized_price': follow_up.authorized_price,
+                'price_adjusted': follow_up.price_adjusted,
+                'adjust_reason': follow_up.adjust_reason,
+                'follow_up_result': follow_up.follow_up_result,
+                'user_id': follow_up.user.id,
+                'user_name': follow_up.user.username,
+                'created_at': follow_up.created_at,
+                'updated_at': follow_up.updated_at
+            })
+            
+        return {
+            'code': 200,
+            'msg': '获取成功',
+            'data': data
+        }
+
+opportunity_follow_up_controller = OpportunityFollowUpController(OpportunityFollowUp) 

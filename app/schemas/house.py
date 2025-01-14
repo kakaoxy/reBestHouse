@@ -343,3 +343,28 @@ class OpportunityQueryParams(BaseModel):
     city: Optional[str] = None
     community_name: Optional[str] = None
     status: Optional[str] = None 
+
+class OpportunityFollowUpCreate(BaseModel):
+    opportunity_id: int = Field(..., description='商机ID')
+    follow_up_time: datetime = Field(..., description='跟进时间')
+    follow_up_method: str = Field(..., description='跟进方式')
+    follow_up_content: str = Field(..., description='跟进内容')
+    authorized_price: Optional[float] = Field(None, description='本次授权价格')
+    price_adjusted: bool = Field(default=False, description='价格是否调整')
+    adjust_reason: Optional[str] = Field(None, description='价格调整原因')
+    follow_up_result: str = Field(..., description='跟进结果')
+
+class OpportunityFollowUpResponse(BaseModel):
+    id: int
+    opportunity_id: int
+    follow_up_time: datetime  
+    follow_up_method: str
+    follow_up_content: str
+    authorized_price: Optional[float]
+    price_adjusted: bool
+    adjust_reason: Optional[str]
+    follow_up_result: str
+    user_id: int
+    user_name: str
+    created_at: datetime
+    updated_at: datetime 

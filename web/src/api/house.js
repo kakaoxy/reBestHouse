@@ -44,5 +44,11 @@ export const opportunityApi = {
   getDetail: (id) => request.get(`${baseUrl}/opportunities/${id}`),
   create: (data) => request.post(`${baseUrl}/opportunities`, data),
   update: (id, data) => request.put(`${baseUrl}/opportunities/${id}`, data),
-  delete: (id) => request.delete(`${baseUrl}/opportunities/${id}`)
+  delete: (id) => request.delete(`${baseUrl}/opportunities/${id}`),
+  createFollowUp(data) {
+    return request.post('/house/opportunity/follow_up/create', data)
+  },
+  getFollowUps(opportunityId) {
+    return request.get(`/house/opportunity/${opportunityId}/follow_ups`)
+  }
 } 

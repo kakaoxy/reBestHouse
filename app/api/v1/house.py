@@ -1,14 +1,16 @@
 from typing import List, Dict
 from fastapi import APIRouter, Depends, File, UploadFile, Query, Form, HTTPException
-from app.controllers.house import community_controller, ershoufang_controller, deal_record_controller, opportunity_controller
+from app.controllers.house import community_controller, ershoufang_controller, deal_record_controller, opportunity_controller, opportunity_follow_up_controller
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
     ErshoufangCreate, ErshoufangUpdate, ErshoufangResponse,
     CommunityQueryParams, ErshoufangQueryParams,
     DealRecordCreate, DealRecordUpdate, DealRecordQueryParams,
-    OpportunityQueryParams, OpportunityCreate, OpportunityUpdate
+    OpportunityQueryParams, OpportunityCreate, OpportunityUpdate,
+    OpportunityFollowUpCreate
 )
-from app.core.dependency import DependPermisson
+from app.core.dependency import DependPermisson, DependAuth
+from app.models import User
 from fastapi.responses import FileResponse
 import os
 
@@ -242,4 +244,27 @@ async def update_opportunity(id: int, data: OpportunityUpdate):
     summary="删除商机"
 )
 async def delete_opportunity(id: int):
-    return await opportunity_controller.delete_opportunity(id) 
+    return await opportunity_controller.delete_opportunity(id)
+
+@router.post(
+    "/opportunity/follow_up/create",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="创建跟进记录"
+)
+async def create_follow_up(
+    data: OpportunityFollowUpCreate,
+    current_user: User = DependAuth
+):
+    """创建跟进记录"""
+    return await opportunity_follow_up_controller.create_follow_up(data, current_user.id)
+
+@router.get(
+    "/opportunity/{opportunity_id}/follow_ups",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="获取商机的跟进记录"
+)
+async def get_follow_ups(opportunity_id: int):
+    """获取商机的所有跟进记录"""
+    return await opportunity_follow_up_controller.get_follow_ups(opportunity_id) 

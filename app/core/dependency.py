@@ -38,8 +38,31 @@ class PermissionControl:
         将实际路径转换为权限模式
         例如: /api/v1/house/opportunities/20 -> /api/v1/house/opportunities/{id}
         """
-        # 使用正则表达式匹配数字部分并替换为 {id}
-        return re.sub(r'/\d+(?=/|$)', '/{id}', path)
+        # 分割路径
+        parts = path.split('/')
+        normalized_parts = []
+        
+        # 获取路径结构
+        path_structure = {
+            'opportunity': 'opportunity_id',  # 添加特定路径的参数映射
+            'opportunities': 'id',
+            'communities': 'id',
+            'ershoufangs': 'id',
+            'deal-records': 'id'
+        }
+        
+        for part in parts:
+            # 如果部分是纯数字，替换为对应的参数名
+            if part.isdigit():
+                # 查找前一个部分来确定参数名
+                prev_part = normalized_parts[-1].split('/')[-1] if normalized_parts else ''
+                param_name = path_structure.get(prev_part, 'id')
+                normalized_parts.append('{' + param_name + '}')
+            else:
+                normalized_parts.append(part)
+        
+        # 重新组合路径
+        return '/'.join(normalized_parts)
 
     @classmethod
     async def has_permission(cls, request: Request, current_user: User = Depends(AuthControl.is_authed)) -> None:
@@ -54,23 +77,26 @@ class PermissionControl:
         if not roles:
             raise HTTPException(status_code=403, detail="The user is not bound to a role")
             
-        apis = [await role.apis for role in roles]
-        permission_apis = []
-        
-        # 收集所有权限路径模式
-        for api_list in apis:
-            for api in api_list:
-                # 将数据库中存储的API路径也标准化
-                normalized_api_path = cls.normalize_path(api.path)
-                permission_apis.append((api.method, normalized_api_path))
-                
-        permission_apis = list(set(permission_apis))
-        
-        if (method, normalized_path) not in permission_apis:
-            raise HTTPException(
-                status_code=403, 
-                detail=f"Permission denied method:{method} path:{normalized_path}"
-            )
+        # 检查每个角色的权限
+        for role in roles:
+            apis = await role.apis.all()
+            for api in apis:
+                # 检查方法和路径是否匹配
+                if api.method == method and api.path == normalized_path:
+                    return
+  
+        # 如果没有找到匹配的权限，抛出异常
+        raise HTTPException(
+            status_code=403,
+            detail={
+                'code': 403,
+                'message': f'Permission denied method:{method} path:{path}',
+                'error': {
+                    'type': 'permission_denied',
+                    'message': '没有访问权限'
+                }
+            }
+        )
 
 
 DependAuth = Depends(AuthControl.is_authed)

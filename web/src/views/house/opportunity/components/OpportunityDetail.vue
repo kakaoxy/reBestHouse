@@ -1,14 +1,17 @@
 <template>
   <n-modal
     :show="show"
-    :mask-closable="false"
-    preset="card"
+    @update:show="emit('update:show', $event)"
     class="opportunity-detail-modal"
-    @update:show="handleUpdateShow"
+    preset="card"
+    :style="{ width: '100%' }"
+    :mask-closable="false"
   >
     <template #header>
-      商机详情
-            </template>
+      <div class="flex justify-between items-center">
+        <div class="text-lg font-bold">商机详情</div>
+      </div>
+    </template>
 
     <div class="modal-content">
       <n-spin :show="loading">
@@ -116,6 +119,18 @@
               </div>
 
               <n-card class="business-card" :bordered="false">
+                <template #header>
+                  <span>商机信息</span>
+                </template>
+                <template #header-extra>
+                  <n-button
+                    type="primary"
+                    size="small"
+                    @click="handleFollowUp"
+                  >
+                    跟进/授权
+                  </n-button>
+                </template>
                 <n-descriptions :column="1" label-placement="left">
                   <n-descriptions-item label="商机方">
                     {{ opportunityData.opportunity_owner }}
@@ -308,6 +323,14 @@
         </div>
       </n-spin>
     </div>
+
+    <FollowUpDrawer
+      :show="showFollowUpDrawer"
+      @update:show="showFollowUpDrawer = $event"
+      :opportunity-id="id"
+      :opportunity-data="opportunityData"
+      @success="handleFollowUpSuccess"
+    />
   </n-modal>
 </template>
 
@@ -317,6 +340,7 @@ import { opportunityApi, ershoufangApi, dealRecordApi } from '@/api/house'
 import { OPPORTUNITY_STATUS_TAG_TYPE } from '../constants'
 import { useMessage } from 'naive-ui'
 import { formatDate } from '@/utils'
+import FollowUpDrawer from './FollowUpDrawer.vue'
 
 const message = useMessage()
 const loading = ref(false)
@@ -1495,6 +1519,20 @@ const sortedErshoufangList = computed(() => {
     return (a.unit_price || 0) - (b.unit_price || 0)
   })
 })
+
+// 跟进抽屉控制
+const showFollowUpDrawer = ref(false)
+
+// 处理跟进按钮点击
+const handleFollowUp = () => {
+  showFollowUpDrawer.value = true
+}
+
+// 处理跟进成功
+const handleFollowUpSuccess = () => {
+  // 重新加载商机详情
+  loadOpportunityDetail(props.id)
+}
 </script>
 
 <style scoped>
