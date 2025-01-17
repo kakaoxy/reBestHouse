@@ -1,4 +1,4 @@
-# Vue FastAPI Admin - 房源管理系统
+# 房源管理系统
 
 一个基于 Vue 3 和 FastAPI 的现代化房源管理系统。
 
