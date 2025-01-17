@@ -13,6 +13,7 @@ from app.core.dependency import DependPermisson, DependAuth
 from app.models import User
 from fastapi.responses import FileResponse
 import os
+import uuid
 
 router = APIRouter()
 
@@ -226,6 +227,7 @@ async def get_opportunity(id: int):
     summary="创建商机"
 )
 async def create_opportunity(data: OpportunityCreate):
+    print(f"创建商机请求数据: {data.dict()}")
     return await opportunity_controller.create_opportunity(data)
 
 @router.put(
@@ -235,6 +237,7 @@ async def create_opportunity(data: OpportunityCreate):
     summary="更新商机"
 )
 async def update_opportunity(id: int, data: OpportunityUpdate):
+    print(f"更新商机请求数据: id={id}, data={data.dict()}")
     return await opportunity_controller.update_opportunity(id, data)
 
 @router.delete(
@@ -267,4 +270,46 @@ async def create_follow_up(
 )
 async def get_follow_ups(opportunity_id: int):
     """获取商机的所有跟进记录"""
-    return await opportunity_follow_up_controller.get_follow_ups(opportunity_id) 
+    return await opportunity_follow_up_controller.get_follow_ups(opportunity_id)
+
+@router.post(
+    "/upload/image",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="上传图片"
+)
+async def upload_image(file: UploadFile = File(...)):
+    """上传图片"""
+    print(f"接收到图片上传请求: {file.filename}")
+    
+    # 检查文件类型
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="只能上传图片文件")
+    
+    # 生成文件名
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4()}{ext}"
+    print(f"生成的文件名: {filename}")
+    
+    # 确保上传目录存在
+    upload_dir = os.path.join("static", "uploads", "images")
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # 保存文件
+    file_path = os.path.join(upload_dir, filename)
+    print(f"保存路径: {file_path}")
+    
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+    
+    # 返回不带 /api 前缀的 URL
+    url = f"/static/uploads/images/{filename}"
+    print(f"返回的URL: {url}")
+    
+    return {
+        "code": 200,
+        "msg": "上传成功",
+        "data": {
+            "url": url
+        }
+    } 

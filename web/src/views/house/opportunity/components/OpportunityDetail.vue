@@ -39,7 +39,7 @@
                 >
                   <n-carousel-item v-if="opportunityData.layout_image">
                     <n-image
-                      :src="opportunityData.layout_image"
+                      :src="opportunityData.layout_image || ''"
                       class="carousel-image"
                       preview-disabled
                     />
@@ -47,7 +47,7 @@
                   </n-carousel-item>
                   <n-carousel-item v-if="opportunityData.interior_image">
                     <n-image
-                      :src="opportunityData.interior_image"
+                      :src="opportunityData.interior_image || ''"
                       class="carousel-image"
                       preview-disabled
                     />

@@ -50,5 +50,12 @@ export const opportunityApi = {
   },
   getFollowUps(opportunityId) {
     return request.get(`/house/opportunity/${opportunityId}/follow_ups`)
+  },
+  uploadImage(formData) {
+    return request.post('/house/upload/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
   }
 } 

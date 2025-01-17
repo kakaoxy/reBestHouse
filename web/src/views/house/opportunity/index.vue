@@ -67,11 +67,7 @@
                   placement="bottom-end"
                   trigger="hover"
                 >
-                  <n-button 
-                    text 
-                    class="action-button"
-                    style="padding: 4px;"
-                  >
+                  <n-button text class="action-button" style="padding: 4px;">
                     <template #icon>
                       <n-icon size="18">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
@@ -84,29 +80,15 @@
               </div>
 
               <n-image
-                v-if="item.layout_image"
-                :src="item.layout_image"
+                :src="item.layout_image || '/layout.jpeg'"
                 class="w-full aspect-[1.36/1] object-cover rounded"
                 preview-disabled
               />
-              <div 
-                v-else 
-                class="w-full aspect-[1.36/1] bg-gray-100 rounded relative"
-              >
-                <n-image
-                  src="/layout.jpeg"
-                  class="w-full h-full object-cover rounded"
-                  preview-disabled
-                />
-                <div class="absolute left-4 bottom-4 right-4 flex justify-between items-center">
-                  <span class="text-5xl font-bold text-white">{{ item.community_name }}</span>
-                  <n-tag :type="getStatusType(item.status)" size="small">
-                    {{ item.status }}
-                  </n-tag>
-                </div>
-              </div>
-              <div v-if="item.layout_image" class="absolute left-4 top-4 text-5xl font-bold text-white">
-                {{ item.community_name }}
+              <div class="absolute left-4 bottom-4 right-4 flex justify-between items-center">
+                <span class="text-5xl font-bold text-white">{{ item.community_name }}</span>
+                <n-tag :type="getStatusType(item.status)" size="small">
+                  {{ item.status }}
+                </n-tag>
               </div>
             </div>
 
@@ -270,6 +252,42 @@
               />
             </n-form-item>
           </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="户型图" path="layout_image">
+              <n-upload
+                list-type="image-card"
+                :max="1"
+                :custom-request="customRequest('layout')"
+                @update:file-list="handleLayoutImageUpdate"
+              >
+                点击上传
+              </n-upload>
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="室内图" path="interior_image">
+              <n-upload
+                list-type="image-card"
+                :max="1"
+                :custom-request="customRequest('interior')"
+                @update:file-list="handleInteriorImageUpdate"
+              >
+                点击上传
+              </n-upload>
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="位置图" path="location_image">
+              <n-upload
+                list-type="image-card"
+                :max="1"
+                :custom-request="customRequest('location')"
+                @update:file-list="handleLocationImageUpdate"
+              >
+                点击上传
+              </n-upload>
+            </n-form-item>
+          </n-grid-item>
         </n-grid>
         <n-divider>交易信息</n-divider>
         <n-form-item>
@@ -332,7 +350,7 @@ import { opportunityApi } from '@/api/house'
 import { communityApi } from '@/api/house'
 import { OPPORTUNITY_STATUS, OPPORTUNITY_STATUS_TAG_TYPE } from './constants'
 import { useMessage } from 'naive-ui'
-import { NPopconfirm, NIcon } from 'naive-ui'
+import { NPopconfirm, NIcon, NUpload } from 'naive-ui'
 import { h } from 'vue'
 import OpportunityDetail from './components/OpportunityDetail.vue'
 import { request } from '@/utils'
@@ -375,7 +393,12 @@ const formData = reactive({
   is_unique: false,
   transaction_source: null,
   status: OPPORTUNITY_STATUS.PENDING,
-  remarks: ''
+  remarks: '',
+  layout_image: null,
+  interior_image: null,
+  location_image: null,
+  opportunity_owner: '',
+  belonging_owner: ''
 })
 
 const cityOptions = [
@@ -427,15 +450,15 @@ const loadUserOptions = async () => {
       }
     })
     
-    console.log('用户列表请求参数:', {
-      dept_id: currentUser.value?.dept_id,
-      currentUser: currentUser.value
-    })
-    console.log('用户列表原始数据:', res)
+    // console.log('用户列表请求参数:', {
+    //   dept_id: currentUser.value?.dept_id,
+    //   currentUser: currentUser.value
+    // })
+    // console.log('用户列表原始数据:', res)
     
     if (res.code === 200 && res.data) {
       // 打印过滤前的数据
-      console.log('过滤前的用户列表:', res.data)
+      // console.log('过滤前的用户列表:', res.data)
       
       const filteredUsers = res.data.filter(user => {
         // 如果当前用户是超级管理员，显示所有用户
@@ -463,7 +486,7 @@ const loadUserOptions = async () => {
         return user.id === currentUser.value?.id
       })
       
-      console.log('过滤后的用户列表:', filteredUsers)
+      // console.log('过滤后的用户列表:', filteredUsers)
       
       userOptions.value = filteredUsers.map(user => ({
         label: `${user.username}${user.dept?.name ? ` (${user.dept.name})` : ''}`,
@@ -471,7 +494,7 @@ const loadUserOptions = async () => {
         dept_id: user.dept_id
       }))
       
-      console.log('最终的用户选项:', userOptions.value)
+      // console.log('最终的用户选项:', userOptions.value)
     }
   } catch (error) {
     console.error('加载用户列表失败:', error)
@@ -678,14 +701,33 @@ const handleEdit = (item) => {
   modalTitle.value = '编辑商机'
   const layoutMatch = item.layout?.match(/(\d+)室(\d+)厅/)
   const floorMatch = item.floor?.match(/(\d+)\/(\d+)/)
-  Object.assign(formData, {
-    ...item,
-    rooms: layoutMatch ? parseInt(layoutMatch[1]) : null,
-    halls: layoutMatch ? parseInt(layoutMatch[2]) : null,
-    floor_number: floorMatch ? parseInt(floorMatch[1]) : null,
-    total_floors: floorMatch ? parseInt(floorMatch[2]) : null
-  })
   showModal.value = true
+  
+  // 先重置表单
+  resetForm()
+  
+  // 先设置基础数据
+  Object.keys(formData).forEach(key => {
+    if (key in item) {
+      formData[key] = item[key]
+    }
+  })
+  
+  // 确保 id 被正确设置
+  formData.id = item.id
+  
+  // 设置解析后的户型和楼层数据
+  if (layoutMatch) {
+    formData.rooms = parseInt(layoutMatch[1])
+    formData.halls = parseInt(layoutMatch[2])
+  }
+  
+  if (floorMatch) {
+    formData.floor_number = parseInt(floorMatch[1])
+    formData.total_floors = parseInt(floorMatch[2])
+  }
+  
+  formRef.value?.restoreValidation()
   loadCommunities()
   loadUserOptions()
 }
@@ -731,21 +773,41 @@ const handleDelete = async (item) => {
 const handleSubmit = async () => {
   try {
     await formRef.value?.validate()
-    console.log('提交的表单数据:', formData)
-    let result
-    if (formData.id) {
-      result = await opportunityApi.update(formData.id, formData)
-      message.success('更新成功')
-    } else {
-      result = await opportunityApi.create(formData)
-      message.success('创建成功')
+    
+    // 构建提交数据
+    const submitData = {
+      id: formData.id,
+      ...formData,
+      layout: `${formData.rooms}室${formData.halls}厅`,
+      floor: `${formData.floor_number}/${formData.total_floors}`,
     }
-    console.log('提交响应:', result)
+    
+    console.log('提交前的表单数据:', submitData)
+    
+    // 移除临时字段
+    delete submitData.rooms
+    delete submitData.halls
+    delete submitData.floor_number
+    delete submitData.total_floors
+    
+    console.log('处理后的提交数据:', submitData)
+
+    if (!submitData.id) {
+      delete submitData.id
+      const res = await opportunityApi.create(submitData)
+      console.log('创建响应:', res)
+      message.success('创建成功')
+    } else {
+      const res = await opportunityApi.update(submitData.id, submitData)
+      console.log('更新响应:', res)
+      message.success('更新成功')
+    }
+    
     showModal.value = false
     resetList()
   } catch (error) {
-    console.error('表单提交失败:', error)
-    message.error(error.message || '操作失败')
+    console.error('提交失败:', error)
+    message.error(error.message || '提交失败')
   }
 }
 
@@ -864,6 +926,90 @@ const handleCancel = () => {
 
 const handleSearch = () => {
   resetList()
+}
+
+// 处理图片上传
+const handleUpload = async ({ file }) => {
+  const uploadFormData = new FormData()
+  uploadFormData.append('file', file.file)
+  
+  try {
+    const res = await opportunityApi.uploadImage(uploadFormData)
+    if (res.code === 200) {
+      const imageUrl = res.data.url
+      const result = {
+        status: 'finished',
+        name: file.file.name,
+        url: imageUrl
+      }
+      // 直接更新对应的图片字段
+      if (file.type === 'layout') {
+        formData.layout_image = imageUrl
+      } else if (file.type === 'interior') {
+        formData.interior_image = imageUrl
+      } else if (file.type === 'location') {
+        formData.location_image = imageUrl
+      }
+      return result
+    }
+    return {
+      status: 'error',
+      message: '上传失败'
+    }
+  } catch (error) {
+    return {
+      status: 'error',
+      message: error.message || '上传失败'
+    }
+  }
+}
+
+// 修改上传组件，添加自定义参数
+const customRequest = (type) => {
+  return ({ file }) => handleUpload({ file: { ...file, type } })
+}
+
+// 处理图片更新
+const handleLayoutImageUpdate = (files) => {
+  const file = files[0]
+  if (file?.status === 'finished') {
+    formData.layout_image = file.url
+  } else {
+    formData.layout_image = null
+  }
+}
+
+const handleInteriorImageUpdate = (files) => {
+  const file = files[0]
+  if (file?.status === 'finished') {
+    formData.interior_image = file.url
+  } else {
+    formData.interior_image = null
+  }
+}
+
+const handleLocationImageUpdate = (files) => {
+  const file = files[0]
+  if (file?.status === 'finished') {
+    formData.location_image = file.url
+  } else {
+    formData.location_image = null
+  }
+}
+
+const resetForm = () => {
+  Object.keys(formData).forEach(key => {
+    if (key === 'status') {
+      formData[key] = OPPORTUNITY_STATUS.PENDING
+    } else if (key === 'belonging_owner') {
+      formData[key] = currentUser.value?.username || ''
+    } else if (['is_full_five', 'is_full_two', 'is_unique'].includes(key)) {
+      formData[key] = false
+    } else {
+      formData[key] = null
+    }
+  })
+  formData.id = undefined
 }
 
 onMounted(async () => {

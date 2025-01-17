@@ -1199,26 +1199,34 @@ class OpportunityController(CRUDBase[Opportunity, OpportunityCreate, Opportunity
         }
 
     async def create_opportunity(self, data: OpportunityCreate) -> Dict:
+        print(f"控制器创建商机: {data.dict()}")
         try:
-            opportunity = await self.create(data.dict())
+            opportunity = await Opportunity.create(**data.dict())
+            print(f"创建的商机数据: {await opportunity.to_dict()}")
             return {
                 "code": 200,
-                "data": await opportunity.to_dict(),
-                "message": "创建商机成功"
+                "msg": "创建成功",
+                "data": await opportunity.to_dict()
             }
         except Exception as e:
+            print(f"创建商机失败: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))
 
     async def update_opportunity(self, id: int, data: OpportunityUpdate) -> Dict:
+        print(f"控制器更新商机: id={id}, data={data.dict()}")
         try:
-            opportunity = await self.update(id, data.dict(exclude_unset=True))
+            opportunity = await Opportunity.get(id=id)
+            await opportunity.update_from_dict(data.dict(exclude_unset=True))
+            await opportunity.save()
+            print(f"更新后的商机数据: {await opportunity.to_dict()}")
             return {
                 "code": 200,
-                "data": await opportunity.to_dict(),
-                "message": "更新商机成功"
+                "msg": "更新商机成功",
+                "data": await opportunity.to_dict()
             }
-        except Exception:
-            return {"code": 404, "message": "商机不存在"}
+        except Exception as e:
+            print(f"更新商机失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
 
     async def delete_opportunity(self, id: int) -> Dict:
         try:
