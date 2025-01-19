@@ -4,7 +4,6 @@ const baseUrl = '/house'
 
 export const ershoufangApi = {
   list: (params = {}) => {
-    console.log('Calling ershoufang API with params:', params)
     return request.get(`${baseUrl}/ershoufangs`, { 
       params: {
         ...params,
@@ -26,7 +25,6 @@ export const communityApi = {
 
 export const dealRecordApi = {
   list: (params = {}) => {
-    console.log('Calling deal records API with params:', params)
     return request.get(`${baseUrl}/deal-records`, { 
       params: {
         ...params,

@@ -192,6 +192,8 @@ class Opportunity(Model):
             "unit_price": self.unit_price,
             "status": self.status,
             "layout_image": self.layout_image,
+            "interior_image": self.interior_image or None,
+            "location_image": self.location_image or None,
             "address": self.address,
             "building_number": self.building_number,
             "room_number": self.room_number,

@@ -39,7 +39,7 @@
                 >
                   <n-carousel-item v-if="opportunityData.layout_image">
                     <n-image
-                      :src="opportunityData.layout_image || ''"
+                      :src="opportunityData.layout_image"
                       class="carousel-image"
                       preview-disabled
                     />
@@ -47,13 +47,21 @@
                   </n-carousel-item>
                   <n-carousel-item v-if="opportunityData.interior_image">
                     <n-image
-                      :src="opportunityData.interior_image || ''"
+                      :src="opportunityData.interior_image"
                       class="carousel-image"
                       preview-disabled
                     />
                     <div class="image-title">室内图</div>
                   </n-carousel-item>
-                  <n-carousel-item v-if="!opportunityData.layout_image && !opportunityData.interior_image">
+                  <n-carousel-item v-if="opportunityData.location_image">
+                    <n-image
+                      :src="opportunityData.location_image"
+                      class="carousel-image"
+                      preview-disabled
+                    />
+                    <div class="image-title">位置图</div>
+                  </n-carousel-item>
+                  <n-carousel-item v-if="!opportunityData.layout_image && !opportunityData.interior_image && !opportunityData.location_image">
                     <n-image
                       src="/layout.jpeg"
                       class="carousel-image"
@@ -402,7 +410,6 @@ const loadCommunityErshoufang = async (communityId) => {
   try {
     const city = opportunityData.value?.city?.toLowerCase()
     if (!city || !communityId) {
-      console.warn('Missing required params:', { city, communityId })
       return
     }
 
@@ -418,11 +425,9 @@ const loadCommunityErshoufang = async (communityId) => {
     const res = await ershoufangApi.list(params)
     
     if (res.code === 200 && res.data?.items) {
-      console.log('Ershoufang data:', res.data.items)
       ershoufangList.value = res.data.items
     }
   } catch (error) {
-    console.error('Load community ershoufang error:', error)
     message.error('加载同小区在售房源失败')
     ershoufangList.value = []
   } finally {
@@ -436,7 +441,6 @@ const loadCommunityDealRecords = async (communityId) => {
   try {
     const city = opportunityData.value?.city?.toLowerCase()
     if (!city || !communityId) {
-      console.warn('Missing required params:', { city, communityId })
       return
     }
 
@@ -454,11 +458,9 @@ const loadCommunityDealRecords = async (communityId) => {
     if (res.code === 200 && res.data?.items) {
       dealRecordList.value = res.data.items
     } else {
-      console.warn('Failed to load deal records:', res)
       dealRecordList.value = []
     }
   } catch (error) {
-    console.error('Load community deal records error:', error)
     message.error('加载同小区成交记录失败')
     dealRecordList.value = []
   } finally {
@@ -1664,7 +1666,7 @@ const handleFollowUpSuccess = () => {
 
 .carousel-image {
   width: 100%;
-  height: 100%;
+  height: 240px;
   object-fit: cover;
 }
 
@@ -1676,7 +1678,6 @@ const handleFollowUpSuccess = () => {
   padding: 8px;
   background: rgba(0, 0, 0, 0.5);
   color: white;
-  font-size: 14px;
   text-align: center;
 }
 
