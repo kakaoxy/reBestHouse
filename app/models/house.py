@@ -264,3 +264,87 @@ class OpportunityFollowUp(Model):
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
+
+class Project(BaseModel, TimestampMixin):
+    """项目表"""
+    id = fields.IntField(pk=True)
+    opportunity = fields.ForeignKeyField('models.Opportunity', related_name='projects', description='关联商机')
+    community_name = fields.CharField(max_length=100, description='小区名称')
+    address = fields.CharField(max_length=200, description='具体房屋地址')
+    contract_price = fields.DecimalField(max_digits=10, decimal_places=2, description='签约价格')
+    contract_period = fields.IntField(description='签约周期(天)')
+    signer = fields.CharField(max_length=50, description='签约人')
+    delivery_date = fields.DatetimeField(null=True, description='交房日期')
+    current_phase = fields.CharField(max_length=20, null=True, description='当前阶段')
+    decoration_company = fields.CharField(max_length=100, null=True, description='装修公司')
+
+    class Meta:
+        table = "project"
+        table_description = "项目表"
+
+    async def to_dict(self) -> dict:
+        """转换为字典格式"""
+        return {
+            "id": self.id,
+            "opportunity_id": self.opportunity_id,
+            "address": self.address,
+            "contract_price": float(self.contract_price),
+            "contract_period": self.contract_period,
+            "signer": self.signer,
+            "delivery_date": self.delivery_date.isoformat() if self.delivery_date else None,
+            "current_phase": self.current_phase,
+            "decoration_company": self.decoration_company,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
+
+class ConstructionPhase(BaseModel, TimestampMixin):
+    """施工阶段表"""
+    id = fields.IntField(pk=True)
+    project = fields.ForeignKeyField('models.Project', related_name='construction_phases', description='关联项目')
+    phase_type = fields.CharField(max_length=20, description='阶段类型')
+    complete_time = fields.DatetimeField(null=True, description='完成时间')
+    responsible = fields.CharField(max_length=50, description='负责人')
+    notes = fields.TextField(null=True, description='备注')
+
+    class Meta:
+        table = "construction_phase"
+        table_description = "施工阶段表"
+        ordering = ["complete_time"]
+
+    async def to_dict(self) -> dict:
+        """转换为字典格式"""
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "phase_type": self.phase_type,
+            "complete_time": self.complete_time.isoformat() if self.complete_time else None,
+            "responsible": self.responsible,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
+
+class PhaseMaterial(BaseModel, TimestampMixin):
+    """阶段材料表"""
+    id = fields.IntField(pk=True)
+    phase = fields.ForeignKeyField('models.ConstructionPhase', related_name='phase_materials', description='关联施工阶段')
+    material_type = fields.CharField(max_length=50, description='材料类型')
+    file_path = fields.CharField(max_length=500, description='文件路径')
+    uploader = fields.CharField(max_length=50, description='上传人')
+
+    class Meta:
+        table = "phase_material"
+        table_description = "阶段材料表"
+        ordering = ["-created_at"]
+
+    async def to_dict(self) -> dict:
+        """转换为字典格式"""
+        return {
+            "id": self.id,
+            "phase_id": self.phase_id,
+            "material_type": self.material_type,
+            "file_path": self.file_path,
+            "uploader": self.uploader,
+            "upload_time": self.upload_time.isoformat() if self.upload_time else None
+        }

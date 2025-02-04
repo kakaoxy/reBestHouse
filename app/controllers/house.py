@@ -3,7 +3,7 @@ from fastapi import HTTPException, UploadFile
 from tortoise.expressions import Q
 from tortoise.functions import Count, Max
 from app.models import User
-from app.models.house import Community, Ershoufang, DealRecord, Opportunity, OpportunityFollowUp
+from app.models.house import Community, Ershoufang, DealRecord, Opportunity, OpportunityFollowUp, Project, ConstructionPhase, PhaseMaterial
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
     ErshoufangCreate, ErshoufangUpdate, ErshoufangResponse,
@@ -11,7 +11,11 @@ from app.schemas.house import (
     DealRecordCreate, DealRecordUpdate, DealRecordResponse,
     DealRecordQueryParams,
     OpportunityCreate, OpportunityUpdate, OpportunityQueryParams,
-    OpportunityFollowUpCreate
+    OpportunityFollowUpCreate,
+    ProjectCreate, ProjectUpdate,
+    ConstructionPhaseCreate, ConstructionPhaseUpdate,
+    PhaseMaterialCreate,
+    ProjectQueryParams
 )
 from datetime import datetime
 from app.core.crud import CRUDBase
@@ -1315,4 +1319,190 @@ class OpportunityFollowUpController(CRUDBase[OpportunityFollowUp, OpportunityFol
             'data': data
         }
 
-opportunity_follow_up_controller = OpportunityFollowUpController(OpportunityFollowUp) 
+opportunity_follow_up_controller = OpportunityFollowUpController(OpportunityFollowUp)
+
+class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
+    def __init__(self):
+        super().__init__(model=Project)
+    
+    async def create_project(self, data: dict):
+        """创建项目"""
+        print("Controller - 创建项目的输入数据:", data)
+        try:
+            # 确保有商机信息
+            opportunity = await Opportunity.get_or_none(id=data.get('opportunity_id'))
+            if not opportunity:
+                print(f"Controller - 未找到ID为 {data.get('opportunity_id')} 的商机")
+                raise ValueError("商机不存在")
+            
+            # 创建项目
+            try:
+                # 使用 model.create() 而不是 Project.create()
+                project = await self.model.create(
+                    opportunity_id=data['opportunity_id'],
+                    community_name=str(data['community_name']).strip(),  # 确保是非空字符串
+                    address=data['address'],
+                    contract_price=data['contract_price'],
+                    contract_period=data['contract_period'],
+                    signer=data['signer'],
+                    delivery_date=data['delivery_date'],
+                    current_phase=data['current_phase']
+                )
+                print("Controller - 项目创建成功:", await project.to_dict())
+                return {
+                    "code": 200,
+                    "message": "创建成功",
+                    "data": await project.to_dict()
+                }
+            except Exception as create_error:
+                print("Controller - 创建项目时的具体错误:", str(create_error))
+                print("Controller - 尝试创建的数据:", data)
+                # 打印更多调试信息
+                print("Controller - community_name 值:", data.get('community_name'))
+                print("Controller - community_name 类型:", type(data.get('community_name')))
+                raise create_error
+                
+        except Exception as e:
+            print("Controller - 创建项目时发生错误:", str(e))
+            raise HTTPException(status_code=400, detail=str(e))
+
+    async def get_project_details(self, project_id: int) -> Dict:
+        """获取项目详情，包括施工阶段和材料信息"""
+        project = await self.model.get_or_none(id=project_id).prefetch_related(
+            'construction_phases__phase_materials'
+        )
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+            
+        return {
+            "code": 200,
+            "msg": "获取成功",
+            "data": await project.to_dict()
+        }
+
+    async def get_projects(self, params: ProjectQueryParams) -> Dict:
+        query = Q()
+        
+        if params.opportunity_id:
+            query &= Q(opportunity_id=params.opportunity_id)
+        if params.current_phase:
+            query &= Q(current_phase=params.current_phase)
+        if params.signer:
+            query &= Q(signer__icontains=params.signer)
+        if params.delivery_date_start:
+            query &= Q(delivery_date__gte=params.delivery_date_start)
+        if params.delivery_date_end:
+            query &= Q(delivery_date__lte=params.delivery_date_end)
+
+        total, items = await self.list(
+            page=params.page,
+            page_size=params.page_size,
+            search=query,
+            order=["-created_at"]
+        )
+
+        return {
+            "code": 200,
+            "msg": "OK",
+            "data": {
+                "items": [await item.to_dict() for item in items],
+                "total": total,
+                "page": params.page,
+                "page_size": params.page_size
+            }
+        }
+
+    async def update(self, id: int, data: ProjectUpdate) -> Dict:
+        """更新项目"""
+        try:
+            project = await self.model.get(id=id)
+            await project.update_from_dict(data.dict(exclude_unset=True))
+            await project.save()
+            
+            return {
+                "code": 200,
+                "message": "更新成功",
+                "data": await project.to_dict()
+            }
+        except Exception as e:
+            print("更新项目失败:", str(e))
+            raise HTTPException(status_code=400, detail=str(e))
+
+class ConstructionPhaseController(CRUDBase[ConstructionPhase, ConstructionPhaseCreate, ConstructionPhaseUpdate]):
+    def __init__(self):
+        super().__init__(model=ConstructionPhase)
+    
+    async def create_phase(self, data: ConstructionPhaseCreate) -> Dict:
+        try:
+            # 验证项目是否存在
+            project = await Project.get_or_none(id=data.project_id)
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+            
+            # 创建施工阶段
+            phase = await self.model.create(**data.dict())
+            
+            # 更新项目当前阶段
+            project.current_phase = data.phase_type
+            await project.save()
+            
+            return {
+                "code": 200,
+                "msg": "创建成功",
+                "data": await phase.to_dict()
+            }
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+class PhaseMaterialController(CRUDBase[PhaseMaterial, PhaseMaterialCreate, None]):
+    def __init__(self):
+        super().__init__(model=PhaseMaterial)
+    
+    async def upload_material(self, data: PhaseMaterialCreate) -> Dict:
+        try:
+            # 验证施工阶段是否存在
+            phase = await ConstructionPhase.get_or_none(id=data.phase_id)
+            if not phase:
+                raise HTTPException(status_code=404, detail="Construction phase not found")
+            
+            # 创建阶段材料记录
+            material = await self.model.create(**data.dict())
+            
+            return {
+                "code": 200,
+                "msg": "上传成功",
+                "data": await material.to_dict()
+            }
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    async def upload_phase_material(self, phase_id: int, file: UploadFile, material_type: str, uploader: str) -> Dict:
+        try:
+            # 验证施工阶段
+            phase = await ConstructionPhase.get_or_none(id=phase_id)
+            if not phase:
+                raise HTTPException(status_code=404, detail="Construction phase not found")
+            
+            # 保存文件
+            file_path = await self.save_file(file)
+            
+            # 创建材料记录
+            material = await PhaseMaterial.create(
+                phase_id=phase_id,
+                material_type=material_type,
+                file_path=file_path,
+                uploader=uploader
+            )
+            
+            return {
+                "code": 200,
+                "msg": "上传成功",
+                "data": await material.to_dict()
+            }
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+# 初始化控制器实例
+project_controller = ProjectController()
+construction_phase_controller = ConstructionPhaseController()
+phase_material_controller = PhaseMaterialController() 

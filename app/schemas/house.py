@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, validator
 from tortoise.contrib.pydantic import pydantic_model_creator
 from app.models.house import Community, Ershoufang, DealRecord
 import time
+from decimal import Decimal
 
 # Community Schemas
 class CommunityBase(BaseModel):
@@ -368,3 +369,87 @@ class OpportunityFollowUpResponse(BaseModel):
     user_name: str
     created_at: datetime
     updated_at: datetime 
+
+class ProjectBase(BaseModel):
+    opportunity_id: int
+    address: str
+    contract_price: Decimal
+    contract_period: int
+    signer: str
+    delivery_date: datetime
+    current_phase: Optional[str] = None
+
+class ProjectCreate(BaseModel):
+    opportunity_id: int
+    address: str
+    contract_price: Decimal
+    contract_period: int
+    signer: str
+    delivery_date: Optional[datetime]
+    current_phase: str = 'delivery'
+    decoration_company: Optional[str] = None
+
+class ProjectUpdate(BaseModel):
+    address: Optional[str]
+    contract_price: Optional[Decimal]
+    contract_period: Optional[int]
+    signer: Optional[str]
+    delivery_date: Optional[datetime]
+    current_phase: Optional[str]
+    decoration_company: Optional[str]
+
+class ProjectResponse(ProjectBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+class ProjectQueryParams(BaseModel):
+    page: int = 1
+    page_size: int = 20
+    opportunity_id: Optional[int] = None
+    current_phase: Optional[str] = None
+    signer: Optional[str] = None
+    delivery_date_start: Optional[date] = None
+    delivery_date_end: Optional[date] = None
+
+class ConstructionPhaseBase(BaseModel):
+    project_id: int
+    phase_type: str
+    responsible: str
+    notes: Optional[str] = None
+    complete_time: Optional[datetime] = None
+
+class ConstructionPhaseCreate(ConstructionPhaseBase):
+    pass
+
+class ConstructionPhaseUpdate(BaseModel):
+    phase_type: Optional[str] = None
+    responsible: Optional[str] = None
+    notes: Optional[str] = None
+    complete_time: Optional[datetime] = None
+
+class ConstructionPhaseResponse(ConstructionPhaseBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+class ConstructionPhaseQueryParams(BaseModel):
+    page: int = 1
+    page_size: int = 20
+    project_id: Optional[int] = None
+    phase_type: Optional[str] = None
+    responsible: Optional[str] = None
+    is_completed: Optional[bool] = None
+
+class PhaseMaterialBase(BaseModel):
+    phase_id: int
+    material_type: str
+    file_path: str
+    uploader: str
+
+class PhaseMaterialCreate(PhaseMaterialBase):
+    pass
+
+class PhaseMaterialResponse(PhaseMaterialBase):
+    id: int
+    upload_time: datetime 

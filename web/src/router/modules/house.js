@@ -30,6 +30,15 @@ export default {
         title: '成交记录',
         icon: ''
       }
+    },
+    {
+      name: 'project',
+      path: 'project',
+      component: () => import('@/views/house/project/index.vue'),
+      meta: {
+        title: '项目管理',
+        icon: 'material-symbols:home-repair-service'
+      }
     }
   ]
 } 
