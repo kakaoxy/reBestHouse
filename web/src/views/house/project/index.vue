@@ -71,21 +71,17 @@
                 >
                   <template #header>
                     <div class="card-header">
-                      <span class="community-name">{{ project.community_name }}</span>
-                      <n-tag :type="getStatusType(project.status)">
-                        {{ project.status }}
-                      </n-tag>
+                      <span class="community-name">{{ project.community_name || '未指定' }}</span>
                     </div>
                   </template>
                   <div class="card-content">
                     <p class="address">{{ project.address }}</p>
-                    <p class="company">装修公司: {{ project.company_name }}</p>
-                    <p class="days">
-                      进场天数: {{ getDaysSinceDelivery(project.delivery_date) }}天
+                    <p class="decoration-company">
+                      {{ project.decoration_company || '未进场' }}
                     </p>
-                    <div v-if="project.decoration_company" class="decoration-company">
-                      装修公司：{{ project.decoration_company }}
-                    </div>
+                    <p class="days">
+                      {{ getDaysSinceDelivery(project.delivery_date) }}天
+                    </p>
                   </div>
                 </n-card>
               </div>
@@ -188,21 +184,6 @@ const getDaysSinceDelivery = (deliveryDate) => {
   const delivery = new Date(deliveryDate)
   const today = new Date()
   return Math.floor((today - delivery) / (1000 * 60 * 60 * 24))
-}
-
-// 获取状态样式
-const getStatusType = (status) => {
-  const types = {
-    'delivery': 'default',
-    'design': 'info',
-    'demolition': 'warning',
-    'plumbing': 'warning',
-    'carpentry': 'warning',
-    'painting': 'warning',
-    'installation': 'success',
-    'completion': 'success'
-  }
-  return types[status] || 'default'
 }
 
 // 处理拖拽
@@ -332,13 +313,17 @@ onMounted(() => {
   .phase-container {
     flex: 1;
     min-height: 300px;
-    background: #f5f5f5;
-    border-radius: 8px;
-    padding: 12px;
-    
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+
+    transition: background 0.3s, box-shadow 0.3s;
+
     &.drop-active {
       background: #e6f4ff;
       border: 2px dashed #1890ff;
+      box-shadow: none;
     }
   }
 
@@ -346,66 +331,89 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
-    
+    margin-bottom: 16px;
+
     .phase-name {
-      font-weight: bold;
-      font-size: 16px;
+      font-weight: 600;
+      font-size: 18px;
+      color: #333;
     }
-    
+
     .project-count {
-      color: #999;
+      color: #666;
+      font-size: 14px;
     }
   }
 
   .project-cards {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
   }
 
   .project-card {
     cursor: move;
-    
+
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+
     &.dragging {
-      opacity: 0.5;
+      opacity: 0.7;
+      transform: scale(0.98);
     }
-    
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
     .card-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      
+
       .community-name {
-        font-weight: bold;
+        font-weight: 600;
+        font-size: 16px;
+        color: #333;
       }
     }
-    
+
     .card-content {
       font-size: 14px;
-      
+      margin-top: 8px;
+
       p {
         margin: 4px 0;
       }
-      
+
       .address {
         color: #666;
       }
-      
-      .company {
-        color: #1890ff;
+
+      .decoration-company {
+        font-size: 13px;
+        color: #999;
       }
-      
+
       .days {
-        color: #f5222d;
+        font-size: 13px;
+        color: #999;
       }
     }
   }
 }
 
 .decoration-company {
-  font-size: 12px;
-  color: #666;
+  font-size: 13px;
+  color: #999;
   margin-top: 4px;
+}
+
+/* 添加全局系统字体，使界面更具苹果风格 */
+* {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 </style> 

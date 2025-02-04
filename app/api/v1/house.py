@@ -349,7 +349,8 @@ async def create_project(data: ProjectCreate):
             'contract_period': data.contract_period,
             'signer': data.signer,
             'delivery_date': data.delivery_date,
-            'current_phase': data.current_phase
+            'current_phase': data.current_phase,
+            'decoration_company': data.decoration_company   # 新增字段
         }
         print("准备创建的项目数据:", project_data)
         

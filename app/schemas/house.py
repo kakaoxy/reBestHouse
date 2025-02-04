@@ -390,13 +390,13 @@ class ProjectCreate(BaseModel):
     decoration_company: Optional[str] = None
 
 class ProjectUpdate(BaseModel):
-    address: Optional[str]
-    contract_price: Optional[Decimal]
-    contract_period: Optional[int]
-    signer: Optional[str]
-    delivery_date: Optional[datetime]
-    current_phase: Optional[str]
-    decoration_company: Optional[str]
+    address: Optional[str] = None
+    contract_price: Optional[Decimal] = None
+    contract_period: Optional[int] = None
+    signer: Optional[str] = None
+    delivery_date: Optional[datetime] = None
+    current_phase: Optional[str] = None
+    decoration_company: Optional[str] = None
 
 class ProjectResponse(ProjectBase):
     id: int

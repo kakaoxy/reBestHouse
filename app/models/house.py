@@ -286,6 +286,7 @@ class Project(BaseModel, TimestampMixin):
         """转换为字典格式"""
         return {
             "id": self.id,
+            "community_name": self.community_name,
             "opportunity_id": self.opportunity_id,
             "address": self.address,
             "contract_price": float(self.contract_price),

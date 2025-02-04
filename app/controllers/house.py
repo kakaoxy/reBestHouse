@@ -1346,7 +1346,8 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
                     contract_period=data['contract_period'],
                     signer=data['signer'],
                     delivery_date=data['delivery_date'],
-                    current_phase=data['current_phase']
+                    current_phase=data['current_phase'],
+                    decoration_company=data.get('decoration_company')  # 传递装修公司字段
                 )
                 print("Controller - 项目创建成功:", await project.to_dict())
                 return {
