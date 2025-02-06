@@ -1,5 +1,6 @@
 from tortoise import fields
 from tortoise.models import Model
+from tortoise.exceptions import NoValuesFetched
 from app.models.base import BaseModel, TimestampMixin
 from datetime import datetime, date
 
@@ -284,6 +285,25 @@ class Project(BaseModel, TimestampMixin):
 
     async def to_dict(self) -> dict:
         """转换为字典格式"""
+        phases_data = []
+        try:
+            phases_data = [await phase.to_dict() for phase in self.phases]
+        except NoValuesFetched:
+            pass
+
+        # 获取关联的商机信息
+        opportunity_data = None
+        try:
+            if hasattr(self, 'opportunity'):
+                opportunity = self.opportunity
+                opportunity_data = {
+                    'layout_image': opportunity.layout_image,
+                    'layout': opportunity.layout,
+                    'area': opportunity.area
+                }
+        except NoValuesFetched:
+            pass
+        
         return {
             "id": self.id,
             "community_name": self.community_name,
@@ -296,22 +316,30 @@ class Project(BaseModel, TimestampMixin):
             "current_phase": self.current_phase,
             "decoration_company": self.decoration_company,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "phases": phases_data,
+            "layout_image": opportunity_data['layout_image'] if opportunity_data else None,
+            "layout": opportunity_data['layout'] if opportunity_data else None,
+            "area": opportunity_data['area'] if opportunity_data else None
         }
 
 class ConstructionPhase(BaseModel, TimestampMixin):
     """施工阶段表"""
     id = fields.IntField(pk=True)
-    project = fields.ForeignKeyField('models.Project', related_name='construction_phases', description='关联项目')
-    phase_type = fields.CharField(max_length=20, description='阶段类型')
-    complete_time = fields.DatetimeField(null=True, description='完成时间')
-    responsible = fields.CharField(max_length=50, description='负责人')
+    project = fields.ForeignKeyField(
+        'models.Project',
+        related_name='phases',
+        description='关联项目'
+    )
+    phase_type = fields.CharField(max_length=50, description='阶段类型')
+    responsible = fields.CharField(max_length=50, null=True, description='负责人')
     notes = fields.TextField(null=True, description='备注')
+    complete_time = fields.DatetimeField(null=True, description='完成时间')
 
     class Meta:
         table = "construction_phase"
         table_description = "施工阶段表"
-        ordering = ["complete_time"]
+        ordering = ["-created_at"]
 
     async def to_dict(self) -> dict:
         """转换为字典格式"""
@@ -319,9 +347,9 @@ class ConstructionPhase(BaseModel, TimestampMixin):
             "id": self.id,
             "project_id": self.project_id,
             "phase_type": self.phase_type,
-            "complete_time": self.complete_time.isoformat() if self.complete_time else None,
             "responsible": self.responsible,
             "notes": self.notes,
+            "complete_time": self.complete_time.isoformat() if self.complete_time else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

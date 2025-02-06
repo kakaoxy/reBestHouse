@@ -190,7 +190,7 @@ const handleOpportunityFocus = async () => {
     console.log('Opportunities response:', res)
     if (res.code === 200) {
       opportunityOptions.value = res.data.items.map(item => ({
-        label: `${item.community_name}-${item.area}m²-${item.layout}-${item.floor}层-${item.belonging_owner}`,
+        label: `${item.community_name}-${item.area}m²-${item.layout}-${item.floor}层-${item.total_price}万-${item.belonging_owner}`,
         value: item.id,
         raw: item // 保存原始数据，以便后续使用
       }))

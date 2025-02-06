@@ -16,7 +16,7 @@ from app.schemas.house import (
     ConstructionPhaseQueryParams
 )
 from app.core.dependency import DependPermisson, DependAuth
-from app.models import User, Opportunity
+from app.models import User, Opportunity, ConstructionPhase, PhaseMaterial
 from fastapi.responses import FileResponse
 import os
 import uuid
@@ -419,6 +419,46 @@ async def update_project(project_id: int, data: ProjectUpdate):
 async def delete_project(project_id: int):
     """删除项目及其关联的施工阶段和材料信息"""
     return await project_controller.remove(project_id)
+
+@router.get(
+    "/projects/{project_id}/phases",
+    dependencies=[DependPermisson],
+    summary="获取项目施工阶段列表"
+)
+async def get_project_phases(project_id: int):
+    """
+    获取项目的施工阶段列表
+    - project_id: 项目ID
+    """
+    try:
+        phases = await ConstructionPhase.filter(project_id=project_id).order_by("-complete_time")
+        return {
+            "code": 200,
+            "msg": "获取成功",
+            "data": [await phase.to_dict() for phase in phases]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get(
+    "/projects/phases/{phase_id}/materials",
+    dependencies=[DependPermisson],
+    summary="获取施工阶段材料列表"
+)
+async def get_phase_materials(phase_id: int):
+    """
+    获取施工阶段的材料列表
+    - phase_id: 施工阶段ID
+    """
+    try:
+        materials = await PhaseMaterial.filter(phase_id=phase_id).order_by("-created_at")
+        return {
+            "code": 200,
+            "msg": "获取成功",
+            "data": [await material.to_dict() for material in materials]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 # Construction phase routes
 @router.post(

@@ -1367,14 +1367,15 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
             print("Controller - 创建项目时发生错误:", str(e))
             raise HTTPException(status_code=400, detail=str(e))
 
-    async def get_project_details(self, project_id: int) -> Dict:
-        """获取项目详情，包括施工阶段和材料信息"""
+    async def get_project_details(self, project_id: int):
+        """获取项目详情"""
         project = await self.model.get_or_none(id=project_id).prefetch_related(
-            'construction_phases__phase_materials'
+            'phases',  # 修改为正确的关联名称
+            'opportunity'
         )
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
-            
+        
         return {
             "code": 200,
             "msg": "获取成功",
@@ -1401,6 +1402,10 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
             search=query,
             order=["-created_at"]
         )
+
+        # 预加载关联数据
+        for item in items:
+            await item.fetch_related('phases', 'opportunity')
 
         return {
             "code": 200,

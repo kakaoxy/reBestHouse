@@ -1,15 +1,15 @@
 <template>
   <CommonPage>
-    <n-card :bordered="false" class="proCard">
+    <n-card :bordered="false" class="project-dashboard">
       <!-- 顶部操作栏 -->
-      <n-space vertical :size="16">
+      <n-space vertical :size="24">
         <n-space justify="space-between" align="center">
-          <n-space align="center" :size="8">
+          <n-space align="center" :size="12">
             <!-- 城市选择器 -->
             <n-select
               v-model:value="cityStore.currentCity"
               :options="cityStore.CITY_OPTIONS"
-              style="width: 120px"
+              style="width: 140px"
               @update:value="handleCityChange"
             />
             <!-- 小区搜索框 -->
@@ -17,17 +17,25 @@
               v-model:value="searchParams.community_name"
               type="text"
               placeholder="输入小区名称搜索"
-              style="width: 200px"
+              style="width: 240px"
               clearable
               @keyup.enter="handleSearch"
             />
-            <n-button type="primary" @click="handleSearch">
+            <n-button 
+              type="primary" 
+              @click="handleSearch"
+              :theme-overrides="buttonThemeOverrides"
+            >
               <template #icon>
                 <TheIcon icon="material-symbols:search" />
               </template>
               搜索
             </n-button>
-            <n-button @click="handleReset">
+            <n-button 
+              quaternary 
+              @click="handleReset"
+              :theme-overrides="buttonThemeOverrides"
+            >
               <template #icon>
                 <TheIcon icon="material-symbols:refresh" />
               </template>
@@ -35,7 +43,11 @@
             </n-button>
           </n-space>
           <!-- 新增按钮 -->
-          <n-button type="primary" @click="handleAdd">
+          <n-button 
+            type="primary" 
+            @click="handleAdd"
+            :theme-overrides="buttonThemeOverrides"
+          >
             <template #icon>
               <TheIcon icon="material-symbols:add" />
             </template>
@@ -56,7 +68,7 @@
             >
               <div class="phase-header">
                 <span class="phase-name">{{ phase.label }}</span>
-                <span class="project-count">({{ getProjectCountByPhase(phase.value) }})</span>
+                <span class="project-count">{{ getProjectCountByPhase(phase.value) }}</span>
               </div>
               <div class="project-cards">
                 <n-card
@@ -69,19 +81,15 @@
                   @dragend="handleDragEnd"
                   @click="handleProjectClick(project)"
                 >
-                  <template #header>
-                    <div class="card-header">
-                      <span class="community-name">{{ project.community_name || '未指定' }}</span>
-                    </div>
-                  </template>
                   <div class="card-content">
-                    <p class="address">{{ project.address }}</p>
-                    <p class="decoration-company">
-                      {{ project.decoration_company || '未进场' }}
-                    </p>
-                    <p class="days">
-                      {{ getDaysSinceDelivery(project.delivery_date) }}天
-                    </p>
+                    <div class="location-info">
+                      <div class="community-name">{{ project.community_name || '未找到' }}</div>
+                      <div class="address-text">{{ project.address }}</div>
+                    </div>
+                    <div class="main-info">
+                      <span class="decoration-company">{{ project.decoration_company || '未指定' }}</span>
+                      <span class="days-tag">{{ getDaysSinceDelivery(project.delivery_date) }}天</span>
+                    </div>
                   </div>
                 </n-card>
               </div>
@@ -99,6 +107,12 @@
       @submit="handleModalSubmit"
       @cancel="handleModalCancel"
     />
+
+    <!-- 项目详情弹窗 -->
+    <ProjectDetail
+      v-model:show="showDetail"
+      :project-id="selectedProjectId"
+    />
   </CommonPage>
 </template>
 
@@ -108,6 +122,7 @@ import { useMessage } from 'naive-ui'
 import { useCityStore } from '@/store/modules/city'
 import { projectApi } from '@/api/house'
 import ProjectModal from './components/ProjectModal.vue'
+import ProjectDetail from './components/ProjectDetail.vue'
 import TheIcon from '@/components/icon/TheIcon.vue'
 
 const message = useMessage()
@@ -152,6 +167,18 @@ const isDraggingOver = ref(null)
 const showModal = ref(false)
 const modalTitle = ref('')
 const formParams = ref({})
+
+// 详情弹窗相关
+const showDetail = ref(false)
+const selectedProjectId = ref(null)
+
+// 添加按钮主题覆盖
+const buttonThemeOverrides = {
+  borderRadius: '6px',
+  heightMedium: '34px',
+  paddingMedium: '0 16px',
+  fontSizeMedium: '14px'
+}
 
 // 获取项目列表
 const loadProjects = async () => {
@@ -265,9 +292,8 @@ const handleAdd = () => {
 
 // 处理项目点击
 const handleProjectClick = (project) => {
-  modalTitle.value = '编辑项目'
-  formParams.value = { ...project }
-  showModal.value = true
+  selectedProjectId.value = project.id
+  showDetail.value = true
 }
 
 // 处理模态框提交
@@ -297,119 +323,126 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.project-phases {
-  margin-top: 16px;
-  
-  .phase-row {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
+.project-dashboard {
+  .project-phases {
+    margin-top: 24px;
     
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-
-  .phase-container {
-    flex: 1;
-    min-height: 300px;
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-
-    transition: background 0.3s, box-shadow 0.3s;
-
-    &.drop-active {
-      background: #e6f4ff;
-      border: 2px dashed #1890ff;
-      box-shadow: none;
-    }
-  }
-
-  .phase-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-
-    .phase-name {
-      font-weight: 600;
-      font-size: 18px;
-      color: #333;
+    .phase-row {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 24px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
     }
 
-    .project-count {
-      color: #666;
-      font-size: 14px;
+    .phase-container {
+      flex: 1;
+      min-height: 300px;
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #f0f0f0;
+      transition: all 0.3s ease;
+
+      &.drop-active {
+        background: #f0f5ff;
+        border: 2px dashed #4096ff;
+      }
+
+      .project-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        
+        .project-card {
+          background: #ffffff;
+          cursor: move;
+          border-radius: 8px;
+          padding: 14px 16px;
+          border: 1px solid #f0f0f0;
+          transition: all 0.2s ease;
+
+          &.dragging {
+            opacity: 0.7;
+            transform: scale(0.97);
+          }
+
+          &:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-color: #e6e6e6;
+          }
+
+          .card-content {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+
+            .location-info {
+              margin-bottom: 4px;
+              
+              .community-name {
+                font-weight: 600;
+                font-size: 15px;
+                color: #262626;
+                margin-bottom: 4px;
+                letter-spacing: 0.1px;
+              }
+              
+              .address-text {
+                color: #8c8c8c;
+                font-size: 13px;
+                line-height: 1.5;
+              }
+            }
+
+            .main-info {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-top: 4px;
+
+              .days-tag {
+                color: #4096ff;
+                font-size: 14px;
+                font-weight: 500;
+                transition: color 0.2s ease;
+              }
+              
+              .decoration-company {
+                color: #595959;
+                font-size: 14px;
+                font-weight: 500;
+              }
+            }
+          }
+        }
+      }
     }
-  }
 
-  .project-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .project-card {
-    cursor: move;
-
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
-
-    &.dragging {
-      opacity: 0.7;
-      transform: scale(0.98);
-    }
-
-    &:hover {
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-
-    .card-header {
+    .phase-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0f0f0;
 
-      .community-name {
+      .phase-name {
         font-weight: 600;
         font-size: 16px;
-        color: #333;
-      }
-    }
-
-    .card-content {
-      font-size: 14px;
-      margin-top: 8px;
-
-      p {
-        margin: 4px 0;
+        color: #262626;
+        letter-spacing: 0.2px;
       }
 
-      .address {
-        color: #666;
-      }
-
-      .decoration-company {
-        font-size: 13px;
-        color: #999;
-      }
-
-      .days {
-        font-size: 13px;
-        color: #999;
+      .project-count {
+        color: #8c8c8c;
+        font-size: 14px;
+        font-weight: 500;
       }
     }
   }
-}
-
-.decoration-company {
-  font-size: 13px;
-  color: #999;
-  margin-top: 4px;
 }
 
 /* 添加全局系统字体，使界面更具苹果风格 */
