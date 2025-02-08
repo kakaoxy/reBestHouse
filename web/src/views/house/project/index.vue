@@ -112,6 +112,7 @@
     <ProjectDetail
       v-model:show="showDetail"
       :project-id="selectedProjectId"
+      @project-updated="handleProjectUpdated"
     />
   </CommonPage>
 </template>
@@ -315,6 +316,18 @@ const handleModalSubmit = async (data) => {
 
 const handleModalCancel = () => {
   showModal.value = false
+}
+
+// 处理项目更新
+const handleProjectUpdated = (updatedProject) => {
+  // 找到并更新项目列表中的项目
+  const index = projectList.value.findIndex(p => p.id === updatedProject.id)
+  if (index !== -1) {
+    projectList.value[index] = {
+      ...projectList.value[index],
+      ...updatedProject
+    }
+  }
 }
 
 onMounted(() => {

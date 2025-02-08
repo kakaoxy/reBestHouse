@@ -199,12 +199,17 @@ import { opportunityApi } from '@/api/house'
 import TheIcon from '@/components/icon/TheIcon.vue'
 
 const props = defineProps({
-  show: Boolean,
-  projectId: [String, Number]
+  show: {
+    type: Boolean,
+    default: false
+  },
+  projectId: {
+    type: Number,
+    default: null
+  }
 })
 
-const emit = defineEmits(['update:show'])
-
+const emit = defineEmits(['update:show', 'project-updated'])
 const message = useMessage()
 
 // 项目数据
@@ -452,6 +457,9 @@ const saveDecorationCompany = async () => {
     
     message.success('更新成功')
     isEditingDecorationCompany.value = false
+    
+    // 发出更新事件
+    emit('project-updated', project.value)
   } catch (error) {
     message.error('更新失败：' + error.message)
   } finally {
