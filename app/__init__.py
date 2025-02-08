@@ -43,6 +43,7 @@ def create_app() -> FastAPI:
     
     # 确保静态文件目录存在
     os.makedirs("static/uploads/images", exist_ok=True)
+    os.makedirs("static/project_materials", exist_ok=True)
     
     # 保持原有的静态文件挂载
     app.mount("/static", StaticFiles(directory="static"), name="static")

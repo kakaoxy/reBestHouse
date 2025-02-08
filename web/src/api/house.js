@@ -59,10 +59,32 @@ export const opportunityApi = {
 }
 
 export const projectApi = {
-  list: (params = {}) => request.get(`${baseUrl}/projects`, { params }),
+  list: (params) => request.get(`${baseUrl}/projects`, { params }),
   create: (data) => request.post(`${baseUrl}/projects`, data),
   update: (id, data) => request.put(`${baseUrl}/projects/${id}`, data),
   delete: (id) => request.delete(`${baseUrl}/projects/${id}`),
   getDetail: (id) => request.get(`${baseUrl}/projects/${id}`),
-  getProjectPhases: (projectId) => request.get(`${baseUrl}/projects/${projectId}/phases`)
+  getProjectPhases: (projectId) => request.get(`${baseUrl}/projects/${projectId}/phases`),
+  getPhaseMaterials: (phaseId) => request.get(`${baseUrl}/phases/${phaseId}/materials`),
+  uploadPhaseMaterial: (phaseId, formData) => request.post(
+    `${baseUrl}/phases/${phaseId}/materials`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+  ),
+  getMaterials: (params) => request.get(`${baseUrl}/projects/materials`, { params }),
+  uploadMaterial: (formData) => request.post(
+    `${baseUrl}/projects/materials`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+  ),
+  deleteMaterial: (id) => request.delete(`${baseUrl}/projects/materials/${id}`),
+  getPhases: (id) => request.get(`${baseUrl}/projects/${id}/phases`),
 } 

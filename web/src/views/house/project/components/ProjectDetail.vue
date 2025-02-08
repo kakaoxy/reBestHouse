@@ -32,11 +32,11 @@
               </div>
               <div class="info-item">
                 <span class="label">户型</span>
-                <span class="value">{{ opportunity?.layout || '-' }}</span>
+                <span class="value">{{ project?.opportunity?.layout || '-' }}</span>
               </div>
               <div class="info-item">
                 <span class="label">面积</span>
-                <span class="value">{{ opportunity?.area ? `${opportunity.area}m²` : '-' }}</span>
+                <span class="value">{{ project?.opportunity?.area ? `${project.opportunity.area}m²` : '-' }}</span>
               </div>
             </div>
           </div>
@@ -149,39 +149,96 @@
               @update:value="handlePhaseChange"
             >
               <n-tab-pane
-                v-for="phase in PHASE_OPTIONS"
-                :key="phase.value"
-                :name="phase.value"
-                :tab="phase.label"
+                v-for="option in PHASE_OPTIONS"
+                :key="option.value"
+                :name="option.value"
+                :tab="option.label"
               >
-                <div class="phase-content" v-if="currentPhaseData">
-                  <div class="info-grid">
-                    <div class="info-item">
-                      <span class="label">阶段负责人</span>
-                      <span class="value">{{ currentPhaseData.responsible || '-' }}</span>
+                <div class="phase-materials">
+                  <!-- 上传按钮区 -->
+                  <div class="upload-section">
+                    <div v-if="option.value === 'delivery'" class="upload-buttons">
+                      <n-upload
+                        accept="image/*"
+                        :custom-request="file => handleUpload(file, 'image', '交房材料')"
+                        :show-file-list="false"
+                      >
+                        <n-button type="primary">上传交房材料</n-button>
+                      </n-upload>
                     </div>
-                    <div class="info-item">
-                      <span class="label">完成时间</span>
-                      <span class="value">{{ formatDate(currentPhaseData.complete_time) }}</span>
+                    
+                    <div v-else-if="option.value === 'design'" class="upload-buttons">
+                      <n-upload
+                        accept="image/*"
+                        :custom-request="file => handleUpload(file, 'image', '设计图')"
+                        :show-file-list="false"
+                        class="upload-button"
+                      >
+                        <n-button type="primary">上传设计图</n-button>
+                      </n-upload>
+                      
+                      <n-upload
+                        accept=".dwg,.dxf"
+                        :custom-request="file => handleUpload(file, 'cad', 'CAD文件')"
+                        :show-file-list="false"
+                        class="upload-button"
+                      >
+                        <n-button type="primary">上传CAD</n-button>
+                      </n-upload>
+                      
+                      <n-upload
+                        accept=".pdf,.doc,.docx,.xls,.xlsx"
+                        :custom-request="file => handleUpload(file, 'document', '报价单')"
+                        :show-file-list="false"
+                        class="upload-button"
+                      >
+                        <n-button type="primary">上传报价单</n-button>
+                      </n-upload>
+                    </div>
+                    
+                    <div v-else class="upload-buttons">
+                      <n-upload
+                        accept="image/*"
+                        :custom-request="file => handleUpload(file, 'image', '现场照片')"
+                        :show-file-list="false"
+                      >
+                        <n-button type="primary">上传照片</n-button>
+                      </n-upload>
                     </div>
                   </div>
-
-                  <!-- 附件列表 -->
+                  
+                  <!-- 材料列表 -->
                   <div class="materials-list">
-                    <n-space vertical>
-                      <div class="material-item" v-for="material in phaseMaterials" :key="material.id">
-                        <n-button text @click="handleDownload(material)">
-                          <template #icon>
-                            <TheIcon icon="material-symbols:description" />
+                    <n-empty v-if="!phaseMaterials.length" description="暂无材料" />
+                    <n-grid v-else :cols="3" :x-gap="12" :y-gap="12">
+                      <n-grid-item v-for="material in phaseMaterials" :key="material.id">
+                        <n-card :title="material.material_type" size="small">
+                          <template #cover>
+                            <div class="material-preview">
+                              <img
+                                v-if="material.file_type === 'image'"
+                                :src="material.file_url"
+                                :alt="material.material_type"
+                                class="preview-image"
+                              />
+                              <div v-else class="file-icon">
+                                <TheIcon icon="material-symbols:description" size="48" />
+                              </div>
+                            </div>
                           </template>
-                          {{ material.material_type }}
-                        </n-button>
-                      </div>
-                      <n-empty v-if="!phaseMaterials.length" description="暂无附件" />
-                    </n-space>
+                          <n-space justify="end">
+                            <n-button text type="primary" @click="handleDownload(material)">
+                              下载
+                            </n-button>
+                            <n-button text type="error" @click="handleDelete(material)">
+                              删除
+                            </n-button>
+                          </n-space>
+                        </n-card>
+                      </n-grid-item>
+                    </n-grid>
                   </div>
                 </div>
-                <n-empty v-else description="暂无数据" />
               </n-tab-pane>
             </n-tabs>
           </div>
@@ -193,9 +250,8 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { useMessage, NInput } from 'naive-ui'
-import { projectApi } from '@/api'
-import { opportunityApi } from '@/api/house'
+import { useMessage, useDialog } from 'naive-ui'
+import { projectApi } from '@/api/house'
 import TheIcon from '@/components/icon/TheIcon.vue'
 
 const props = defineProps({
@@ -211,6 +267,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:show', 'project-updated'])
 const message = useMessage()
+const dialog = useDialog()
 
 // 项目数据
 const project = ref(null)
@@ -219,19 +276,13 @@ const loading = ref(false)
 
 // 施工阶段相关
 const phases = ref([])
-const currentPhase = ref(null)
+const currentPhase = ref('delivery')
 const phaseMaterials = ref([])
-
-// 获取当前阶段数据
-const currentPhaseData = computed(() => {
-  return phases.value?.find(phase => phase.phase_type === currentPhase.value)
-})
 
 // 阶段选项
 const PHASE_OPTIONS = [
   { label: '交房', value: 'delivery' },
   { label: '设计', value: 'design' },
-  { label: '拆除', value: 'demolition' },
   { label: '水电', value: 'plumbing' },
   { label: '木瓦', value: 'carpentry' },
   { label: '油漆', value: 'painting' },
@@ -248,30 +299,17 @@ watch(() => props.show, async (newVal) => {
 
 // 加载项目详情
 const loadProjectDetail = async () => {
+  if (!props.projectId) return
+  
   loading.value = true
   try {
-    // 加载项目信息
-    const projectRes = await projectApi.getDetail(props.projectId)
-    if (projectRes.code === 200) {
-      project.value = projectRes.data
-    
-      // 加载关联的商机信息
-      if (project.value?.opportunity_id) {
-        const opportunityRes = await opportunityApi.getDetail(project.value.opportunity_id)
-        if (opportunityRes.code === 200) {
-          opportunity.value = opportunityRes.data
-        }
-      }
-    
-      // 加载施工阶段信息
+    const res = await projectApi.getDetail(props.projectId)
+    if (res.code === 200) {
+      project.value = res.data
       await loadPhases()
-    
-      // 设置当前阶段
-      currentPhase.value = project.value.current_phase || 'delivery'
     }
   } catch (error) {
-    message.error(error.response?.data?.detail || '加载项目详情失败')
-    console.error('加载项目详情失败:', error)
+    message.error('加载项目详情失败：' + error.message)
   } finally {
     loading.value = false
   }
@@ -285,6 +323,7 @@ const loadPhases = async () => {
     const res = await projectApi.getProjectPhases(props.projectId)
     if (res.code === 200) {
       phases.value = res.data.items
+      await loadPhaseMaterials()
     }
   } catch (error) {
     message.error('加载施工阶段失败：' + error.message)
@@ -293,78 +332,90 @@ const loadPhases = async () => {
 
 // 加载阶段材料
 const loadPhaseMaterials = async () => {
-  const currentPhase = phases.value.find(p => p.phase_type === currentPhase.value)
-  if (currentPhase) {
-    try {
-      const res = await projectApi.getPhaseMaterials(currentPhase.id)
-      if (res.code === 200) {
-        phaseMaterials.value = res.data
-      }
-    } catch (error) {
-      message.error(error.response?.data?.detail || '加载阶段材料失败')
-      console.error('加载阶段材料失败:', error)
-    }
+  if (!currentPhase.value) return
+
+  try {
+    const res = await projectApi.getMaterials({
+      project_id: props.projectId,
+      phase: currentPhase.value
+    })
+    phaseMaterials.value = res.data || []
+  } catch (error) {
+    message.error('加载阶段材料失败：' + error.message)
   }
 }
 
 // 处理阶段切换
 const handlePhaseChange = async (phase) => {
-  currentPhase.value = phase
-  await loadPhaseMaterials()
-}
-
-// 格式化地址
-const formatAddress = (address) => {
-  if (!address) return '-'
-  // 这里可以添加地址解析逻辑，提取楼号信息
-  return address
-}
-
-// 格式化合同周期
-const formatContractPeriod = (days) => {
-  if (!days) return '-'
-  const months = Math.ceil(days / 30)
-  return `${months}个月`
-}
-
-// 格式化日期
-const formatDate = (date) => {
-  if (!date) return '-'
-  return new Date(date).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).replace(/\//g, '-')
-}
-
-// 计算截止日期
-const calculateEndDate = (startDate, days) => {
-  if (!startDate || !days) return '-'
-  const date = new Date(startDate)
-  date.setDate(date.getDate() + days)
-  return formatDate(date)
-}
-
-// 获取阶段标签
-const getPhaseLabel = (phase) => {
-  const option = PHASE_OPTIONS.find(opt => opt.value === phase)
-  return option ? option.label : '-'
-}
-
-// 处理下载
-const handleDownload = (material) => {
-  window.open(material.file_path)
-}
-
-// 处理显示状态更新
-const handleUpdateShow = (value) => {
-  emit('update:show', value)
-  if (!value) {
-    project.value = null
-    opportunity.value = null
-    phases.value = []
-    phaseMaterials.value = []
+  if (!project.value) return
+  try {
+    const res = await projectApi.getMaterials({
+      project_id: props.projectId,
+      phase
+    })
+    phaseMaterials.value = res.data || []
+  } catch (error) {
+    message.error('获取材料失败')
   }
+}
+
+// 处理上传
+const handleUpload = async ({ file }, fileType, materialType) => {
+  if (!project.value) {
+    message.error('请先选择项目')
+    return
+  }
+
+  const formData = new FormData()
+  formData.append('file', file.file)
+  formData.append('project_id', project.value.id)
+  formData.append('phase', currentPhase.value)
+  formData.append('file_type', fileType)
+  formData.append('material_type', materialType)
+
+  try {
+    await projectApi.uploadMaterial(formData)
+    message.success('上传成功')
+    // 刷新当前阶段的材料列表
+    handlePhaseChange(currentPhase.value)
+  } catch (error) {
+    message.error('上传失败')
+  }
+}
+
+// 初始化时加载第一个阶段的材料
+watch(project, (newProject) => {
+  if (newProject) {
+    handlePhaseChange(currentPhase.value)
+  }
+})
+
+// 处理文件下载
+const handleDownload = (material) => {
+  if (material.file_url) {
+    window.open(material.file_url, '_blank')
+  }
+}
+
+// 处理删除
+const handleDelete = (material) => {
+  const d = dialog.create({
+    type: 'warning',
+    title: '确认删除',
+    content: `确定要删除材料 "${material.file_name}" 吗？`,
+    positiveText: '确定',
+    negativeText: '取消',
+    async onPositiveClick() {
+      try {
+        await projectApi.deleteMaterial(material.id)
+        message.success('删除成功')
+        // 刷新当前阶段的材料列表
+        handlePhaseChange(currentPhase.value)
+      } catch (error) {
+        message.error('删除失败：' + error.message)
+      }
+    }
+  })
 }
 
 // 编辑交房时间相关
@@ -466,6 +517,55 @@ const saveDecorationCompany = async () => {
     updating.value = false
   }
 }
+
+// 处理显示状态更新
+const handleUpdateShow = (value) => {
+  emit('update:show', value)
+  if (!value) {
+    project.value = null
+    opportunity.value = null
+    phases.value = []
+    phaseMaterials.value = []
+  }
+}
+
+// 格式化地址
+const formatAddress = (address) => {
+  if (!address) return '-'
+  // 这里可以添加地址解析逻辑，提取楼号信息
+  return address
+}
+
+// 格式化合同周期
+const formatContractPeriod = (days) => {
+  if (!days) return '-'
+  const months = Math.ceil(days / 30)
+  return `${months}个月`
+}
+
+// 格式化日期
+const formatDate = (date) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).replace(/\//g, '-')
+}
+
+// 计算截止日期
+const calculateEndDate = (startDate, days) => {
+  if (!startDate || !days) return '-'
+  const date = new Date(startDate)
+  date.setDate(date.getDate() + days)
+  return formatDate(date)
+}
+
+// 获取阶段标签
+const getPhaseLabel = (phase) => {
+  const option = PHASE_OPTIONS.find(opt => opt.value === phase)
+  return option ? option.label : '-'
+}
 </script>
 
 <style lang="scss" scoped>
@@ -544,5 +644,77 @@ const saveDecorationCompany = async () => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.upload-section {
+  margin-bottom: 16px;
+  
+  .upload-buttons {
+    display: flex;
+    gap: 12px;
+    
+    .upload-button {
+      flex: 1;
+    }
+  }
+}
+
+.materials-list {
+  .material-preview {
+    width: 100%;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f5f5f5;
+    
+    .preview-image {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    
+    .file-icon {
+      color: #999;
+    }
+  }
+}
+
+.phase-materials {
+  padding: 16px 0;
+
+  .upload-section {
+    margin-bottom: 16px;
+    
+    .upload-buttons {
+      display: flex;
+      gap: 12px;
+      
+      .upload-button {
+        flex: 1;
+      }
+    }
+  }
+
+  .materials-list {
+    .material-preview {
+      width: 100%;
+      height: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #f5f5f5;
+      
+      .preview-image {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+      
+      .file-icon {
+        color: #999;
+      }
+    }
+  }
 }
 </style>

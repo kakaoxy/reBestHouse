@@ -1,6 +1,24 @@
 from typing import List, Dict, Optional
 from fastapi import APIRouter, Depends, File, UploadFile, Query, Form, HTTPException
-from app.controllers.house import community_controller, ershoufang_controller, deal_record_controller, opportunity_controller, opportunity_follow_up_controller, project_controller, construction_phase_controller, phase_material_controller
+from app.controllers.house import (
+    community_controller, 
+    ershoufang_controller, 
+    deal_record_controller, 
+    opportunity_controller, 
+    opportunity_follow_up_controller, 
+    project_controller, 
+    construction_phase_controller, 
+    phase_material_controller
+)
+from app.models.house import (
+    Community, 
+    Ershoufang, 
+    DealRecord, 
+    Project, 
+    ConstructionPhase, 
+    PhaseMaterial,
+    ProjectMaterial
+)
 from app.schemas.house import (
     CommunityCreate, CommunityUpdate, CommunityResponse,
     ErshoufangCreate, ErshoufangUpdate, ErshoufangResponse,
@@ -16,9 +34,7 @@ from app.schemas.house import (
     ConstructionPhaseQueryParams
 )
 from app.core.dependency import DependPermisson, DependAuth
-from app.models import User, Opportunity, ConstructionPhase, PhaseMaterial
-from app.models.house import Project
-from fastapi.responses import FileResponse
+from app.models import User, Opportunity
 import os
 import uuid
 from datetime import datetime, timedelta
@@ -389,71 +405,143 @@ async def get_projects(
     return await project_controller.get_projects(params)
 
 @router.get(
-    "/projects/{project_id}",
+    "/projects/materials",
     dependencies=[DependPermisson],
-    summary="获取项目详情"
+    summary="获取项目材料列表"
 )
+async def get_project_materials(
+    project_id: int = Query(..., description="项目ID"),
+    phase: str = Query(..., description="阶段类型")
+):
+    """
+    获取项目材料列表
+    - project_id: 项目ID
+    - phase: 阶段类型 (delivery/design/construction/completion)
+    """
+    try:
+        materials = await ProjectMaterial.filter(
+            project_id=project_id,
+            phase=phase
+        ).order_by("-created_at")
+        
+        return {
+            "code": 200,
+            "msg": "获取成功",
+            "data": [await material.to_dict() for material in materials]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post(
+    "/projects/materials",
+    dependencies=[DependPermisson],
+    summary="上传项目材料"
+)
+async def upload_project_material(
+    project_id: int = Form(..., description="项目ID"),
+    phase: str = Form(..., description="阶段类型"),
+    file_type: str = Form(..., description="文件类型"),
+    material_type: str = Form(..., description="材料类型"),
+    file: UploadFile = File(..., description="上传的文件")
+):
+    """
+    上传项目材料
+    - project_id: 项目ID
+    - phase: 阶段类型 (delivery/design/construction/completion)
+    - file_type: 文件类型 (image/cad/document)
+    - material_type: 材料类型
+    - file: 上传的文件
+    """
+    try:
+        # 检查项目是否存在
+        project = await Project.get_or_none(id=project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="项目不存在")
+
+        # 保存文件
+        file_path = f"static/project_materials/{project_id}/{phase}"
+        os.makedirs(file_path, exist_ok=True)
+        
+        # 生成文件名
+        file_ext = os.path.splitext(file.filename)[1]
+        file_name = f"{uuid.uuid4()}{file_ext}"
+        full_path = os.path.join(file_path, file_name)
+        
+        # 写入文件
+        with open(full_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        
+        # 创建材料记录
+        material = await ProjectMaterial.create(
+            project_id=project_id,
+            phase=phase,
+            file_type=file_type,
+            material_type=material_type,
+            file_name=file.filename,
+            file_url=f"/static/project_materials/{project_id}/{phase}/{file_name}"
+        )
+        
+        return {
+            "code": 200,
+            "msg": "上传成功",
+            "data": await material.to_dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/projects/materials/{material_id}", dependencies=[DependPermisson], summary="删除项目材料")
+async def delete_project_material(material_id: int):
+    """
+    删除项目材料
+    - material_id: 材料ID
+    """
+    try:
+        # 获取材料信息
+        material = await ProjectMaterial.get_or_none(id=material_id)
+        if not material:
+            raise HTTPException(status_code=404, detail="材料不存在")
+            
+        # 删除文件
+        file_path = material.file_url.replace("/static/", "static/")
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            
+        # 删除数据库记录
+        await material.delete()
+        
+        return {
+            "code": 200,
+            "msg": "删除成功",
+            "data": None
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/projects/{project_id}", dependencies=[DependPermisson], summary="获取项目详情")
 async def get_project_detail(project_id: int):
-    """获取项目详情，包括施工阶段和材料信息"""
     return await project_controller.get_project_details(project_id)
 
-@router.put(
-    "/projects/{project_id}",
-    dependencies=[DependPermisson],
-    summary="更新项目信息"
-)
+@router.put("/projects/{project_id}", dependencies=[DependPermisson], summary="更新项目信息")
 async def update_project(project_id: int, data: ProjectUpdate):
-    """
-    更新项目信息
-    - 可更新：地址、签约价格、签约周期、签约人、交房日期、当前阶段
-    """
     return await project_controller.update(project_id, data)
 
-@router.delete(
-    "/projects/{project_id}",
-    dependencies=[DependPermisson],
-    summary="删除项目"
-)
+@router.delete("/projects/{project_id}", dependencies=[DependPermisson], summary="删除项目")
 async def delete_project(project_id: int):
-    """删除项目及其关联的施工阶段和材料信息"""
     return await project_controller.remove(project_id)
 
-@router.get(
-    "/projects/{project_id}/phases",
-    dependencies=[DependPermisson],
-    summary="获取项目施工阶段列表"
-)
+@router.get("/projects/{project_id}/phases", dependencies=[DependPermisson], summary="获取项目施工阶段列表")
 async def get_project_phases(project_id: int):
-    """
-    获取项目的施工阶段列表
-    - project_id: 项目ID
-    """
     try:
         phases = await ConstructionPhase.filter(project_id=project_id).order_by("-complete_time")
         return {
             "code": 200,
             "msg": "获取成功",
             "data": [await phase.to_dict() for phase in phases]
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.get(
-    "/projects/phases/{phase_id}/materials",
-    dependencies=[DependPermisson],
-    summary="获取施工阶段材料列表"
-)
-async def get_phase_materials(phase_id: int):
-    """
-    获取施工阶段的材料列表
-    - phase_id: 施工阶段ID
-    """
-    try:
-        materials = await PhaseMaterial.filter(phase_id=phase_id).order_by("-created_at")
-        return {
-            "code": 200,
-            "msg": "获取成功",
-            "data": [await material.to_dict() for material in materials]
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
