@@ -1421,8 +1421,15 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
     async def update(self, id: int, data: ProjectUpdate) -> Dict:
         """更新项目"""
         try:
-            project = await self.model.get(id=id)
-            await project.update_from_dict(data.dict(exclude_unset=True))
+            # 获取项目时预加载关联的商机数据
+            project = await self.model.get(id=id).prefetch_related('opportunity', 'phases')
+            update_data = data.dict(exclude_unset=True)
+            
+            # 如果项目没有户型图，layout_image 可能是 QuerySet，需要特殊处理
+            if hasattr(project, 'layout_image') and isinstance(project.layout_image, object) and not isinstance(project.layout_image, str):
+                project.layout_image = None
+            
+            await project.update_from_dict(update_data)
             await project.save()
             
             return {

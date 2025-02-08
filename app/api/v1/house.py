@@ -17,6 +17,7 @@ from app.schemas.house import (
 )
 from app.core.dependency import DependPermisson, DependAuth
 from app.models import User, Opportunity, ConstructionPhase, PhaseMaterial
+from app.models.house import Project
 from fastapi.responses import FileResponse
 import os
 import uuid
@@ -406,9 +407,6 @@ async def update_project(project_id: int, data: ProjectUpdate):
     更新项目信息
     - 可更新：地址、签约价格、签约周期、签约人、交房日期、当前阶段
     """
-    # 计算销售截止日期
-    if data.delivery_date:
-        data.sale_deadline = data.delivery_date - timedelta(days=data.contract_period)
     return await project_controller.update(project_id, data)
 
 @router.delete(

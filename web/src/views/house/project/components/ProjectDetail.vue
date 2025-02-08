@@ -55,7 +55,35 @@
             </div>
             <div class="info-item">
               <span class="label">交房日期</span>
-              <span class="value">{{ formatDate(project?.delivery_date) }}</span>
+              <div class="value-with-edit">
+                <template v-if="!isEditingDeliveryDate">
+                  <span class="value">{{ formatDate(project?.delivery_date) }}</span>
+                  <n-button text type="primary" size="tiny" @click="startEditDeliveryDate">
+                    <template #icon>
+                      <TheIcon icon="material-symbols:edit" />
+                    </template>
+                  </n-button>
+                </template>
+                <template v-else>
+                  <n-date-picker
+                    v-model:value="editingDeliveryDate"
+                    type="date"
+                    size="small"
+                    :disabled="updating"
+                    style="width: 150px"
+                  />
+                  <n-button text type="primary" size="tiny" :loading="updating" @click="saveDeliveryDate">
+                    <template #icon>
+                      <TheIcon icon="material-symbols:check" />
+                    </template>
+                  </n-button>
+                  <n-button text type="error" size="tiny" :disabled="updating" @click="cancelEditDeliveryDate">
+                    <template #icon>
+                      <TheIcon icon="material-symbols:close" />
+                    </template>
+                  </n-button>
+                </template>
+              </div>
             </div>
             <div class="info-item">
               <span class="label">销售截止日</span>
@@ -74,7 +102,35 @@
             <div class="info-grid">
               <div class="info-item">
                 <span class="label">装修公司</span>
-                <span class="value">{{ project?.decoration_company || '-' }}</span>
+                <div class="value-with-edit">
+                  <template v-if="!isEditingDecorationCompany">
+                    <span class="value">{{ project?.decoration_company || '-' }}</span>
+                    <n-button text type="primary" size="tiny" @click="startEditDecorationCompany">
+                      <template #icon>
+                        <TheIcon icon="material-symbols:edit" />
+                      </template>
+                    </n-button>
+                  </template>
+                  <template v-else>
+                    <n-input
+                      v-model:value="editingDecorationCompany"
+                      type="text"
+                      size="small"
+                      :disabled="updating"
+                      style="width: 150px"
+                    />
+                    <n-button text type="primary" size="tiny" :loading="updating" @click="saveDecorationCompany">
+                      <template #icon>
+                        <TheIcon icon="material-symbols:check" />
+                      </template>
+                    </n-button>
+                    <n-button text type="error" size="tiny" :disabled="updating" @click="cancelEditDecorationCompany">
+                      <template #icon>
+                        <TheIcon icon="material-symbols:close" />
+                      </template>
+                    </n-button>
+                  </template>
+                </div>
               </div>
               <div class="info-item">
                 <span class="label">进场时间</span>
@@ -137,8 +193,8 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { useMessage } from 'naive-ui'
-import { projectApi } from '@/api/project'
+import { useMessage, NInput } from 'naive-ui'
+import { projectApi } from '@/api'
 import { opportunityApi } from '@/api/house'
 import TheIcon from '@/components/icon/TheIcon.vue'
 
@@ -150,12 +206,21 @@ const props = defineProps({
 const emit = defineEmits(['update:show'])
 
 const message = useMessage()
-const loading = ref(false)
+
+// 项目数据
 const project = ref(null)
 const opportunity = ref(null)
-const currentPhase = ref('delivery')
+const loading = ref(false)
+
+// 施工阶段相关
 const phases = ref([])
+const currentPhase = ref(null)
 const phaseMaterials = ref([])
+
+// 获取当前阶段数据
+const currentPhaseData = computed(() => {
+  return phases.value?.find(phase => phase.phase_type === currentPhase.value)
+})
 
 // 阶段选项
 const PHASE_OPTIONS = [
@@ -168,11 +233,6 @@ const PHASE_OPTIONS = [
   { label: '安装', value: 'installation' },
   { label: '交付', value: 'completion' }
 ]
-
-// 获取当前阶段数据
-const currentPhaseData = computed(() => {
-  return phases.value.find(phase => phase.phase_type === currentPhase.value)
-})
 
 // 监听显示状态变化
 watch(() => props.show, async (newVal) => {
@@ -214,15 +274,15 @@ const loadProjectDetail = async () => {
 
 // 加载施工阶段信息
 const loadPhases = async () => {
+  if (!props.projectId) return
+  
   try {
-    const res = await projectApi.getPhases(props.projectId)
+    const res = await projectApi.getProjectPhases(props.projectId)
     if (res.code === 200) {
-      phases.value = res.data
+      phases.value = res.data.items
     }
-    await loadPhaseMaterials()
   } catch (error) {
-    message.error(error.response?.data?.detail || '加载施工阶段失败')
-    console.error('加载施工阶段失败:', error)
+    message.error('加载施工阶段失败：' + error.message)
   }
 }
 
@@ -301,6 +361,103 @@ const handleUpdateShow = (value) => {
     phaseMaterials.value = []
   }
 }
+
+// 编辑交房时间相关
+const isEditingDeliveryDate = ref(false)
+const editingDeliveryDate = ref(null)
+const updating = ref(false)
+
+const startEditDeliveryDate = () => {
+  editingDeliveryDate.value = project.value?.delivery_date ? new Date(project.value.delivery_date) : null
+  isEditingDeliveryDate.value = true
+}
+
+const cancelEditDeliveryDate = () => {
+  isEditingDeliveryDate.value = false
+  editingDeliveryDate.value = null
+}
+
+const saveDeliveryDate = async () => {
+  if (!project.value?.id) return
+  
+  updating.value = true
+  try {
+    // 只发送必要的字段
+    const updateData = {
+      delivery_date: editingDeliveryDate.value,
+      community_name: project.value.community_name,
+      address: project.value.address,
+      contract_price: project.value.contract_price,
+      contract_period: project.value.contract_period,
+      signer: project.value.signer,
+      current_phase: project.value.current_phase,
+      decoration_company: project.value.decoration_company
+    }
+    
+    await projectApi.update(project.value.id, updateData)
+    
+    // 更新本地数据
+    project.value = {
+      ...project.value,
+      delivery_date: editingDeliveryDate.value
+    }
+    
+    message.success('更新成功')
+    isEditingDeliveryDate.value = false
+  } catch (error) {
+    message.error('更新失败：' + error.message)
+  } finally {
+    updating.value = false
+  }
+}
+
+// 编辑装修公司相关
+const isEditingDecorationCompany = ref(false)
+const editingDecorationCompany = ref(null)
+
+const startEditDecorationCompany = () => {
+  editingDecorationCompany.value = project.value?.decoration_company || ''
+  isEditingDecorationCompany.value = true
+}
+
+const cancelEditDecorationCompany = () => {
+  isEditingDecorationCompany.value = false
+  editingDecorationCompany.value = null
+}
+
+const saveDecorationCompany = async () => {
+  if (!project.value?.id) return
+  
+  updating.value = true
+  try {
+    // 只发送必要的字段
+    const updateData = {
+      community_name: project.value.community_name,
+      address: project.value.address,
+      contract_price: project.value.contract_price,
+      contract_period: project.value.contract_period,
+      signer: project.value.signer,
+      current_phase: project.value.current_phase,
+      delivery_date: project.value.delivery_date,
+      decoration_company: editingDecorationCompany.value
+    }
+    
+    await projectApi.update(project.value.id, updateData)
+    
+    // 更新本地数据
+    project.value = {
+      ...project.value,
+      decoration_company: editingDecorationCompany.value
+    }
+    
+    message.success('更新成功')
+    isEditingDecorationCompany.value = false
+  } catch (error) {
+    message.error('更新失败：' + error.message)
+  } finally {
+    updating.value = false
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -374,4 +531,10 @@ const handleUpdateShow = (value) => {
     color: #40a9ff;
   }
 }
-</style> 
+
+.value-with-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+</style>

@@ -59,9 +59,10 @@ export const opportunityApi = {
 }
 
 export const projectApi = {
-  list: (params = {}) => request.get('/house/projects', { params }),
-  create: (data) => request.post('/house/projects', data),
-  update: (id, data) => request.put(`/house/projects/${id}`, data),
-  delete: (id) => request.delete(`/house/projects/${id}`),
-  getDetail: (id) => request.get(`/house/projects/${id}`)
+  list: (params = {}) => request.get(`${baseUrl}/projects`, { params }),
+  create: (data) => request.post(`${baseUrl}/projects`, data),
+  update: (id, data) => request.put(`${baseUrl}/projects/${id}`, data),
+  delete: (id) => request.delete(`${baseUrl}/projects/${id}`),
+  getDetail: (id) => request.get(`${baseUrl}/projects/${id}`),
+  getProjectPhases: (projectId) => request.get(`${baseUrl}/projects/${projectId}/phases`)
 } 
