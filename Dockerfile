@@ -1,13 +1,13 @@
 FROM node:18.12.0-alpine3.16 AS web
 
-WORKDIR /opt/vue-fastapi-admin
+WORKDIR /opt/reBestHouse
 COPY /web ./web
-RUN cd /opt/vue-fastapi-admin/web && npm i --registry=https://registry.npmmirror.com && npm run build
+RUN cd /opt/reBestHouse/web && npm i --registry=https://registry.npmmirror.com && npm run build
 
 
 FROM python:3.11-slim-bullseye
 
-WORKDIR /opt/vue-fastapi-admin
+WORKDIR /opt/reBestHouse
 ADD . .
 COPY /deploy/entrypoint.sh .
 
@@ -24,7 +24,7 @@ RUN pip install poetry -i https://pypi.tuna.tsinghua.edu.cn/simple \
     && poetry config virtualenvs.create false \
     && poetry install
 
-COPY --from=web /opt/vue-fastapi-admin/web/dist /opt/vue-fastapi-admin/web/dist
+COPY --from=web /opt/reBestHouse/web/dist /opt/reBestHouse/web/dist
 ADD /deploy/web.conf /etc/nginx/sites-available/web.conf
 RUN rm -f /etc/nginx/sites-enabled/default \ 
     && ln -s /etc/nginx/sites-available/web.conf /etc/nginx/sites-enabled/ 
