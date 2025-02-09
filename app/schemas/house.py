@@ -411,6 +411,7 @@ class ProjectQueryParams(BaseModel):
     signer: Optional[str] = None
     delivery_date_start: Optional[date] = None
     delivery_date_end: Optional[date] = None
+    city: Optional[str] = None  # 添加城市筛选字段
 
 class ConstructionPhaseBase(BaseModel):
     project_id: int

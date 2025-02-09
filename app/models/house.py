@@ -296,8 +296,14 @@ class Project(BaseModel, TimestampMixin):
         opportunity_data = None
         try:
             opportunity_data = await self.opportunity.to_dict()
+            # 获取商机关联的小区数据
+            if opportunity_data and 'community' in opportunity_data:
+                community_data = opportunity_data.get('community', {})
+                city = community_data.get('city', 'shanghai')
+            else:
+                city = 'shanghai'
         except NoValuesFetched:
-            pass
+            city = 'shanghai'
         
         return {
             "id": self.id,
@@ -320,7 +326,9 @@ class Project(BaseModel, TimestampMixin):
             "layout_image": opportunity_data.get("layout_image") if opportunity_data else None,
             "interior_image": opportunity_data.get("interior_image") if opportunity_data else None,
             "location_image": opportunity_data.get("location_image") if opportunity_data else None,
-            "opportunity": opportunity_data
+            "opportunity": opportunity_data,
+            # 添加城市信息
+            "city": city
         }
 
 class ConstructionPhase(BaseModel, TimestampMixin):

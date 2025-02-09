@@ -7,9 +7,10 @@
           <n-space align="center" :size="12">
             <!-- 城市选择器 -->
             <n-select
-              v-model:value="cityStore.currentCity"
-              :options="cityStore.CITY_OPTIONS"
-              style="width: 140px"
+              v-model:value="selectedCity"
+              :options="departmentStore.departments"
+              :render-label="renderLabel"
+              style="width: 120px"
               @update:value="handleCityChange"
             />
             <!-- 小区搜索框 -->
@@ -118,16 +119,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useMessage } from 'naive-ui'
-import { useCityStore } from '@/store/modules/city'
+import { useDepartmentStore } from '@/stores/department'
 import { projectApi } from '@/api/house'
 import ProjectModal from './components/ProjectModal.vue'
 import ProjectDetail from './components/ProjectDetail.vue'
 import TheIcon from '@/components/icon/TheIcon.vue'
 
 const message = useMessage()
-const cityStore = useCityStore()
+const departmentStore = useDepartmentStore()
+
+// 选中的城市
+const selectedCity = ref(null)
 
 // 项目阶段定义
 const PHASE_OPTIONS = [
@@ -153,8 +157,21 @@ const phaseRows = computed(() => {
 // 搜索参数
 const searchParams = ref({
   community_name: '',
-  city: cityStore.currentCity
+  city: ''
 })
+
+// 渲染城市选择器的标签
+const renderLabel = (option) => {
+  return option.label
+}
+
+// 处理城市变化
+const handleCityChange = (value) => {
+  selectedCity.value = value
+  searchParams.value.city = value
+  departmentStore.setDepartment(value)
+  loadProjects()
+}
 
 // 项目列表数据
 const projectList = ref([])
@@ -185,7 +202,10 @@ const buttonThemeOverrides = {
 const loadProjects = async () => {
   loading.value = true
   try {
-    const res = await projectApi.list(searchParams.value)
+    const res = await projectApi.list({
+      ...searchParams.value,
+      city: selectedCity.value // 确保使用当前选中的城市
+    })
     if (res.code === 200) {
       projectList.value = res.data.items
     }
@@ -264,15 +284,8 @@ const handleSearch = () => {
 const handleReset = () => {
   searchParams.value = {
     community_name: '',
-    city: cityStore.currentCity
+    city: selectedCity.value // 保持当前选中的城市
   }
-  loadProjects()
-}
-
-// 处理城市变化
-const handleCityChange = (city) => {
-  cityStore.setCurrentCity(city)
-  searchParams.value.city = city
   loadProjects()
 }
 
@@ -330,9 +343,24 @@ const handleProjectUpdated = (updatedProject) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await departmentStore.getDepartmentOptions()
+  await departmentStore.initCurrentDepartment()
+  selectedCity.value = departmentStore.currentDepartment
+  searchParams.value.city = selectedCity.value
   loadProjects()
 })
+
+watch(
+  () => departmentStore.currentDepartment,
+  (newValue) => {
+    if (newValue && newValue !== selectedCity.value) {
+      selectedCity.value = newValue
+      searchParams.value.city = newValue
+      loadProjects() // 刷新项目列表
+    }
+  }
+)
 </script>
 
 <style lang="scss" scoped>

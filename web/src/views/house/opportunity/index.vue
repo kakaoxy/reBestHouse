@@ -2,27 +2,25 @@
   <n-card class="page-container">
     <div class="operation-area">
       <div class="flex justify-between mb-4">
-        <div class="n-space n-space-horizontal">
+        <n-space align="center" :size="12">
           <n-select
-            v-model:value="searchParams.city"
-            class="n-base-selection n-base-selection--active"
+            v-model:value="selectedCity"
+            :options="departmentStore.departments"
+            :render-label="renderLabel"
             style="width: 120px"
-            :options="cityOptions"
-            placeholder="选择城市"
-            size="medium"
+            @update:value="handleCityChange"
           />
           <n-input
             v-model:value="searchParams.communityName"
             placeholder="搜索小区"
-            class="n-input n-input--medium"
-            style="width: 240px; margin-left: 12px"
+            style="width: 240px"
             @keydown.enter="handleSearch"
           >
             <template #prefix>
               <n-icon><Search /></n-icon>
             </template>
           </n-input>
-        </div>
+        </n-space>
         <n-button type="primary" @click="handleAdd">
           <template #icon>
             <n-icon color="#fff"><Add /></n-icon>
@@ -354,17 +352,22 @@ import { NPopconfirm, NIcon, NUpload } from 'naive-ui'
 import { h } from 'vue'
 import OpportunityDetail from './components/OpportunityDetail.vue'
 import { request } from '@/utils'
+import { useDepartmentStore } from '@/stores/department'
 
 const message = useMessage()
 
-const communityOptions = ref([])
+const departmentStore = useDepartmentStore()
 
+// 选中的城市
+const selectedCity = ref(null)
+
+// 查询参数
 const searchParams = reactive({
-  city: 'shanghai',
+  city: '',
   communityName: '',
   status: '',
   page: 1,
-  page_size: 30
+  pageSize: 30
 })
 
 const currentTab = ref('all')
@@ -401,15 +404,7 @@ const formData = reactive({
   belonging_owner: ''
 })
 
-const cityOptions = [
-  { label: '上海', value: 'shanghai' },
-  { label: '北京', value: 'beijing' },
-  { label: '广州', value: 'guangzhou' },
-  { label: '深圳', value: 'shenzhen' }
-].map(item => ({
-  ...item,
-  label: item.label + '市'
-}))
+const communityOptions = ref([])
 
 const statusOptions = [
   { label: '待评估', value: '待评估' },
@@ -1012,12 +1007,42 @@ const resetForm = () => {
   formData.id = undefined
 }
 
+const handleCityChange = (value) => {
+  selectedCity.value = value
+  searchParams.city = value
+  departmentStore.setDepartment(value)
+  resetList()
+  loadOpportunities()
+}
+
+const renderLabel = (option) => {
+  return option.label
+}
+
 onMounted(async () => {
   await getCurrentUser() // 先获取当前用户信息
+  await departmentStore.getDepartmentOptions()
+  await departmentStore.initCurrentDepartment()
+  selectedCity.value = departmentStore.currentDepartment
+  searchParams.city = selectedCity.value
   loadOpportunities()
   loadCommunities()
   loadUserOptions()
 })
+
+// 监听部门变化
+watch(
+  () => departmentStore.currentDepartment,
+  (newValue) => {
+    if (newValue && newValue !== selectedCity.value) {
+      selectedCity.value = newValue
+      searchParams.city = newValue
+      resetList()
+      loadOpportunities()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>
@@ -1154,4 +1179,4 @@ onMounted(async () => {
   position: relative;
   z-index: 2;
 }
-</style> 
+</style>

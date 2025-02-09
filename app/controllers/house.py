@@ -1383,40 +1383,68 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
         }
 
     async def get_projects(self, params: ProjectQueryParams) -> Dict:
-        query = Q()
-        
-        if params.opportunity_id:
-            query &= Q(opportunity_id=params.opportunity_id)
-        if params.current_phase:
-            query &= Q(current_phase=params.current_phase)
-        if params.signer:
-            query &= Q(signer__icontains=params.signer)
-        if params.delivery_date_start:
-            query &= Q(delivery_date__gte=params.delivery_date_start)
-        if params.delivery_date_end:
-            query &= Q(delivery_date__lte=params.delivery_date_end)
+        try:
+            # 构建基础查询
+            query = Q()
+            
+            # 添加筛选条件
+            if params.opportunity_id:
+                query &= Q(opportunity_id=params.opportunity_id)
+            if params.current_phase:
+                query &= Q(current_phase=params.current_phase)
+            if params.signer:
+                query &= Q(signer__icontains=params.signer)
+            if params.delivery_date_start:
+                query &= Q(delivery_date__gte=params.delivery_date_start)
+            if params.delivery_date_end:
+                query &= Q(delivery_date__lte=params.delivery_date_end)
+            if params.city:
+                # 通过商机关联的小区筛选城市
+                query &= Q(opportunity__community__city=params.city.lower())
 
-        total, items = await self.list(
-            page=params.page,
-            page_size=params.page_size,
-            search=query,
-            order=["-created_at"]
-        )
+            # 构建查询，预加载关联数据
+            base_query = self.model.filter(query)\
+                .prefetch_related('phases', 'opportunity', 'opportunity__community')
 
-        # 预加载关联数据
-        for item in items:
-            await item.fetch_related('phases', 'opportunity')
+            # 计算总数
+            total = await base_query.count()
 
-        return {
-            "code": 200,
-            "msg": "OK",
-            "data": {
-                "items": [await item.to_dict() for item in items],
-                "total": total,
-                "page": params.page,
-                "page_size": params.page_size
+            # 获取分页数据
+            offset = (params.page - 1) * params.page_size
+            items = await base_query.order_by('-created_at')\
+                .offset(offset).limit(params.page_size)
+
+            # 处理返回数据
+            result_items = []
+            for item in items:
+                item_dict = await item.to_dict()
+                # 添加商机关联的小区城市信息
+                if hasattr(item, 'opportunity') and item.opportunity:
+                    if hasattr(item.opportunity, 'community') and item.opportunity.community:
+                        item_dict['city'] = item.opportunity.community.city
+                    else:
+                        item_dict['city'] = 'shanghai'  # 默认城市
+                else:
+                    item_dict['city'] = 'shanghai'  # 默认城市
+                result_items.append(item_dict)
+
+            return {
+                "code": 200,
+                "msg": "OK",
+                "data": {
+                    "items": result_items,
+                    "total": total,
+                    "page": params.page,
+                    "page_size": params.page_size
+                }
             }
-        }
+        except Exception as e:
+            print(f"获取项目列表失败: {str(e)}")
+            return {
+                "code": 500,
+                "msg": f"获取项目列表失败: {str(e)}",
+                "data": None
+            }
 
     async def update(self, id: int, data: ProjectUpdate) -> Dict:
         """更新项目"""
