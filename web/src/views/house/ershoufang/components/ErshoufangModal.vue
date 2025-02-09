@@ -32,9 +32,19 @@
               :loading="communityLoading"
               clearable
               filterable
+              remote
               :consistent-menu-width="false"
+              @search="handleCommunitySearch"
               @update:value="handleCommunityChange"
-            />
+              @focus="handleCommunityFocus"
+            >
+              <template #option="{ option }">
+                <div class="community-option">
+                  <span class="community-name">{{ option.label }}</span>
+                  <span class="community-region">{{ option.region }}</span>
+                </div>
+              </template>
+            </n-select>
           </div>
         </n-form-item>
 
@@ -311,33 +321,162 @@ const renderLabel = (option) => {
   return option.label || option.name || '未知'
 }
 
-// 添加日期格式
-const dateFormat = 'yyyy-MM-dd'
-
-// 根据当前城市过滤小区选项
+// 根据当前部门过滤小区选项
 const filteredCommunityOptions = computed(() => {
-  return communityOptions.value
-    .filter(option => option.city === cityStore.currentCity)
+  console.log('当前部门:', departmentStore.currentDepartment)
+  console.log('小区选项:', communityOptions.value)
+  const filtered = communityOptions.value.filter(option => {
+    console.log('比较:', option.city, departmentStore.currentDepartment)
+    return option.city === departmentStore.currentDepartment
+  })
+  console.log('过滤后的小区:', filtered)
+  return filtered
+})
+
+// 防抖函数
+const debounce = (fn, delay) => {
+  let timer = null
+  return (...args) => {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => fn.apply(this, args), delay)
+  }
+}
+
+// 处理小区搜索
+const handleCommunitySearch = debounce(async (query) => {
+  console.log('搜索小区，关键词:', query)
+  console.log('当前部门:', departmentStore.currentDepartment)
+  if (!query) {
+    communityOptions.value = []
+    return
+  }
+  try {
+    const params = {
+      name: query,
+      city: departmentStore.currentDepartment
+    }
+    console.log('搜索小区参数:', params)
+    await loadCommunityOptions(params)
+    console.log('搜索结果:', communityOptions.value)
+  } catch (error) {
+    console.error('搜索小区出错:', error)
+  }
+}, 300)
+
+// 处理小区选择器获得焦点
+const handleCommunityFocus = async () => {
+  console.log('小区选择器获得焦点')
+  console.log('当前小区选项数量:', communityOptions.value.length)
+  console.log('当前部门:', departmentStore.currentDepartment)
+  if (communityOptions.value.length === 0) {
+    try {
+      const params = {
+        city: departmentStore.currentDepartment
+      }
+      console.log('焦点获取时加载小区参数:', params)
+      await loadCommunityOptions(params)
+      console.log('加载小区结果:', communityOptions.value)
+    } catch (error) {
+      console.error('加载小区出错:', error)
+    }
+  }
+}
+
+// 监听部门变化
+watch(() => departmentStore.currentDepartment, (newDepartment) => {
+  console.log('部门变化:', newDepartment)
+  if (newDepartment) {
+    communityOptions.value = []
+    // 清空小区相关信息并更新部门
+    localFormValue.community_id = null
+    localFormValue.community_name = ''
+    localFormValue.region = ''
+    localFormValue.area = ''
+    localFormValue.city = newDepartment
+    console.log('重置后的表单值:', localFormValue)
+  }
+})
+
+// 监听表单显示状态
+watch(() => props.show, async (newVal) => {
+  console.log('表单显示状态变化:', newVal)
+  if (newVal) {
+    try {
+      // 打开弹窗时，先初始化部门列表和当前部门
+      if (!props.formValue?.id) {
+        console.log('初始化部门信息')
+        await departmentStore.getDepartmentOptions()
+        await departmentStore.initCurrentDepartment()
+        localFormValue.city = departmentStore.currentDepartment
+        console.log('初始化后的部门:', departmentStore.currentDepartment)
+      }
+
+      // 确保在加载小区之前已经有了当前部门
+      if (!departmentStore.currentDepartment) {
+        console.error('当前部门未初始化')
+        return
+      }
+
+      const params = {
+        city: departmentStore.currentDepartment
+      }
+      console.log('加载小区参数:', params)
+      await loadCommunityOptions(params)
+      console.log('初始加载小区结果:', communityOptions.value)
+    } catch (error) {
+      console.error('初始化或加载小区出错:', error)
+    }
+  }
+})
+
+// 监听部门变化
+watch(() => departmentStore.currentDepartment, async (newDepartment) => {
+  console.log('部门变化:', newDepartment)
+  if (newDepartment) {
+    communityOptions.value = []
+    // 清空小区相关信息并更新部门
+    localFormValue.community_id = null
+    localFormValue.community_name = ''
+    localFormValue.region = ''
+    localFormValue.area = ''
+    localFormValue.city = newDepartment
+
+    // 重新加载当前部门的小区
+    try {
+      const params = {
+        city: newDepartment
+      }
+      console.log('部门变化后加载小区参数:', params)
+      await loadCommunityOptions(params)
+      console.log('部门变化后重新加载小区结果:', communityOptions.value)
+    } catch (error) {
+      console.error('加载小区出错:', error)
+    }
+  }
 })
 
 // 处理小区选择变化
 const handleCommunityChange = (communityId) => {
+  console.log('选择小区变化:', communityId)
   if (communityId) {
     const selectedCommunity = communityOptions.value.find(
       option => option.value === communityId
     )
+    console.log('选中的小区:', selectedCommunity)
     if (selectedCommunity) {
       localFormValue.community_id = parseInt(communityId)
       localFormValue.community_name = selectedCommunity.label
       localFormValue.region = selectedCommunity.region
       localFormValue.area = selectedCommunity.area
       localFormValue.city = selectedCommunity.city
+      console.log('更新后的表单值:', localFormValue)
     }
   } else {
     localFormValue.community_id = null
     localFormValue.community_name = ''
     localFormValue.region = ''
     localFormValue.area = ''
+    console.log('清空后的表单值:', localFormValue)
   }
 }
 
@@ -690,7 +829,7 @@ const rules = {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 0;
+  width: 100%;
 }
 
 .community-name {
@@ -699,6 +838,6 @@ const rules = {
 
 .community-region {
   color: #999;
-  font-size: 12px;
+  font-size: 0.9em;
 }
 </style>

@@ -1,22 +1,23 @@
 import { ref } from 'vue'
-import { useCityStore } from '@/stores/city'
-import { request } from '@/utils'
+import { useDepartmentStore } from '@/stores/department'
+import { communityApi } from '@/api'
 
 export function useErshoufangModal() {
-  const cityStore = useCityStore()
+  const departmentStore = useDepartmentStore()
   const communityOptions = ref([])
   const loading = ref(false)
 
   // 加载小区列表
-  const loadCommunityOptions = async () => {
+  const loadCommunityOptions = async (params = {}) => {
     try {
       loading.value = true
-      const res = await request.get('/house/communities', {
-        params: {
-          city: cityStore.currentCity,
-          page_size: 1000
-        }
+      console.log('Loading communities with params:', params)
+      const res = await communityApi.list({
+        ...params,
+        city: departmentStore.currentDepartment,
+        page_size: 1000
       })
+      console.log('API response:', res)
       if (res.code === 200) {
         communityOptions.value = res.data.items.map(item => ({
           value: item.id,
@@ -38,4 +39,4 @@ export function useErshoufangModal() {
     loading,
     loadCommunityOptions
   }
-} 
+}
