@@ -7,8 +7,9 @@
           <n-space align="center" :size="8">
             <!-- 城市选择器 -->
             <n-select
-              v-model:value="cityStore.currentCity"
-              :options="cityStore.CITY_OPTIONS"
+              v-model:value="selectedCity"
+              :options="departmentStore.departments"
+              :render-label="renderLabel"
               style="width: 120px"
               @update:value="handleCityChange"
             />
@@ -26,7 +27,7 @@
               </template>
               搜索
             </n-button>
-            <n-button @click="handleReset">
+            <n-button @click="handleResetAll">
               <template #icon>
                 <TheIcon icon="material-symbols:refresh" />
               </template>
@@ -120,18 +121,79 @@
 </template>
 
 <script setup>
-import { onMounted, h } from 'vue'
+import { ref, onMounted, reactive, watch } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import { request } from '@/utils'
 import CommonPage from '@/components/page/CommonPage.vue'
-import DealRecordModal from './components/DealRecordModal.vue'
 import TheIcon from '@/components/icon/TheIcon.vue'
+import { useDepartmentStore } from '@/stores/department'
+import DealRecordModal from './components/DealRecordModal.vue'
 import { useDealRecordCRUD } from '@/composables/useDealRecordCRUD'
-import { useCityStore } from '@/stores/city'
 
 const message = useMessage()
 const dialog = useDialog()
-const cityStore = useCityStore()
+const departmentStore = useDepartmentStore()
+
+// 选中的城市
+const selectedCity = ref(null)
+
+// 查询参数
+const queryParams = reactive({
+  city: '',
+  search_keyword: '',
+  page: 1,
+  page_size: 10
+})
+
+// 处理城市变化
+const handleCityChange = (value) => {
+  selectedCity.value = value
+  queryParams.city = value
+  departmentStore.setDepartment(value)
+  loadData()
+}
+
+// 渲染城市选择器的标签
+const renderLabel = (option) => {
+  return option.label
+}
+
+// 使用 CRUD 函数
+const {
+  loading,
+  columns,
+  data,
+  pagination,
+  showModal,
+  modalTitle,
+  formParams,
+  CUSTOM_LAYOUT_OPTIONS,
+  FLOOR_OPTIONS,
+  loadData,
+  handleAdd,
+  handleEdit,
+  handleDelete,
+  handleModalSubmit,
+  handleModalCancel,
+  handlePageChange,
+  handlePageSizeChange,
+  handleSorterChange,
+  handleLayoutChange,
+  handleFloorChange,
+  handleReset
+} = useDealRecordCRUD({
+  list: (params = {}) => request.get('/house/deal-records', { params: { ...params, ...queryParams } }),
+  create: (data) => request.post('/house/deal-records', data),
+  update: (id, data) => request.put(`/house/deal-records/${id}`, data),
+  delete: (id) => request.delete(`/house/deal-records/${id}`)
+})
+
+// 处理重置
+const handleResetAll = () => {
+  queryParams.search_keyword = ''
+  handleReset()
+  loadData()
+}
 
 // API 定义
 const api = {
@@ -167,38 +229,37 @@ const SOURCE_OPTIONS = [
   { label: '爬虫', value: 'spider' }
 ]
 
-// 使用 CRUD 函数
-const {
-  loading,
-  columns,
-  data,
-  pagination,
-  queryParams,
-  showModal,
-  modalTitle,
-  formParams,
-  CUSTOM_LAYOUT_OPTIONS,
-  FLOOR_OPTIONS,
-  loadData,
-  handleAdd,
-  handleEdit,
-  handleDelete,
-  handleModalSubmit,
-  handleModalCancel,
-  handlePageChange,
-  handlePageSizeChange,
-  handleSorterChange,
-  handleLayoutChange,
-  handleFloorChange,
-  handleReset,
-  handleCityChange
-} = useDealRecordCRUD(api)
-
 // 初始化
-onMounted(() => {
-  queryParams.city = cityStore.currentCity
-  loadData()
+onMounted(async () => {
+  try {
+    // 获取部门列表并初始化当前部门
+    await departmentStore.getDepartmentOptions()
+    await departmentStore.initCurrentDepartment()
+    // 使用初始化后的部门
+    selectedCity.value = departmentStore.currentDepartment
+    queryParams.city = selectedCity.value
+    await loadData()
+  } catch (error) {
+    console.error('初始化失败:', error)
+    // 如果初始化失败，使用上海作为默认值
+    selectedCity.value = 'shanghai'
+    queryParams.city = 'shanghai'
+    await loadData()
+  }
 })
+
+// 监听部门变化
+watch(
+  () => departmentStore.currentDepartment,
+  (newValue) => {
+    if (newValue && newValue !== selectedCity.value) {
+      selectedCity.value = newValue
+      queryParams.city = newValue
+      loadData()
+    }
+  },
+  { immediate: true }
+)
 
 // 添加处理下载模板函数
 const handleDownloadTemplate = () => {
@@ -229,7 +290,7 @@ const handleImport = () => {
     // 提示用户当前选择的城市
     dialog.info({
       title: '导入提示',
-      content: `即将导入到城市：${cityStore.CITY_OPTIONS.find(item => item.value === cityStore.currentCity)?.label}`,
+      content: `即将导入到城市：${departmentStore.departments.find(item => item.value === departmentStore.currentDepartment)?.label}`,
       positiveText: '继续',
       negativeText: '取消',
       onPositiveClick: async () => {
@@ -237,7 +298,7 @@ const handleImport = () => {
           loading.value = true
           const formData = new FormData()
           formData.append('file', file)
-          formData.append('city', cityStore.currentCity)
+          formData.append('city', departmentStore.currentDepartment)
           
           const res = await request.post('/house/deal-records/import', formData, {
             headers: {
@@ -314,4 +375,4 @@ const handleImport = () => {
 .mt-4 {
   margin-top: 16px;
 }
-</style> 
+</style>

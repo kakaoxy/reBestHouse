@@ -8,7 +8,8 @@
             <!-- 城市选择器 -->
             <n-select
               v-model:value="selectedCity"
-              :options="communityStore.CITY_OPTIONS"
+              :options="departmentStore.departments"
+              :render-label="renderLabel"
               style="width: 120px"
               @update:value="handleCityChange"
             />
@@ -83,7 +84,7 @@
 </template>
 
 <script setup>
-import { onMounted, h, reactive, ref } from 'vue'
+import { onMounted, h, reactive, ref, computed, watch } from 'vue'
 import { 
   useMessage, 
   NSpace,
@@ -93,6 +94,7 @@ import {
   useDialog
 } from 'naive-ui'
 import { useCommunityStore } from '@/stores/community'
+import { useDepartmentStore } from '@/stores/department'
 import { request } from '@/utils'
 import CommonPage from '@/components/page/CommonPage.vue'
 import CommunityModal from './components/CommunityModal.vue'
@@ -101,6 +103,7 @@ import TheIcon from '@/components/icon/TheIcon.vue'
 const message = useMessage()
 const dialog = useDialog()
 const communityStore = useCommunityStore()
+const departmentStore = useDepartmentStore()
 
 // API 定义
 const api = {
@@ -119,11 +122,12 @@ const api = {
   delete: (id) => request.delete(`/house/communities/${id}`)
 }
 
-const selectedCity = ref(communityStore.currentCity)
+const selectedCity = ref('')
+const cityOptions = computed(() => departmentStore.getCityOptions())
 
 // 查询参数
 const queryParams = reactive({
-  city: selectedCity.value,
+  city: '',
   search_keyword: ''
 })
 
@@ -312,12 +316,17 @@ const handlePageSizeChange = (pageSize) => {
 }
 
 // 处理城市变化
-const handleCityChange = (city) => {
-  selectedCity.value = city
-  queryParams.city = city
-  communityStore.setCity(city)
-  pagination.page = 1
+const handleCityChange = (value) => {
+  // value 已经是部门的备注（拼音）
+  selectedCity.value = value
+  queryParams.city = value
+  departmentStore.setDepartment(value)
   loadData()
+}
+
+// 渲染城市选择器的标签
+const renderLabel = (option) => {
+  return option.label // 显示中文名称
 }
 
 // 处理新增
@@ -344,7 +353,7 @@ const handleModalSubmit = async (formData) => {
     // 确保城市字段正确设置
     const submitData = {
       ...formData,
-      city: formData.city || communityStore.currentCity
+      city: formData.city || departmentStore.currentDepartment
     }
     const res = await (formData.id ? api.update(formData.id, submitData) : api.create(submitData))
     if (res.code === 400) {
@@ -444,7 +453,7 @@ const handleImport = () => {
     // 提示用户当前选择的城市
     dialog.info({
       title: '导入提示',
-      content: `即将导入到城市：${communityStore.CITY_OPTIONS.find(item => item.value === selectedCity.value)?.label}`,
+      content: `即将导入到城市：${departmentStore.departmentOptions.find(item => item.value === selectedCity.value)?.label}`,
       positiveText: '继续',
       negativeText: '取消',
       onPositiveClick: async () => {
@@ -498,12 +507,36 @@ const handleImport = () => {
 }
 
 // 初始化
-onMounted(() => {
-  // 确保使用 store 中的默认城市
-  selectedCity.value = communityStore.currentCity
-  queryParams.city = selectedCity.value
-  loadData()
+onMounted(async () => {
+  try {
+    // 获取部门列表并初始化当前部门
+    await departmentStore.getDepartmentOptions()
+    await departmentStore.initCurrentDepartment()
+    // 使用初始化后的部门（已经是拼音）
+    selectedCity.value = departmentStore.currentDepartment
+    queryParams.city = selectedCity.value
+    await loadData()
+  } catch (error) {
+    console.error('初始化失败:', error)
+    // 如果初始化失败，使用上海作为默认值
+    selectedCity.value = 'shanghai'
+    queryParams.city = 'shanghai'
+    await loadData()
+  }
 })
+
+// 监听部门变化
+watch(
+  () => departmentStore.currentDepartment,
+  (newValue) => {
+    if (newValue && newValue !== selectedCity.value) {
+      selectedCity.value = newValue
+      queryParams.city = newValue
+      loadData()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>
@@ -514,4 +547,4 @@ onMounted(() => {
 .n-button {
   min-width: 80px;
 }
-</style> 
+</style>

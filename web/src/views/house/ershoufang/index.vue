@@ -7,8 +7,9 @@
           <n-space align="center" :size="8">
             <!-- 城市选择器 -->
             <n-select
-              v-model:value="cityStore.currentCity"
-              :options="cityStore.CITY_OPTIONS"
+              v-model:value="selectedCity"
+              :options="departmentStore.departments"
+              :render-label="renderLabel"
               style="width: 120px"
               @update:value="handleCityChange"
             />
@@ -148,18 +149,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, watch } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import { request } from '@/utils'
 import CommonPage from '@/components/page/CommonPage.vue'
 import ErshoufangModal from './components/ErshoufangModal.vue'
 import TheIcon from '@/components/icon/TheIcon.vue'
 import { useErshoufangCRUD } from '@/composables/useErshoufangCRUD'
-import { useCityStore } from '@/stores/city'
+import { useDepartmentStore } from '@/stores/department'
 
 const message = useMessage()
 const dialog = useDialog()
-const cityStore = useCityStore()
+const departmentStore = useDepartmentStore()
 
 // API 定义
 const api = {
@@ -207,31 +208,53 @@ const {
   handleModalCancel
 } = useErshoufangCRUD(api)
 
-// 选中的面积范围
-const selectedSizeRange = ref([])
-
-// 处理面积范围变化
-const handleSizeRangeChange = (range) => {
-  if (!range || range.length === 0) {
-    queryParams.size_min = null
-    queryParams.size_max = null
-  } else {
-    queryParams.size_min = range[0]
-    queryParams.size_max = range[1]
-  }
-}
+// 选中的城市
+const selectedCity = ref(null)
 
 // 处理城市变化
-const handleCityChange = (city) => {
-  queryParams.city = city
+const handleCityChange = (value) => {
+  selectedCity.value = value
+  queryParams.city = value
+  departmentStore.setDepartment(value)
   loadData()
 }
 
-// 在组件挂载时加载数据，并设置默认城市
-onMounted(() => {
-  queryParams.city = cityStore.currentCity
-  loadData()
+// 渲染城市选择器的标签
+const renderLabel = (option) => {
+  return option.label
+}
+
+// 初始化
+onMounted(async () => {
+  try {
+    // 获取部门列表并初始化当前部门
+    await departmentStore.getDepartmentOptions()
+    await departmentStore.initCurrentDepartment()
+    // 使用初始化后的部门
+    selectedCity.value = departmentStore.currentDepartment
+    queryParams.city = selectedCity.value
+    await loadData()
+  } catch (error) {
+    console.error('初始化失败:', error)
+    // 如果初始化失败，使用上海作为默认值
+    selectedCity.value = 'shanghai'
+    queryParams.city = 'shanghai'
+    await loadData()
+  }
 })
+
+// 监听部门变化
+watch(
+  () => departmentStore.currentDepartment,
+  (newValue) => {
+    if (newValue && newValue !== selectedCity.value) {
+      selectedCity.value = newValue
+      queryParams.city = newValue
+      loadData()
+    }
+  },
+  { immediate: true }
+)
 
 // 处理下载模板
 const handleDownloadTemplate = () => {
@@ -262,7 +285,7 @@ const handleImport = () => {
     // 提示用户当前选择的城市
     dialog.info({
       title: '导入提示',
-      content: `即将导入到城市：${cityStore.CITY_OPTIONS.find(item => item.value === cityStore.currentCity)?.label}`,
+      content: `即将导入到城市：${departmentStore.departments.find(item => item.value === departmentStore.currentDepartment)?.label}`,
       positiveText: '继续',
       negativeText: '取消',
       onPositiveClick: async () => {
@@ -270,7 +293,7 @@ const handleImport = () => {
           loading.value = true
           const formData = new FormData()
           formData.append('file', file)
-          formData.append('city', cityStore.currentCity)
+          formData.append('city', departmentStore.currentDepartment)
           
           const res = await request.post('/house/ershoufangs/import', formData, {
             headers: {
@@ -350,4 +373,4 @@ const handleImport = () => {
 .mt-4 {
   margin-top: 16px;
 }
-</style> 
+</style>
