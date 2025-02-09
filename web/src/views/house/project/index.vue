@@ -11,6 +11,7 @@
               :options="departmentStore.departments"
               :render-label="renderLabel"
               style="width: 120px"
+              :disabled="!userStore.isSuperUser"
               @update:value="handleCityChange"
             />
             <!-- 小区搜索框 -->
@@ -122,6 +123,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useDepartmentStore } from '@/stores/department'
+import { useUserStore } from '@/store/modules/user'
 import { projectApi } from '@/api/house'
 import ProjectModal from './components/ProjectModal.vue'
 import ProjectDetail from './components/ProjectDetail.vue'
@@ -129,6 +131,7 @@ import TheIcon from '@/components/icon/TheIcon.vue'
 
 const message = useMessage()
 const departmentStore = useDepartmentStore()
+const userStore = useUserStore()
 
 // 选中的城市
 const selectedCity = ref(null)

@@ -11,6 +11,7 @@
               :options="departmentStore.departments"
               :render-label="renderLabel"
               style="width: 120px"
+              :disabled="!userStore.isSuperUser"
               @update:value="handleCityChange"
             />
             <!-- 搜索框和按钮组 -->
@@ -95,6 +96,7 @@ import {
 } from 'naive-ui'
 import { useCommunityStore } from '@/stores/community'
 import { useDepartmentStore } from '@/stores/department'
+import { useUserStore } from '@/store/modules/user'
 import { request } from '@/utils'
 import CommonPage from '@/components/page/CommonPage.vue'
 import CommunityModal from './components/CommunityModal.vue'
@@ -104,6 +106,7 @@ const message = useMessage()
 const dialog = useDialog()
 const communityStore = useCommunityStore()
 const departmentStore = useDepartmentStore()
+const userStore = useUserStore()
 
 // API 定义
 const api = {

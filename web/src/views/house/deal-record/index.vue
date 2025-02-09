@@ -11,6 +11,7 @@
               :options="departmentStore.departments"
               :render-label="renderLabel"
               style="width: 120px"
+              :disabled="!userStore.isSuperUser"
               @update:value="handleCityChange"
             />
             <!-- 搜索框和按钮组 -->
@@ -127,12 +128,14 @@ import { request } from '@/utils'
 import CommonPage from '@/components/page/CommonPage.vue'
 import TheIcon from '@/components/icon/TheIcon.vue'
 import { useDepartmentStore } from '@/stores/department'
+import { useUserStore } from '@/store/modules/user'
 import DealRecordModal from './components/DealRecordModal.vue'
 import { useDealRecordCRUD } from '@/composables/useDealRecordCRUD'
 
 const message = useMessage()
 const dialog = useDialog()
 const departmentStore = useDepartmentStore()
+const userStore = useUserStore()
 
 // 选中的城市
 const selectedCity = ref(null)

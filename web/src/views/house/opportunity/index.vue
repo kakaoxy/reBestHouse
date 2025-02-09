@@ -8,6 +8,7 @@
             :options="departmentStore.departments"
             :render-label="renderLabel"
             style="width: 120px"
+            :disabled="!userStore.isSuperUser"
             @update:value="handleCityChange"
           />
           <n-input
@@ -353,10 +354,12 @@ import { h } from 'vue'
 import OpportunityDetail from './components/OpportunityDetail.vue'
 import { request } from '@/utils'
 import { useDepartmentStore } from '@/stores/department'
+import { useUserStore } from '@/store/modules/user'
 
 const message = useMessage()
 
 const departmentStore = useDepartmentStore()
+const userStore = useUserStore()
 
 // 选中的城市
 const selectedCity = ref(null)

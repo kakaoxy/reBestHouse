@@ -11,6 +11,7 @@
               :options="departmentStore.departments"
               :render-label="renderLabel"
               style="width: 120px"
+              :disabled="!userStore.isSuperUser"
               @update:value="handleCityChange"
             />
             <!-- 搜索框和按钮组 -->
@@ -157,10 +158,12 @@ import ErshoufangModal from './components/ErshoufangModal.vue'
 import TheIcon from '@/components/icon/TheIcon.vue'
 import { useErshoufangCRUD } from '@/composables/useErshoufangCRUD'
 import { useDepartmentStore } from '@/stores/department'
+import { useUserStore } from '@/store/modules/user'
 
 const message = useMessage()
 const dialog = useDialog()
 const departmentStore = useDepartmentStore()
+const userStore = useUserStore()
 
 // API 定义
 const api = {
