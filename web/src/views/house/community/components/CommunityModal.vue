@@ -22,7 +22,9 @@
       <n-form-item label="城市" path="city">
         <n-select
           v-model:value="localFormValue.city"
-          :options="communityStore.CITY_OPTIONS"
+          :options="departmentStore.departments"
+          :render-label="renderLabel"
+          :disabled="!userStore.isSuperUser"
           placeholder="请选择城市"
         />
       </n-form-item>
@@ -89,9 +91,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
-import { useCommunityStore } from '@/stores/community'
+import { useUserStore } from '@/store/modules/user'
+import { useDepartmentStore } from '@/stores/department'
 
 const props = defineProps({
   show: Boolean,
@@ -107,38 +110,110 @@ const emit = defineEmits(['update:show', 'submit', 'cancel'])
 
 const message = useMessage()
 const formRef = ref(null)
-const communityStore = useCommunityStore()
+const userStore = useUserStore()
+const departmentStore = useDepartmentStore()
 
 // 本地表单数据
 const localFormValue = reactive({
   name: '',
-  city: communityStore.currentCity,
+  city: '',  
   region: '',
   area: '',
   address: '',
-  building_type: null,
+  building_type: '',
   property_rights: [],
   total_houses: null,
   building_year: null
 })
 
-// 监听外部表单值变化
+// 初始化部门信息
+onMounted(async () => {
+  await departmentStore.initCurrentDepartment()
+  // 设置默认城市
+  if (!localFormValue.city) {
+    localFormValue.city = departmentStore.currentDepartment
+  }
+})
+
+// 监听部门变化
+watch(() => departmentStore.currentDepartment, (newValue) => {
+  if (!localFormValue.city) {
+    localFormValue.city = newValue
+  }
+})
+
+// 监听城市变化
+watch(() => localFormValue.city, (newValue) => {
+})
+
+// 监听表单值变化
 watch(() => props.formValue, (newVal) => {
   if (newVal) {
     const formData = { ...newVal }
-    // 确保城市字段存在
-    formData.city = formData.city || communityStore.currentCity
-    // 处理 property_rights 字段
-    if (typeof formData.property_rights === 'string') {
-      formData.property_rights = formData.property_rights.split(',').filter(Boolean)
-    } else if (!Array.isArray(formData.property_rights)) {
-      formData.property_rights = [] // 如果不是数组也不是字符串，设为空数组
+    // 只在城市为空时才使用部门作为默认值
+    if (!formData.city) {
+      formData.city = departmentStore.currentDepartment
     }
     Object.assign(localFormValue, formData)
   }
 }, { deep: true })
 
-// 表单验证规则
+// 监听 show 的变化，当 Modal 关闭时重置表单
+watch(() => props.show, (newVal) => {
+  if (newVal) {
+    // 打开弹窗时，使用当前部门作为默认城市
+    if (!props.formValue?.id) {
+      localFormValue.city = departmentStore.currentDepartment
+    }
+  } else {
+    formRef.value?.restoreValidation()
+    Object.assign(localFormValue, {
+      name: '',
+      city: departmentStore.currentDepartment,  // 重置时使用当前部门
+      region: '',
+      area: '',
+      address: '',
+      building_type: '',
+      property_rights: [],
+      total_houses: null,
+      building_year: null
+    })
+  }
+}, { immediate: true })
+
+const renderLabel = (option) => {
+  return option.label || option.name || '未知'
+}
+
+const handleSubmit = async () => {
+  try {
+    await formRef.value?.validate()
+    const formData = { 
+      ...localFormValue,
+      property_rights: (localFormValue.property_rights || []).join(',')
+    }
+    emit('submit', formData)
+  } catch (error) {
+    message.error('表单验证失败')
+  }
+}
+
+const handleCancel = () => {
+  formRef.value?.restoreValidation()
+  Object.assign(localFormValue, {
+    name: '',
+    city: departmentStore.currentDepartment,  // 重置时使用当前部门
+    region: '',
+    area: '',
+    address: '',
+    building_type: '',
+    property_rights: [],
+    total_houses: null,
+    building_year: null
+  })
+  emit('cancel')
+}
+
 const rules = {
   name: {
     required: true,
@@ -174,46 +249,6 @@ const PROPERTY_RIGHTS_OPTIONS = [
   { label: '商住', value: '商住' },
   { label: '其他', value: '其他' }
 ]
-
-const handleSubmit = async () => {
-  try {
-    await formRef.value?.validate()
-    
-    // 检查必填字段
-    const { name, city, region, area } = localFormValue
-    if (!name || !city || !region || !area) {
-      message.error('请填写完整的小区信息')
-      return
-    }
-    
-    // 处理 property_rights 数组为字符串，确保非空
-    const formData = { 
-      ...localFormValue,
-      property_rights: (localFormValue.property_rights || []).join(',')  // 添加空数组作为默认值
-    }
-    
-    emit('submit', formData)
-  } catch (error) {
-    console.error('Form validation error:', error)
-    message.error('表单验证失败')
-  }
-}
-
-const handleCancel = () => {
-  formRef.value?.restoreValidation()
-  Object.assign(localFormValue, {
-    name: '',
-    city: '',
-    region: '',
-    area: '',
-    address: '',
-    building_type: null,
-    property_rights: [],  // 保持为数组以便于表单操作
-    total_houses: null,
-    building_year: null
-  })
-  emit('cancel')
-}
 
 defineExpose({ formRef })
 </script> 

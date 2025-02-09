@@ -183,7 +183,9 @@
             <n-form-item label="城市" path="city">
               <n-select
                 v-model:value="localFormValue.city"
-                :options="CITY_OPTIONS"
+                :options="departmentStore.departments"
+                :render-label="renderLabel"
+                :disabled="!userStore.isSuperUser"
                 placeholder="请选择城市"
                 class="full-width"
               />
@@ -209,6 +211,8 @@ import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useCityStore } from '@/stores/city'
 import { useErshoufangModal } from '@/composables/useErshoufangModal'
+import { useUserStore } from '@/store/modules/user'
+import { useDepartmentStore } from '@/stores/department'
 
 const props = defineProps({
   show: Boolean,
@@ -223,34 +227,38 @@ const props = defineProps({
 
 const emit = defineEmits(['update:show', 'submit', 'cancel'])
 
-const message = useMessage()
 const formRef = ref(null)
+const message = useMessage()
 const cityStore = useCityStore()
-const { CITY_OPTIONS } = cityStore
+const userStore = useUserStore()
+const departmentStore = useDepartmentStore()
 const { communityOptions, loading: communityLoading, loadCommunityOptions } = useErshoufangModal()
 
 // 本地表单数据
 const localFormValue = reactive({
-  id: undefined,
-  community_id: undefined,
+  name: '',
+  city: '',  // 初始为空，等待 onMounted 后设置
+  community_id: null,
   community_name: '',
-  region: '',
-  area: '',
-  layout: null,
-  floor_number: null,
-  total_floors: null,
+  building: '',
+  unit: '',
+  room: '',
   floor: null,
-  orientation: null,
-  size: null,
+  total_floor: null,
+  area: null,
   total_price: null,
   unit_price: null,
   data_source: 'store',
-  city: cityStore.currentCity,
   ladder_ratio: '',
   mortgage_info: '',
   house_id: '',
-  ke_code: '',
-  house_link: ''
+  house_type: '',
+  decoration: '',
+  face: '',
+  elevator: '',
+  property_rights: [],
+  property_year: null,
+  remark: ''
 })
 
 const ORIENTATION_OPTIONS = [
@@ -266,6 +274,42 @@ const DATA_SOURCE_OPTIONS = [
   { label: '网络', value: 'web' },
   { label: 'API', value: 'api' }
 ]
+
+// 监听部门变化
+watch(() => departmentStore.currentDepartment, (newValue) => {
+  if (!localFormValue.city) {
+    localFormValue.city = newValue
+  }
+})
+
+// 监听城市变化
+watch(() => localFormValue.city, (newValue) => {
+})
+
+// 监听表单值变化
+watch(() => props.formValue, (newVal) => {
+  if (newVal) {
+    const formData = { ...newVal }
+    if (!formData.city) {
+      formData.city = departmentStore.currentDepartment
+    }
+    Object.assign(localFormValue, formData)
+  }
+}, { deep: true })
+
+// 初始化部门信息
+onMounted(async () => {
+  await departmentStore.initCurrentDepartment()
+  if (!localFormValue.city) {
+    localFormValue.city = departmentStore.currentDepartment
+  }
+  loadCommunityOptions()
+})
+
+// 渲染城市选择器的标签
+const renderLabel = (option) => {
+  return option.label || option.name || '未知'
+}
 
 // 添加日期格式
 const dateFormat = 'yyyy-MM-dd'
@@ -300,7 +344,6 @@ const handleCommunityChange = (communityId) => {
 // 修改总价变化处理函数，只计算单价但不显示
 const handleTotalPriceChange = (value) => {
   if (value && localFormValue.size) {
-    // 计算单价但不显示在表单中
     localFormValue.unit_price = (value * 10000 / localFormValue.size).toFixed(2)
   }
 }
@@ -308,7 +351,6 @@ const handleTotalPriceChange = (value) => {
 // 修改面积变化处理函数，只计算单价但不显示
 const handleSizeChange = (value) => {
   if (value && localFormValue.total_price) {
-    // 计算单价但不显示在表单中
     localFormValue.unit_price = (localFormValue.total_price * 10000 / value).toFixed(2)
   }
 }
@@ -330,7 +372,6 @@ const calculateFloorInfo = (floorNumber, totalFloors) => {
 // 处理楼层变化
 const handleFloorChange = () => {
   if (localFormValue.floor_number && localFormValue.total_floors) {
-    // 可以在这里添加楼层验证逻辑
     if (localFormValue.floor_number > localFormValue.total_floors) {
       message.warning('所在楼层不能大于总层高')
       localFormValue.floor_number = localFormValue.total_floors
@@ -340,16 +381,13 @@ const handleFloorChange = () => {
 
 // 修改提交处理函数
 const handleSubmit = async () => {
-  console.log('Modal handleSubmit called')
   try {
     if (!formRef.value) {
-      console.error('Modal formRef is null')
       return
     }
 
     // 表单验证
     await formRef.value.validate()
-    console.log('Form validation passed')
 
     // 准备提交数据
     const submitData = { ...localFormValue }
@@ -366,10 +404,8 @@ const handleSubmit = async () => {
       submitData.unit_price = Number((submitData.total_price * 10000 / submitData.size).toFixed(2))
     }
 
-    console.log('Submitting form data:', submitData)
     emit('submit', submitData)
   } catch (error) {
-    console.error('Form validation error:', error)
     message.error('表单验证失败')
   }
 }
@@ -413,19 +449,10 @@ watch(() => props.show, (newVal) => {
   }
 })
 
-onMounted(() => {
-  loadCommunityOptions()
-})
-
-defineExpose({
-  formRef,
-  validate: () => formRef.value?.validate()
-})
-
 // 监听 show 的变化，当 Modal 关闭时重置表单
 watch(
   () => props.show,
-  async (newVal) => {
+  (newVal) => {
     if (!newVal) {
       // Modal 关闭时重置表单
       formRef.value?.restoreValidation()
@@ -434,83 +461,78 @@ watch(
       if (!props.formValue.id) {
         // 只在新建时重置表单数据
         Object.assign(localFormValue, {
-          id: undefined,
-          community_id: undefined,
+          name: '',
+          city: departmentStore.currentDepartment,  // 重置时使用当前部门
+          community_id: null,
           community_name: '',
-          region: '',
-          area: '',
-          layout: null,
-          floor_number: null,
-          total_floors: null,
-          orientation: null,
-          size: null,
+          building: '',
+          unit: '',
+          room: '',
+          floor: null,
+          total_floor: null,
+          area: null,
           total_price: null,
+          unit_price: null,
           data_source: 'store',
-          city: cityStore.currentCity,
           ladder_ratio: '',
           mortgage_info: '',
           house_id: '',
-          ke_code: '',
-          house_link: ''
+          house_type: '',
+          decoration: '',
+          face: '',
+          elevator: '',
+          property_rights: [],
+          property_year: null,
+          remark: ''
         })
       }
     } else {
-      // Modal 打开时加载小区数据
-      await loadCommunityOptions()
-      // 如果是编辑模式，确保小区数据已加载
-      if (props.formValue.id && props.formValue.community_id) {
-        const communityId = parseInt(props.formValue.community_id)
-        if (communityId) {
-          await nextTick()
-          localFormValue.community_id = communityId
-        }
+      // Modal 打开时，使用当前部门作为默认城市
+      if (!props.formValue?.id) {
+        localFormValue.city = departmentStore.currentDepartment
       }
     }
-  }
+  },
+  { immediate: true }
 )
 
 // 监听 formValue 的变化
 watch(
   () => props.formValue,
   async (newVal) => {
-    console.log('Form value changed:', newVal)
-    
-    // 确保先加载小区数据
     if (newVal.community_id) {
       await loadCommunityOptions()
-      console.log('Community options loaded:', communityOptions.value)
     }
 
     // 处理数据转换
     const processedData = {
-      id: newVal.id,
+      name: newVal.name,
+      city: newVal.city,
       community_id: newVal.community_id ? parseInt(newVal.community_id) : undefined,
       community_name: newVal.community_name || '',
-      region: newVal.region || '',
-      area: newVal.area || '',
-      city: newVal.city,
-      layout: newVal.layout,
-      floor_number: parseInt(newVal.floor_number) || null,
-      total_floors: parseInt(newVal.total_floors) || null,
+      building: newVal.building || '',
+      unit: newVal.unit || '',
+      room: newVal.room || '',
       floor: newVal.floor || '',
-      orientation: newVal.orientation,
-      size: parseFloat(newVal.size) || null,
-      total_price: parseFloat(newVal.total_price) || null,
-      unit_price: parseFloat(newVal.unit_price) || null,
+      total_floor: newVal.total_floor || null,
+      area: newVal.area || null,
+      total_price: newVal.total_price || null,
+      unit_price: newVal.unit_price || null,
       data_source: newVal.data_source || 'store',
       ladder_ratio: newVal.ladder_ratio || '',
       mortgage_info: newVal.mortgage_info || '',
       house_id: newVal.house_id || '',
-      ke_code: newVal.ke_code || '',
-      house_link: newVal.house_link || ''
+      house_type: newVal.house_type || '',
+      decoration: newVal.decoration || '',
+      face: newVal.face || '',
+      elevator: newVal.elevator || '',
+      property_rights: newVal.property_rights || [],
+      property_year: newVal.property_year || null,
+      remark: newVal.remark || ''
     }
 
-    console.log('Processed data:', processedData)
-    console.log('Current community options:', filteredCommunityOptions.value)
-    
     // 更新本地表单数据
     Object.assign(localFormValue, processedData)
-    console.log('Updated form data:', localFormValue)
     
     // 解析并设置户型数据
     if (processedData.layout) {
@@ -679,4 +701,4 @@ const rules = {
   color: #999;
   font-size: 12px;
 }
-</style> 
+</style>
