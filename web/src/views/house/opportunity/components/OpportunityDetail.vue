@@ -9,7 +9,7 @@
   >
     <template #header>
       <div class="flex justify-between items-center">
-        <div class="text-lg font-bold">商机详情</div>
+        <div class="text-xxxl font-bold">商机详情</div>
       </div>
     </template>
 
@@ -75,23 +75,27 @@
               <n-card class="info-card" :bordered="false">
                 <div class="info-header">
                   <div class="community-title">
-                    <h3 class="community-name">{{ opportunityData.community_name }}</h3>
-                    <n-tooltip trigger="click">
-                      <template #trigger>
-                        <n-button text class="location-icon">
-                          <n-icon>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-                              <path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5a2.5 2.5 0 0 1 0 5z"/>
-                            </svg>
-                          </n-icon>
-                        </n-button>
-                      </template>
-                      {{ opportunityData.address }}
-                    </n-tooltip>
+                    <div class="title-left">
+                      <h3 class="community-name">{{ opportunityData.community_name }}</h3>
+                      <n-tooltip trigger="click">
+                        <template #trigger>
+                          <n-button text class="location-icon">
+                            <n-icon>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5a2.5 2.5 0 0 1 0 5z"/>
+                              </svg>
+                            </n-icon>
+                          </n-button>
+                        </template>
+                        {{ opportunityData.address }}
+                      </n-tooltip>
+                    </div>
+                    <div class="status-tag">
+                      <n-tag :type="getStatusType(opportunityData.status)">
+                        {{ opportunityData.status }}
+                      </n-tag>
+                    </div>
                   </div>
-                  <n-tag :type="getStatusType(opportunityData.status)">
-                    {{ opportunityData.status }}
-                  </n-tag>
                 </div>
                 
                 <div class="info-grid">
@@ -874,77 +878,90 @@ const dealDateRange = computed(() => {
   }
 })
 
-// 修改列定义，保持与在售房源统计一致的样式
-const dealCommonColumns = [
-  { 
-    title: '套数', 
-    key: 'count', 
-    width: 80,
-    align: 'right'
-  },
-  { 
-    title: '平均面积', 
-    key: 'avgSize', 
-    width: 100,
-    align: 'right',
-    render: (row) => `${row.avgSize.toFixed(1)}㎡` 
-  },
-  { 
-    title: '平均单价', 
-    key: 'avgUnitPrice', 
-    width: 120,
-    align: 'right',
-    render: (row) => `${Math.round(row.avgUnitPrice)}元/㎡` 
-  },
-  { 
-    title: '平均总价', 
-    key: 'avgTotalPrice', 
-    width: 100,
-    align: 'right',
-    render: (row) => `${row.avgTotalPrice.toFixed(1)}万` 
-  },
-  { 
-    title: '最高总价', 
-    key: 'maxTotalPrice', 
-    width: 100,
-    align: 'right',
-    render: (row) => `${row.maxTotalPrice}万` 
-  },
-  { 
-    title: '最低总价', 
-    key: 'minTotalPrice', 
-    width: 100,
-    align: 'right',
-    render: (row) => `${row.minTotalPrice}万` 
-  },
-  { 
-    title: '平均周期', 
-    key: 'avgDealCycle', 
-    width: 100,
-    align: 'right',
-    render: (row) => `${Math.round(row.avgDealCycle)}天` 
-  }
-]
+// 处理成交记录数据 - 折线图
+const processLineChartData = (data) => {
+  // 按月份和户型分组
+  const groupedData = {}
+  
+  data.forEach(item => {
+    if (!item.deal_date || !item.unit_price) return
+    
+    const month = item.deal_date.substring(0, 7)
+    // 根据户型分类
+    let layout = '其他'
+    const match = item.layout?.match(/^(\d)/)
+    if (match) {
+      const rooms = parseInt(match[1])
+      layout = getLayoutName(rooms)
+    }
 
-const dealLayoutColumns = [
-  { 
-    title: '户型', 
-    key: 'layout', 
-    width: 100,
-    fixed: 'left'
-  },
-  ...dealCommonColumns
-]
+    if (!groupedData[layout]) {
+      groupedData[layout] = new Map()
+    }
+    
+    if (!groupedData[layout].has(month)) {
+      groupedData[layout].set(month, {
+        prices: [],
+        count: 0,
+        sum: 0
+      })
+    }
+    
+    const monthData = groupedData[layout].get(month)
+    monthData.prices.push(item.unit_price)
+    monthData.count++
+    monthData.sum += item.unit_price
+  })
 
-const dealFloorColumns = [
-  { 
-    title: '楼层', 
-    key: 'floor', 
-    width: 100,
-    fixed: 'left'
-  },
-  ...dealCommonColumns
-]
+  // 转换为echarts系列数据
+  const series = []
+  const layoutOrder = ['一房', '两房', '三房', '四房', '其他']
+  const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de']
+  
+  // 获取所有月份并排序
+  const allMonths = new Set()
+  Object.values(groupedData).forEach(layoutData => {
+    layoutData.forEach((_, month) => allMonths.add(month))
+  })
+  const sortedMonths = Array.from(allMonths).sort()
+  
+  layoutOrder.forEach((layout, index) => {
+    if (!groupedData[layout]) {
+      series.push({
+        name: layout,
+        type: 'line',
+        smooth: true,
+        color: colors[index],
+        data: []
+      })
+      return
+    }
+
+    // 处理每个月的数据，确保连续性
+    const monthlyData = sortedMonths.map(month => {
+      const data = groupedData[layout].get(month)
+      if (!data) return [month, null]
+      return [month, Math.round(data.sum / data.count)]
+    })
+
+    // 主折线 - 平均单价
+    series.push({
+      name: layout,
+      type: 'line',
+      smooth: true,
+      color: colors[index],
+      symbol: 'circle',
+      symbolSize: 6,
+      emphasis: {
+        scale: 1.5
+      },
+      data: monthlyData,
+      connectNulls: true // 连接空值点
+    })
+  })
+
+  return series
+}
 
 // 户型成交统计数据
 const dealLayoutStats = computed(() => {
@@ -1067,13 +1084,9 @@ const dealFloorStats = computed(() => {
     if (dealDate > dealDateRange.value.endDate && dealDate <= dealDateRange.value.startDate) {
       let floor = '其他'
       if (item.floor_info) {
-        if (item.floor_info.includes('低楼层')) {
-          floor = '低楼层'
-        } else if (item.floor_info.includes('中楼层')) {
-          floor = '中楼层'
-        } else if (item.floor_info.includes('高楼层')) {
-          floor = '高楼层'
-        }
+        if (item.floor_info.includes('低楼层')) floor = '低楼层'
+        else if (item.floor_info.includes('中楼层')) floor = '中楼层'
+        else if (item.floor_info.includes('高楼层')) floor = '高楼层'
       }
 
       stats[floor].count++
@@ -1120,7 +1133,438 @@ const dealFloorStats = computed(() => {
   return result
 })
 
-// 添加行样式计算函数
+// 处理成交记录数据 - 折线图
+const processLineData = (data) => {
+  // 按月份和户型分组
+  const groupedData = {}
+  
+  data.forEach(item => {
+    if (!item.deal_date || !item.unit_price) return
+    
+    const month = item.deal_date.substring(0, 7)
+    // 根据户型分类
+    let layout = '其他'
+    const match = item.layout?.match(/^(\d)/)
+    if (match) {
+      const rooms = parseInt(match[1])
+      layout = getLayoutName(rooms)
+    }
+
+    if (!groupedData[layout]) {
+      groupedData[layout] = new Map()
+    }
+    
+    if (!groupedData[layout].has(month)) {
+      groupedData[layout].set(month, {
+        prices: [],
+        count: 0,
+        sum: 0
+      })
+    }
+    
+    const monthData = groupedData[layout].get(month)
+    monthData.prices.push(item.unit_price)
+    monthData.count++
+    monthData.sum += item.unit_price
+  })
+
+  // 转换为echarts系列数据
+  const series = []
+  const layoutOrder = ['一房', '两房', '三房', '四房', '其他']
+  const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de']
+  
+  // 获取所有月份并排序
+  const allMonths = new Set()
+  Object.values(groupedData).forEach(layoutData => {
+    layoutData.forEach((_, month) => allMonths.add(month))
+  })
+  const sortedMonths = Array.from(allMonths).sort()
+  
+  layoutOrder.forEach((layout, index) => {
+    if (!groupedData[layout]) {
+      series.push({
+        name: layout,
+        type: 'line',
+        smooth: true,
+        color: colors[index],
+        data: []
+      })
+      return
+    }
+
+    // 处理每个月的数据，确保连续性
+    const monthlyData = sortedMonths.map(month => {
+      const data = groupedData[layout].get(month)
+      if (!data) return [month, null]
+      return [month, Math.round(data.sum / data.count)]
+    })
+
+    // 主折线 - 平均单价
+    series.push({
+      name: layout,
+      type: 'line',
+      smooth: true,
+      color: colors[index],
+      symbol: 'circle',
+      symbolSize: 6,
+      emphasis: {
+        scale: 1.5
+      },
+      data: monthlyData,
+      connectNulls: true // 连接空值点
+    })
+  })
+
+  return series
+}
+
+// 户型映射函数 - 公共函数
+const getLayoutName = (rooms) => {
+  switch(rooms) {
+    case 1: return '一房'
+    case 2: return '两房'
+    case 3: return '三房'
+    case 4: return '四房'
+    default: return '其他'
+  }
+}
+
+// 处理在售房源数据 - 散点图
+const processScatterData = (data) => {
+  // 按户型分组
+  const groupedData = {}
+  const layoutOrder = ['一房', '两房', '三房', '四房', '其他']
+  const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de']
+
+  layoutOrder.forEach((layout, index) => {
+    groupedData[layout] = {
+      name: layout,
+      type: 'scatter',
+      itemStyle: {
+        color: colors[index]
+      },
+      data: []
+    }
+  })
+
+  // 处理每个房源数据
+  data.forEach(item => {
+    if (!item.size || !item.unit_price) return
+
+    // 确定户型
+    let layout = '其他'
+    const match = item.layout?.match(/^(\d)/)
+    if (match) {
+      const rooms = parseInt(match[1])
+      layout = getLayoutName(rooms)
+    }
+
+    // 添加数据点
+    groupedData[layout].data.push({
+      value: [item.size, item.unit_price],
+      ...item // 保存原始数据用于tooltip
+    })
+  })
+
+  return Object.values(groupedData)
+}
+
+// 初始化散点图
+const initScatterChart = async (echarts) => {
+  if (!scatterChartRef.value) return
+  
+  // 设置设备像素比
+  scatterChart = echarts.init(scatterChartRef.value, null, {
+    devicePixelRatio: window.devicePixelRatio
+  })
+  
+  const option = {
+    title: {
+      text: '在售房源分布',
+      left: 'center',
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 500
+      }
+    },
+    tooltip: {
+      formatter: (params) => {
+        const data = params.data
+        return `
+          小区：${data.community_name}<br/>
+          户型：${data.layout}<br/>
+          楼层：${data.floor}<br/>
+          面积：${data.size}㎡<br/>
+          单价：${data.unit_price}元/㎡<br/>
+          总价：${data.total_price}万
+        `
+      }
+    },
+    legend: {
+      data: ['一房', '两房', '三房', '四房', '其他'],
+      bottom: '0%',
+      textStyle: {
+        fontSize: 13
+      }
+    },
+    grid: {
+      left: '12%',
+      right: '8%',
+      top: '15%',
+      bottom: '20%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'value',
+      name: '建筑面积(㎡)',
+      nameGap: 20,
+      min: 30,
+      axisLabel: {
+        fontSize: 12
+      },
+      nameTextStyle: {
+        fontSize: 13,
+        padding: [0, 0, 0, 10]
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '单价(元/㎡)',
+      axisLabel: {
+        fontSize: 12,
+        formatter: (value) => {
+          return value >= 1000 ? (value/1000 + 'k') : value
+        }
+      },
+      nameTextStyle: {
+        fontSize: 13,
+        padding: [0, 20, 0, 0]
+      }
+    },
+    series: processScatterData(ershoufangList.value || [])
+  }
+  
+  scatterChart.setOption(option)
+}
+
+// 初始化折线图
+const initLineChart = async (echarts) => {
+  if (!lineChartRef.value) return
+  
+  // 设置设备像素比
+  lineChart = echarts.init(lineChartRef.value, null, {
+    devicePixelRatio: window.devicePixelRatio
+  })
+  
+  const option = {
+    title: {
+      text: '成交单价走势',
+      left: 'center',
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 500
+      }
+    },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        return params
+          .filter(param => param.data[1] !== null)
+          .map(param => 
+            `${param.seriesName}<br/>
+            时间：${param.data[0]}<br/>
+            均价：${param.data[1] >= 1000 ? (param.data[1]/1000).toFixed(1) + 'k' : param.data[1]}元/㎡`
+          ).join('<br/><br/>')
+      }
+    },
+    legend: {
+      data: ['一房', '两房', '三房', '四房', '其他'],
+      bottom: '0%',
+      textStyle: {
+        fontSize: 13
+      }
+    },
+    grid: {
+      left: '12%',
+      right: '8%',
+      top: '15%',
+      bottom: '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      axisLabel: {
+        fontSize: 12,
+        interval: 'auto',
+        hideOverlap: true
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '单价(元/㎡)',
+      nameTextStyle: {
+        fontSize: 13,
+        padding: [0, 20, 0, 0]
+      },
+      axisLabel: {
+        fontSize: 12,
+        formatter: (value) => {
+          return value >= 1000 ? (value/1000 + 'k') : value
+        }
+      }
+    },
+    series: processLineChartData(dealRecordList.value || [])
+  }
+  
+  lineChart.setOption(option)
+}
+
+// 监听数据变化，更新图表
+watch([ershoufangList, dealRecordList], async () => {
+  const echarts = await loadEcharts()
+  await initScatterChart(echarts)
+  await initLineChart(echarts)
+})
+
+// 监听窗口大小变化，调整图表大小
+onMounted(async () => {
+  const echarts = await loadEcharts()
+  await initScatterChart(echarts)
+  await initLineChart(echarts)
+  
+  window.addEventListener('resize', () => {
+    scatterChart?.resize()
+    lineChart?.resize()
+  })
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', () => {
+    scatterChart?.resize()
+    lineChart?.resize()
+  })
+  scatterChart?.dispose()
+  lineChart?.dispose()
+})
+
+defineOptions({
+  name: 'OpportunityDetail'
+})
+
+// 添加计算属性控制右侧区域样式
+const rightSectionClass = computed(() => ({
+  'right-section': true,
+  'collapsed': collapsed.value
+}))
+
+// 排序函数 - 获取户型数字
+const getLayoutNumber = (layout) => {
+  const match = layout?.match(/^(\d)/)
+  return match ? parseInt(match[1]) : 0
+}
+
+// 排序后的在售房源列表
+const sortedErshoufangList = computed(() => {
+  if (!ershoufangList.value) return []
+  
+  return [...ershoufangList.value].sort((a, b) => {
+    // 先按户型数字降序
+    const layoutDiff = getLayoutNumber(b.layout) - getLayoutNumber(a.layout)
+    if (layoutDiff !== 0) return layoutDiff
+    
+    // 户型相同时按单价升序
+    return (a.unit_price || 0) - (b.unit_price || 0)
+  })
+})
+
+// 跟进抽屉控制
+const showFollowUpDrawer = ref(false)
+
+// 处理跟进按钮点击
+const handleFollowUp = () => {
+  showFollowUpDrawer.value = true
+}
+
+// 处理跟进成功
+const handleFollowUpSuccess = () => {
+  // 重新加载商机详情
+  loadOpportunityDetail(props.id)
+}
+
+// 添加之前被误删的成交房源统计相关的列定义
+const dealCommonColumns = [
+  { 
+    title: '套数', 
+    key: 'count', 
+    width: 80,
+    align: 'right'
+  },
+  { 
+    title: '平均面积', 
+    key: 'avgSize', 
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.avgSize.toFixed(1)}㎡` 
+  },
+  { 
+    title: '平均单价', 
+    key: 'avgUnitPrice', 
+    width: 120,
+    align: 'right',
+    render: (row) => `${Math.round(row.avgUnitPrice)}元/㎡` 
+  },
+  { 
+    title: '平均总价', 
+    key: 'avgTotalPrice', 
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.avgTotalPrice.toFixed(1)}万` 
+  },
+  { 
+    title: '最高总价', 
+    key: 'maxTotalPrice', 
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.maxTotalPrice}万` 
+  },
+  { 
+    title: '最低总价', 
+    key: 'minTotalPrice', 
+    width: 100,
+    align: 'right',
+    render: (row) => `${row.minTotalPrice}万` 
+  },
+  { 
+    title: '平均周期', 
+    key: 'avgDealCycle', 
+    width: 100,
+    align: 'right',
+    render: (row) => `${Math.round(row.avgDealCycle)}天` 
+  }
+]
+
+const dealLayoutColumns = [
+  { 
+    title: '户型', 
+    key: 'layout', 
+    width: 100,
+    fixed: 'left'
+  },
+  ...dealCommonColumns
+]
+
+const dealFloorColumns = [
+  { 
+    title: '楼层', 
+    key: 'floor', 
+    width: 100,
+    fixed: 'left'
+  },
+  ...dealCommonColumns
+]
+
+// 行样式计算函数
 const getRowClass = (row, type) => {
   if (!opportunityData.value) return ''
   
@@ -1211,1332 +1655,334 @@ const scatterChartRef = ref(null)
 const lineChartRef = ref(null)
 let scatterChart = null
 let lineChart = null
-
-// 户型映射函数 - 公共函数
-const getLayoutName = (rooms) => {
-  switch(rooms) {
-    case 1: return '一房'
-    case 2: return '两房'
-    case 3: return '三房'
-    case 4: return '四房'
-    default: return '其他'
-  }
-}
-
-// 处理在售房源数据 - 散点图
-const processScatterData = (data) => {
-  // 按户型分组
-  const groupedData = {}
-  const layoutOrder = ['一房', '两房', '三房', '四房', '其他']
-  const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de']
-
-  layoutOrder.forEach((layout, index) => {
-    groupedData[layout] = {
-      name: layout,
-      type: 'scatter',
-      itemStyle: {
-        color: colors[index]
-      },
-      data: []
-    }
-  })
-
-  // 处理每个房源数据
-  data.forEach(item => {
-    if (!item.size || !item.unit_price) return
-
-    // 确定户型
-    let layout = '其他'
-    const match = item.layout?.match(/^(\d)/)
-    if (match) {
-      const rooms = parseInt(match[1])
-      layout = getLayoutName(rooms)
-    }
-
-    // 添加数据点
-    groupedData[layout].data.push({
-      value: [item.size, item.unit_price],
-      ...item // 保存原始数据用于tooltip
-    })
-  })
-
-  return Object.values(groupedData)
-}
-
-// 处理成交记录数据 - 折线图
-const processLineData = (data) => {
-  // 按月份和户型分组
-  const groupedData = {}
-  
-  data.forEach(item => {
-    if (!item.deal_date || !item.unit_price) return
-    
-    const month = item.deal_date.substring(0, 7)
-    // 根据户型分类
-    let layout = '其他'
-    const match = item.layout?.match(/^(\d)/)
-    if (match) {
-      const rooms = parseInt(match[1])
-      layout = getLayoutName(rooms)
-    }
-
-    if (!groupedData[layout]) {
-      groupedData[layout] = new Map()
-    }
-    
-    if (!groupedData[layout].has(month)) {
-      groupedData[layout].set(month, {
-        prices: [],
-        maxPrice: -Infinity,
-        minPrice: Infinity
-      })
-    }
-    
-    const monthData = groupedData[layout].get(month)
-    monthData.prices.push(item.unit_price)
-    monthData.maxPrice = Math.max(monthData.maxPrice, item.unit_price)
-    monthData.minPrice = Math.min(monthData.minPrice, item.unit_price)
-  })
-
-  // 转换为echarts系列数据
-  const series = []
-  const layoutOrder = ['一房', '两房', '三房', '四房', '其他']
-  const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de']
-  
-  layoutOrder.forEach((layout, index) => {
-    if (!groupedData[layout]) {
-      // 如果没有数据，添加空数据系列保持图例显示
-      series.push({
-        name: layout,
-        type: 'line',
-        smooth: true,
-        color: colors[index],
-        data: []
-      })
-      return
-    }
-
-    // 主折线
-    series.push({
-      name: layout,
-      type: 'line',
-      smooth: true,
-      color: colors[index],
-      data: Array.from(groupedData[layout].entries())
-        .map(([month, data]) => [
-          month,
-          data.prices.reduce((a, b) => a + b, 0) / data.prices.length
-        ])
-        .sort((a, b) => a[0].localeCompare(b[0]))
-    })
-
-    // 最高价标记
-    series.push({
-      name: `${layout}最高价`,
-      type: 'scatter',
-      color: '#ff4d4f',
-      symbolSize: 8,
-      data: Array.from(groupedData[layout].entries())
-        .map(([month, data]) => [month, data.maxPrice])
-        .sort((a, b) => a[0].localeCompare(b[0]))
-    })
-
-    // 最低价标记
-    series.push({
-      name: `${layout}最低价`,
-      type: 'scatter',
-      color: '#52c41a',
-      symbolSize: 8,
-      data: Array.from(groupedData[layout].entries())
-        .map(([month, data]) => [month, data.minPrice])
-        .sort((a, b) => a[0].localeCompare(b[0]))
-    })
-  })
-
-  return series
-}
-
-// 初始化散点图
-const initScatterChart = async (echarts) => {
-  if (!scatterChartRef.value) return
-  
-  scatterChart = echarts.init(scatterChartRef.value)
-  const option = {
-    title: {
-      text: '在售房源分布',
-      left: 'center'
-    },
-    tooltip: {
-      formatter: (params) => {
-        const data = params.data
-        return `
-          小区：${data.community_name}<br/>
-          户型：${data.layout}<br/>
-          楼层：${data.floor}<br/>
-          面积：${data.size}㎡<br/>
-          单价：${data.unit_price}元/㎡<br/>
-          总价：${data.total_price}万
-        `
-      }
-    },
-    legend: {
-      data: ['一房', '两房', '三房', '四房', '其他'],
-      bottom: '0%',
-    },
-    grid: {
-      left: '10%',
-      right: '10%',
-      top: '15%',
-      bottom: '20%'
-    },
-    xAxis: {
-      type: 'value',
-      name: '建筑面积(㎡)',
-      nameGap: 20,
-      min: 30,
-    },
-    yAxis: {
-      type: 'value',
-      name: '单价(元/㎡)',
-    },
-    series: processScatterData(ershoufangList.value || [])
-  }
-  
-  scatterChart.setOption(option)
-}
-
-// 初始化折线图
-const initLineChart = async (echarts) => {
-  if (!lineChartRef.value) return
-  
-  lineChart = echarts.init(lineChartRef.value)
-  const option = {
-    title: {
-      text: '成交单价走势',
-      left: 'center'
-    },
-    tooltip: {
-      trigger: 'axis',
-      formatter: (params) => {
-        return params
-          .filter(param => param.seriesType === 'line')
-          .map(param => 
-            `${param.seriesName}<br/>
-            时间：${param.data[0]}<br/>
-            均价：${Math.round(param.data[1])}元/㎡`
-          ).join('<br/><br/>')
-      }
-    },
-    legend: {
-      data: ['一房', '两房', '三房', '四房', '其他'],
-      bottom: '0%',
-      selected: {
-        '一房最高价': false,
-        '一房最低价': false,
-        '两房最高价': false,
-        '两房最低价': false,
-        '三房最高价': false,
-        '三房最低价': false,
-        '四房最高价': false,
-        '四房最低价': false,
-        '其他最高价': false,
-        '其他最低价': false
-      }
-    },
-    grid: {
-      left: '10%',
-      right: '10%',
-      top: '15%',
-      bottom: '20%'
-    },
-    xAxis: {
-      type: 'time',
-      name: '成交时间',
-      nameGap: 20,
-    },
-    yAxis: {
-      type: 'value',
-      name: '单价(元/㎡)'
-    },
-    series: processLineData(dealRecordList.value || [])
-  }
-  
-  lineChart.setOption(option)
-}
-
-// 监听数据变化，更新图表
-watch([ershoufangList, dealRecordList], async () => {
-  const echarts = await loadEcharts()
-  await initScatterChart(echarts)
-  await initLineChart(echarts)
-})
-
-// 监听窗口大小变化，调整图表大小
-onMounted(async () => {
-  const echarts = await loadEcharts()
-  await initScatterChart(echarts)
-  await initLineChart(echarts)
-  
-  window.addEventListener('resize', () => {
-    scatterChart?.resize()
-    lineChart?.resize()
-  })
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', () => {
-    scatterChart?.resize()
-    lineChart?.resize()
-  })
-  scatterChart?.dispose()
-  lineChart?.dispose()
-})
-
-defineOptions({
-  name: 'OpportunityDetail'
-})
-
-// 添加计算属性控制右侧区域样式
-const rightSectionClass = computed(() => ({
-  'right-section': true,
-  'collapsed': collapsed.value
-}))
-
-// 排序函数 - 获取户型数字
-const getLayoutNumber = (layout) => {
-  const match = layout?.match(/^(\d)/)
-  return match ? parseInt(match[1]) : 0
-}
-
-// 排序后的在售房源列表
-const sortedErshoufangList = computed(() => {
-  if (!ershoufangList.value) return []
-  
-  return [...ershoufangList.value].sort((a, b) => {
-    // 先按户型数字降序
-    const layoutDiff = getLayoutNumber(b.layout) - getLayoutNumber(a.layout)
-    if (layoutDiff !== 0) return layoutDiff
-    
-    // 户型相同时按单价升序
-    return (a.unit_price || 0) - (b.unit_price || 0)
-  })
-})
-
-// 跟进抽屉控制
-const showFollowUpDrawer = ref(false)
-
-// 处理跟进按钮点击
-const handleFollowUp = () => {
-  showFollowUpDrawer.value = true
-}
-
-// 处理跟进成功
-const handleFollowUpSuccess = () => {
-  // 重新加载商机详情
-  loadOpportunityDetail(props.id)
-}
 </script>
 
 <style scoped>
 .opportunity-detail-modal {
   :deep(.n-modal) {
-  max-width: 100vw !important;
-  max-height: 100vh !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  :deep(.n-modal-body) {
-    padding: 0 !important;
-    height: 100vh !important;
-  }
-
-  :deep(.n-card) {
-  height: 100vh;
-}
-
-  :deep(.n-card-header) {
-    padding: 16px 24px;
-  border-bottom: 1px solid #eee;
-  }
-
-  :deep(.n-card-content) {
-    padding: 0;
-    height: calc(100vh - 60px); /* 减去header高度 */
+    max-width: 1200px;
+    border-radius: 12px;
+    background-color: #f5f5f7;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   }
 }
 
 .modal-content {
-  height: calc(var(--modal-height) - 60px); /* 减去头部高度 */
-  overflow-y: auto; /* 改为 auto */
-  overflow-x: hidden;
+  padding: 0;
+  background-color: #f5f5f7;
 }
 
 .opportunity-detail {
-  padding: 16px;
-  height: calc(100vh - 80px);
-  overflow-y: auto;
-  flex: 1;
+  min-height: 600px;
 }
 
 .detail-layout {
-  display: flex;
-  gap: 24px;
-  height: 100%;
-  position: relative; /* 添加相对定位 */
-  
-  @media (max-width: 1280px) {
-    flex-direction: column;
-    gap: 16px;
-    height: auto; /* 移除固定高度限制 */
-    min-height: 0; /* 确保内容可以正常滚动 */
-  }
+  background-color: #f5f5f7;
+  border-radius: 12px;
 }
 
 .left-section {
-  flex: 0 0 25%;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-right: 16px;
-  border-right: 1px solid #eee;
-  height: 100%;
-}
-
-.right-section {
-  flex: 1; /* 让右侧区域自动填充剩余空间 */
-  /* padding: 0px; */
-  overflow-y: auto;
-  background-color: #fff;
-  min-width: 0; /* 防止内容溢出 */
-}
-
-.right-top {
-  flex: 0 0 auto;
-  padding: 0 0px;
-}
-
-.right-bottom {
-  flex: 1;
-  overflow: hidden;
-  padding: 0 24px;
-}
-
-.remarks {
   padding: 16px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  white-space: pre-wrap;
-}
-
-/* 美化滚动条 */
-.right-top::-webkit-scrollbar,
-.right-bottom::-webkit-scrollbar {
-  width: 6px;
-}
-
-.right-top::-webkit-scrollbar-thumb,
-.right-bottom::-webkit-scrollbar-thumb {
-  background-color: #ddd;
-  border-radius: 3px;
-}
-
-.right-top::-webkit-scrollbar-track,
-.right-bottom::-webkit-scrollbar-track {
-  background-color: #f5f5f5;
-}
-
-/* 覆盖 naive-ui 的默认样式 */
-:deep(.n-modal-mask) {
-  backdrop-filter: blur(2px);
+  background-color: #ffffff;
+  border-radius: 12px;
+  height: 100%;
+  width: 360px;
 }
 
 .carousel-section {
-  aspect-ratio: 4/3;
-  border-radius: 8px;
+  margin-bottom: 24px;
+  border-radius: 12px;
   overflow: hidden;
-}
-
-.carousel {
-  height: 100%;
-}
-
-.carousel-image {
-  width: 100%;
-  height: 240px;
-  object-fit: cover;
-}
-
-.image-title {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  text-align: center;
+  position: relative;
+  
+  .carousel {
+    height: 240px;
+    border-radius: 12px;
+    
+    :deep(.n-carousel-arrow) {
+      background-color: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(4px);
+      width: 32px;
+      height: 32px;
+      border-radius: 16px;
+      color: #ffffff;
+      font-size: 18px;
+      transition: all 0.3s;
+      
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.5);
+        transform: scale(1.1);
+      }
+    }
+    
+    :deep(.n-carousel-dots) {
+      padding: 8px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.3), transparent);
+      
+      .n-carousel-dot {
+        width: 24px;
+        height: 3px;
+        border-radius: 1.5px;
+        background-color: rgba(255, 255, 255, 0.4);
+        transition: all 0.3s;
+        
+        &.n-carousel-dot--active {
+          background-color: #ffffff;
+          width: 32px;
+        }
+      }
+    }
+    
+    .carousel-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 12px;
+    }
+    
+    .image-title {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 500;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(4px);
+    }
+  }
 }
 
 .info-card {
-  background: #f9f9f9;
+  margin-bottom: 24px;
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+  
+  .info-header {
+    margin-bottom: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    
+    .community-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      
+      .title-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .community-name {
+        font-size: 20px;
+        font-weight: 600;
+        color: #1d1d1f;
+        margin: 0;
+      }
+      
+      .location-icon {
+        color: #06c;
+      }
+
+      .status-tag {
+        margin-left: auto;
+      }
+    }
+  }
+  
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    padding: 0 20px 20px;
+    
+    .info-item {
+      .label {
+        font-size: 13px;
+        color: #86868b;
+        margin-bottom: 4px;
+      }
+      
+      .value {
+        font-size: 15px;
+        color: #1d1d1f;
+        font-weight: 500;
+        
+        &.price {
+          color: #06c;
+          font-weight: 600;
+        }
+      }
+    }
+  }
 }
 
-.info-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+.business-card {
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+  
+  :deep(.n-card-header) {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d1d1f;
+  }
+  
+  :deep(.n-descriptions-item-label) {
+    color: #86868b;
+    font-size: 13px;
+  }
+  
+  :deep(.n-descriptions-item-content) {
+    color: #1d1d1f;
+    font-size: 14px;
+  }
+  
+  :deep(.n-button) {
+    border-radius: 6px;
+    font-weight: 500;
+  }
 }
 
-.community-name {
-  font-size: 18px;
-  font-weight: bold;
-  color: #1f2937;
-  line-height: 1.2;
-  margin-right: 8px;
+.right-section {
+  padding: 24px;
+  background-color: #ffffff;
+  /* border-radius: 0px; */
+  margin-left: 24px;
+  flex: 1;
+  
+  .charts-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+    
+    .chart-wrapper {
+      background-color: #ffffff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      transition: box-shadow 0.3s ease;
+      
+      &:hover {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      }
+      
+      .chart {
+        height: 300px;
+      }
+      
+      .chart-desc {
+        margin: 12px 0 0;
+        font-size: 13px;
+        color: #86868b;
+        text-align: center;
+      }
+    }
+  }
 }
 
-.community-title {
-  display: flex;
-  align-items: center;
+.stats-wrapper {
+  background-color: #ffffff;
+  border-radius: 12px;
+  
+  .stats-section {
+    margin-bottom: 24px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+    
+    .stats-section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin-bottom: 16px;
+    }
+  }
+  
+  :deep(.n-data-table) {
+    .n-data-table-th {
+      background-color: #f5f5f7;
+      font-size: 13px;
+      color: #86868b;
+      padding: 12px 16px;
+    }
+    
+    .n-data-table-td {
+      font-size: 14px;
+      color: #1d1d1f;
+      padding: 12px 16px;
+    }
+    
+    .highlight-row {
+      background-color: #f5f5f7;
+      font-weight: 600;
+    }
+  }
 }
 
-.location-icon {
-  padding: 4px;
-  margin-left: 4px;
-  color: #666;
-}
-
-.location-icon:hover {
-  color: #2080f0;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.info-item .label {
+.time-range-tip {
+  margin-top: 12px;
+  text-align: right;
   font-size: 12px;
-  color: #666;
-}
-
-.info-item .value {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.info-item .value.price {
-  color: #f5222d;
-  font-size: 16px;
+  color: #86868b;
 }
 
 .tags-section {
-  padding: 8px 0;
-}
-
-.business-card {
-  background: #f9f9f9;
-}
-
-.business-card :deep(.n-descriptions-item-label) {
-  color: #666;
-  width: 80px;
-}
-
-.modal-title {
-  font-size: 3.5rem;
-  font-weight: bold;
-}
-
-.right-bottom {
-  padding: 16px;
-}
-
-/* 自定义滚动条样式 */
-.overflow-y-auto::-webkit-scrollbar {
-  width: 6px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: #ddd;
-  border-radius: 3px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-  background-color: #f5f5f5;
-}
-
-/* 主色调 */
-.text-primary {
-  color: #2080f0;
-}
-
-.text-success {
-  color: #18a058;
-}
-
-/* 添加表格样式 */
-:deep(.n-data-table) {
-  --n-merged-th-color: #f5f7fa;
-  --n-merged-td-color: transparent;
-  --n-th-color: #f5f7fa;
-  --n-td-color: transparent;
-}
-
-:deep(.n-data-table-wrapper) {
-  border-radius: 8px;
-  border: 1px solid #eee;
-}
-
-/* 添加合计行样式 */
-:deep(.n-data-table .n-data-table-tr:last-child) {
-  font-weight: bold;
-}
-
-.stats-section {
-  display: flex;
-  flex-direction: column;
-  gap: 24px; /* 添加垂直间距 */
-  min-height: 0;
-}
-
-.stats-table {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-/* 移除之前的 margin-bottom */
-.mb-6 {
-  margin-bottom: 0;
-}
-
-.stats-table :deep(.n-data-table-wrapper) {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  /* 添加表格边框和圆角 */
-  border: 1px solid #eee;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.stats-table :deep(.n-data-table) {
-  flex: 1;
-  min-height: 0;
-}
-
-/* 确保表格容器高度一致 */
-.flex.gap-8 {
-  align-items: stretch;
-}
-
-/* 添加表格头部样式 */
-.text-lg.font-bold {
-  padding: 0 4px;
-}
-
-.stats-wrapper {
-  background-color: #f9f9f9;
-  border-radius: 12px;
-  padding: 0; /* 移除内边距 */
-  overflow: visible;
-}
-
-/* 移除 n-card 的默认内边距 */
-.stats-wrapper :deep(.n-card__content) {
-  padding: 0;
-}
-
-.stats-wrapper :deep(.n-card__content-wrapper) {
-  padding: 0;
-}
-
-.stats-grid {
-  border: 1px solid #eee;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.stats-grid-item {
-  border-right: 1px solid #eee;
-  border-bottom: 1px solid #eee;
-  padding: 0; /* 移除内边距 */
-}
-
-/* 移除最右边的边框 */
-.stats-grid-item:nth-child(2n) {
-  border-right: none;
-}
-
-/* 移除最底部的边框 */
-.stats-grid-item:nth-child(3),
-.stats-grid-item:nth-child(4) {
-  border-bottom: none;
-}
-
-.stats-table {
-  background-color: #fff;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-}
-
-.stats-table .text-lg.font-bold {
-  margin: 0 0 12px 0; /* 只保留底部间距 */
-}
-
-.stats-table :deep(.n-data-table-wrapper) {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  border: none; /* 移除表格边框 */
-  border-radius: 0; /* 移除圆角 */
-}
-
-.time-range-tip {
-  padding: 12px 16px; /* 保持提示文本的内边距 */
-}
-
-/* 移除所有之前定义的间距相关样式 */
-.mb-6,
-.mt-6,
-.gap-8,
-.gap-24 {
-  margin: 0;
-  padding: 0;
-  gap: 0;
-}
-
-/* 确保表格内容对齐 */
-.stats-table :deep(.n-data-table) {
-  flex: 1;
-  min-height: 0;
-}
-
-/* 移除表格单元格的内边距 */
-.stats-table :deep(.n-data-table-td),
-.stats-table :deep(.n-data-table-th) {
-  padding: 8px; /* 保持最小的内边距以确保可读性 */
-}
-
-/* 高亮行样式 */
-.stats-table :deep(.highlight-row) {
-  background-color: rgba(32, 128, 240, 0.1); /* 使用主题色，添加透明度 */
-}
-
-/* 确保最后一行（合计行）的样式优先级更高 */
-.stats-table :deep(.n-data-table-tr:last-child) {
-  background-color: var(--n-merged-th-color) !important;
-}
-
-/* 响应式布局样式 */
-.opportunity-detail-modal {
-  /* 默认宽度 */
-  --modal-width: 90vw;
-  --modal-height: 90vh;
-  width: var(--modal-width) !important;
-  max-width: 1600px;
-}
-
-/* 调整模态框内容区域 */
-.modal-content {
-  height: calc(var(--modal-height) - 60px); /* 减去头部高度 */
-  overflow: hidden;
-}
-
-/* 调整主布局 */
-.detail-layout {
-  display: flex;
-  gap: 24px;
-  height: 100%;
+  margin: 24px 0;
+  padding: 0 20px;
   
-  @media (max-width: 1280px) {
-    flex-direction: column;
-    gap: 16px;
+  :deep(.n-tag) {
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+    margin-right: 8px;
+    margin-bottom: 8px;
   }
 }
 
-/* 左侧区域响应式 */
-.left-section {
-  flex: 0 0 25%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  
-  @media (max-width: 1280px) {
-    flex: none;
-    flex-direction: row;
-    gap: 16px;
-  }
-  
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
-}
-
-/* 右侧区域响应式 */
-.right-section {
-  flex: 1; /* 让右侧区域自动填充剩余空间 */
-  padding: 0px;
-  overflow-y: auto;
-  background-color: #fff;
-  min-width: 0; /* 防止内容溢出 */
-}
-
-/* 统计表格响应式 */
-.stats-grid {
-  @media (max-width: 1024px) {
-    display: flex;
-    flex-direction: column;
-  }
-}
-
-.stats-grid-item {
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid #eee;
-  }
-  
-  &:last-child {
-    @media (max-width: 1024px) {
-      border-bottom: none;
+/* 响应式布局优化 */
+@media (max-width: 1200px) {
+  .right-section {
+    .charts-container {
+      grid-template-columns: 1fr;
     }
   }
 }
 
-/* 房源列表响应式 */
-.flex.gap-4 {
-  @media (max-width: 1024px) {
-    flex-direction: column;
-  }
-  
-  > div {
-    @media (max-width: 1024px) {
-      width: 100% !important;
-    }
-  }
-}
-
-/* 表格内容响应式 */
-.stats-table {
-  @media (max-width: 768px) {
-    padding: 12px;
-    
-    .text-lg.font-bold {
-      font-size: 14px;
-      margin-bottom: 8px;
-    }
-  }
-}
-
-/* 调整表格滚动 */
-.stats-table :deep(.n-data-table-wrapper) {
-  @media (max-width: 768px) {
-    overflow-x: auto;
-  }
-}
-
-/* 调整房源列表高度 */
-.h-\[calc\(100vh-500px\)\] {
-  @media (max-width: 1280px) {
-    height: 400px;
-    overflow-y: auto;
-  }
-  
-  @media (max-width: 768px) {
-    height: 300px;
-    overflow-y: auto;
-  }
-}
-
-/* 优化小屏幕下的内边距 */
-.right-top,
-.right-bottom {
-  @media (max-width: 768px) {
-    padding: 0 16px;
-  }
-}
-
-/* 优化轮播图响应式 */
-.carousel-section {
-  @media (max-width: 1280px) {
-    width: 50%;
-  }
-  
-  @media (max-width: 768px) {
-    width: 100%;
-  }
-}
-
-/* 优化业务信息卡片响应式 */
-.business-card {
-  @media (max-width: 1280px) {
-    width: 50%;
-  }
-  
-  @media (max-width: 768px) {
-    width: 100%;
-  }
-}
-
-/* 确保表格在小屏幕上可以横向滚动 */
-.stats-table :deep(.n-data-table) {
-  @media (max-width: 768px) {
-    width: max-content;
-    min-width: 100%;
-  }
-}
-
-/* 优化时间范围提示的响应式显示 */
-.time-range-tip {
-  @media (max-width: 768px) {
-    padding: 8px 12px;
-    font-size: 12px;
-  }
-}
-
-/* 优化小屏幕下的内容布局 */
-.right-bottom {
-  @media (max-width: 768px) {
-    padding: 0 16px;
-    /* 确保内容可以正常滚动 */
-    overflow: visible;
-  }
-}
-
-/* 调整布局相关样式 */
-.detail-layout {
-  height: 100%;
-  display: flex !important; /* 强制使用 flex 布局 */
-  position: relative;
-  overflow: hidden; /* 防止滚动条出现在外层 */
-}
-
-/* 左侧区域固定 */
-:deep(.n-layout-sider) {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  background-color: #fff;
-  z-index: 1;
-  height: 100%;
-  overflow: hidden; /* 防止左侧出现滚动条 */
-}
-
-/* 右侧区域可滚动 */
-.right-section {
-  flex: 1;
-  margin-left: 360px; /* 展开时的左边距 */
-  height: 100%;
-  overflow-y: auto;
-  background-color: #fff;
-  transition: margin-left 0.3s;
-
-  /* 折叠时的左边距 */
-  &.collapsed {
-    margin-left: 80px;
-  }
-}
-
-/* 响应式调整 */
-@media (max-width: 1280px) {
+@media (max-width: 768px) {
   .detail-layout {
-    :deep(.n-layout-sider) {
-      display: none;
-    }
+    flex-direction: column;
+  }
+  
+  .left-section {
+    width: 100%;
   }
   
   .right-section {
-    margin-left: 0 !important;
-  }
-}
-
-/* 优化表格布局 */
-.stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  width: 100%;
-  min-width: 1200px; /* 确保表格有足够的最小宽度 */
-  margin: 0 auto; /* 居中显示 */
-}
-
-/* 调整表格容器样式 */
-.stats-wrapper {
-  overflow-x: auto; /* 允许在必要时横向滚动 */
-  margin: 0 -24px; /* 抵消父容器的内边距 */
-  padding: 0 24px; /* 添加内边距保持视觉一致性 */
-}
-
-/* 优化表格单元格宽度 */
-.stats-table :deep(.n-data-table) {
-  width: 100%;
-  
-  /* 调整列宽 */
-  .n-data-table-td,
-  .n-data-table-th {
-    &:first-child {
-      width: 100px; /* 户型/楼层列 */
-    }
-    &:nth-child(2) {
-      width: 80px; /* 套数列 */
-    }
-    &:nth-child(3) {
-      width: 100px; /* 平均面积列 */
-    }
-    &:nth-child(4) {
-      width: 120px; /* 平均单价列 */
-    }
-    &:nth-child(5),
-    &:nth-child(6),
-    &:nth-child(7) {
-      width: 100px; /* 总价相关列 */
-    }
-    &:last-child {
-      width: 100px; /* 平均挂牌列 */
-    }
-  }
-}
-
-/* 移除 n-card 的默认内边距 */
-:deep(.n-card) {
-  padding: 0 !important;
-}
-
-:deep(.n-card-content) {
-  padding: 0 !important;
-}
-
-/* 右侧顶部区域 */
-.right-top {
-  flex: 0 0 auto;
-  padding: 0 !important; /* 确保没有内边距 */
-}
-
-/* 图表容器 */
-.charts-container {
-  display: flex;
-  gap: 24px;
-  margin: 0; /* 移除所有外边距 */
-  padding: 0 24px; /* 仅保留水平内边距 */
-}
-
-.chart-wrapper {
-  flex: 1;
-  min-width: 0;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  padding: 16px;
-}
-
-.chart {
-  width: 100%;
-  height: 320px;
-}
-
-/* 确保内容区域没有多余的间距 */
-.opportunity-detail {
-  height: 100%;
-  padding: 0 !important;
-}
-
-.detail-layout {
-  height: 100%;
-  padding: 0 !important;
-}
-
-/* 优化右下区域的间距 */
-.right-bottom {
-  margin-top: 12px; /* 减少与上方图表的间距 */
-  padding: 0 24px;
-}
-
-/* 优化统计区域的间距 */
-.stats-section {
-  padding: 8px 12px; /* 进一步减小内边距 */
-  background-color: #fff;
-  border-radius: 8px;
-  
-  & + .stats-section {
-    margin-top: 8px; /* 进一步减小区域间距 */
-    padding-top: 8px;
-    border-top: 1px solid #eee;
-  }
-}
-
-/* 优化统计区域标题 */
-.stats-section-title {
-  font-size: 14px;
-  font-weight: bold;
-  margin-bottom: 4px; /* 进一步减小标题下方间距 */
-  color: #666;
-  line-height: 1.2;
-}
-
-/* 优化表格容器的间距 */
-.stats-tables {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px; /* 减小表格间距 */
-  width: 100%;
-  
-  @media (max-width: 1400px) {
-    gap: 12px;
-  }
-}
-
-/* 优化表格样式 */
-.stats-table {
-  flex: 1 1 auto;
-  min-width: min(800px, 100%);
-  max-width: 100%;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  margin-bottom: 0; /* 确保没有底部边距 */
-  
-  /* 优化表格内部间距 */
-  :deep(.n-data-table) {
-    .n-data-table-td,
-    .n-data-table-th {
-      padding: 4px 8px; /* 减小单元格内边距 */
-    }
+    margin-left: 0;
+    margin-top: 24px;
+    padding: 16px;
   }
   
-  @media (max-width: 1700px) {
-    flex-basis: 100%;
+  .info-grid {
+    grid-template-columns: 1fr;
   }
 }
-
-/* 优化时间范围提示 */
-.time-range-tip {
-  margin-top: 6px;
-  padding-top: 6px;
-  font-size: 12px;
-  color: #999;
-  line-height: 1.2;
-}
-
-/* 优化分割线样式 */
-:deep(.n-divider) {
-  margin: 8px 0 !important; /* 覆盖默认的 margin */
-}
-
-/* 确保所有父级容器的padding都被清除 */
-.right-bottom {
-  margin-top: 12px;
-  padding: 0;
-}
-
-/* 移除 n-card 的所有默认内边距 */
-:deep(.n-card) {
-  padding: 0 !important;
-}
-
-:deep(.n-card-content) {
-  padding: 0 !important;
-}
-
-/* 统计区域容器 */
-.stats-wrapper {
-  padding: 0 !important;
-}
-
-/* 统计区域样式 */
-.stats-section {
-  padding: 8px 12px;
-  background-color: #fff;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
-  
-  & + .stats-section {
-    margin-top: 0;
-    padding-top: 8px;
-    border-top: 1px solid #eee;
-  }
-}
-
-/* 确保表格容器没有额外的内边距 */
-.stats-tables {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  width: 100%;
-  padding: 0 !important;
-  
-  @media (max-width: 1400px) {
-    gap: 12px;
-  }
-}
-
-/* 移除表格容器的所有可能的内边距 */
-:deep(.n-data-table-wrapper) {
-  padding: 0 !important;
-}
-
-:deep(.n-data-table) {
-  padding: 0 !important;
-}
-
-/* 确保所有父级容器只保留水平内边距 */
-.right-bottom {
-  margin-top: 12px;
-  padding: 0 24px;
-}
-
-/* 移除 n-card 的垂直内边距 */
-:deep(.n-card) {
-  padding: 0 24px !important;
-}
-
-:deep(.n-card-content) {
-  padding: 0 !important;
-}
-
-/* 统计区域容器 */
-.stats-wrapper {
-  padding: 0 !important;
-}
-
-/* 统计区域样式 */
-.stats-section {
-  padding: 8px 0; /* 只保留垂直内边距 */
-  background-color: #fff;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
-  
-  & + .stats-section {
-    margin-top: 0;
-    padding-top: 8px;
-    border-top: 1px solid #eee;
-  }
-}
-
-/* 确保表格容器没有额外的内边距 */
-.stats-tables {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  width: 100%;
-  padding: 0 24px !important;
-  
-  @media (max-width: 1400px) {
-    gap: 12px;
-  }
-}
-
-/* 移除表格容器的所有可能的内边距 */
-:deep(.n-data-table-wrapper) {
-  padding: 0 !important;
-}
-
-:deep(.n-data-table) {
-  padding: 0 !important;
-}
-
-/* 布局容器 */
-.detail-layout {
-  height: 100%;
-  display: flex !important;
-  position: relative;
-  overflow: hidden;
-}
-
-/* 左侧区域固定 */
-:deep(.n-layout-sider) {
-  position: fixed; /* 改为固定定位 */
-  left: 0;
-  top: 0;
-  bottom: 0;
-  background-color: #fff;
-  z-index: 1;
-  height: 100%;
-  overflow: hidden; /* 禁止滚动 */
-}
-
-/* 左侧内容区域 */
-.left-section {
-  height: 100%;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow: hidden; /* 禁止滚动 */
-}
-
-/* 右侧区域可滚动 */
-.right-section {
-  flex: 1;
-  margin-left: 360px; /* 展开时的左边距 */
-  height: 100%;
-  overflow-y: auto; /* 允许垂直滚动 */
-  background-color: #fff;
-  transition: margin-left 0.3s;
-  padding-bottom: 24px; /* 底部留出一些空间 */
-
-  /* 折叠时的左边距 */
-  &.collapsed {
-    margin-left: 80px;
-  }
-}
-
-/* 美化右侧滚动条 */
-.right-section {
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 3px;
-    
-    &:hover {
-      background: #999;
-    }
-  }
-}
-
-/* 响应式调整 */
-@media (max-width: 1280px) {
-  .detail-layout {
-    :deep(.n-layout-sider) {
-      display: none;
-    }
-  }
-  
-  .right-section {
-    margin-left: 0 !important;
-  }
-}
-</style> 
+</style>
