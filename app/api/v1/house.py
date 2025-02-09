@@ -380,28 +380,14 @@ async def create_project(data: ProjectCreate):
 
 @router.get(
     "/projects",
+    response_model=Dict,
     dependencies=[DependPermisson],
     summary="获取项目列表"
 )
-async def get_projects(
-    page: int = 1,
-    page_size: int = 20,
-    opportunity_id: Optional[int] = None,
-    current_phase: Optional[str] = None,
-    signer: Optional[str] = None,
-    delivery_date_start: Optional[str] = None,
-    delivery_date_end: Optional[str] = None
-):
-    """获取项目列表，支持分页和筛选"""
-    params = ProjectQueryParams(
-        page=page,
-        page_size=page_size,
-        opportunity_id=opportunity_id,
-        current_phase=current_phase,
-        signer=signer,
-        delivery_date_start=datetime.strptime(delivery_date_start, '%Y-%m-%d').date() if delivery_date_start else None,
-        delivery_date_end=datetime.strptime(delivery_date_end, '%Y-%m-%d').date() if delivery_date_end else None
-    )
+async def get_projects(params: ProjectQueryParams = Depends()):
+    """
+    获取项目列表，支持分页和筛选
+    """
     return await project_controller.get_projects(params)
 
 @router.get(

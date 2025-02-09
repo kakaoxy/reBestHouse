@@ -188,7 +188,7 @@ class CommunityController(CRUDBase[Community, CommunityCreate, CommunityUpdate])
                             # 移除非数字字符
                             cleaned = str(value).strip().split()[0]
                             return int(cleaned)
-                        except (ValueError, TypeError, IndexError):
+                        except (TypeError, ValueError, IndexError):
                             return None
                     
                     # 准备数据
@@ -370,7 +370,6 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                 
                 result_items.append(item_dict)
             except Exception as e:
-                print(f"Error processing item {item.id}: {str(e)}")
                 continue
         
         return {
@@ -462,8 +461,6 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
         if not update_data.get('city'):
             update_data['city'] = 'shanghai'  # 默认设置为上海
         
-        print(f"Debug - Update data received: {update_data}")  # 调试信息
-        
         # 处理楼层信息
         floor_number = update_data.get('floor_number')
         total_floors = update_data.get('total_floors')
@@ -473,8 +470,6 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
             # 获取当前值或使用更新值
             current_floor_number = floor_number if floor_number is not None else ershoufang.floor_number
             current_total_floors = total_floors if total_floors is not None else ershoufang.total_floors
-            
-            print(f"Debug - Current floor numbers: {current_floor_number}, {current_total_floors}")  # 调试信息
             
             # 确保两个值都存在且为有效数字
             if current_floor_number is not None and current_total_floors is not None:
@@ -491,13 +486,10 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                         current_floor_number,
                         current_total_floors
                     )
-                    print(f"Debug - Calculated floor info: {floor_info}")  # 调试信息
                     
                     if floor_info:
                         update_data['floor'] = floor_info
-                        print(f"Debug - Updated floor info: {update_data['floor']}")  # 调试信息
                 except (TypeError, ValueError) as e:
-                    print(f"Debug - Error converting floor numbers: {e}")  # 调试信息
                     pass
         
         # 计算单价
@@ -511,16 +503,12 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
         if 'listing_date' in update_data:
             del update_data['listing_date']
         
-        # 更新数据前打印
-        print(f"Debug - Final update data: {update_data}")  # 调试信息
-        
         # 更新数据
         await ershoufang.update_from_dict(update_data)
         await ershoufang.save()
         
         # 更新后重新获取数据
         ershoufang = await Ershoufang.get(id=id)
-        print(f"Debug - Updated ershoufang: {ershoufang}")  # 调试信息
         
         # 格式化返回数据
         response_data = await ErshoufangResponse.from_tortoise_orm(ershoufang)
@@ -553,12 +541,6 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
             # 不使用 parse_dates，先读取原始数据
             df = pd.read_excel(BytesIO(contents))
             df.columns = df.columns.str.replace('*', '').str.strip()
-            
-            # 打印 DataFrame 的日期列信息
-            print("DataFrame info:")
-            print(df[['挂牌时间', '上次交易时间']].info())
-            print("\nSample dates:")
-            print(df[['挂牌时间', '上次交易时间']].head())
             
             # 验证必要的列
             required_columns = ['小区名称', '户型', '建筑面积', '总价(万)']
@@ -650,45 +632,33 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                             value = row[excel_col]
                             # 特殊字段处理
                             if db_col in ['listing_date', 'last_transaction_date']:
-                                print(f"\nProcessing date: {value}")
-                                print(f"Type: {type(value)}")
-                                
                                 try:
                                     if isinstance(value, str):
                                         if value.isdigit():
                                             # 处理 Excel 日期序列号（字符串形式）
                                             value = pd.Timestamp('1899-12-30') + pd.Timedelta(days=int(value))
                                             value = value.date()
-                                            print(f"Converted Excel serial number: {value}")
                                         else:
                                             try:
                                                 # 尝试解析 YYYY年MM月DD日 格式
                                                 value = datetime.strptime(value, '%Y年%m月%d日').date()
-                                                print(f"Parsed with strptime: {value}")
                                             except ValueError:
                                                 # 尝试其他格式
                                                 value = pd.to_datetime(value).date()
-                                                print(f"Parsed with pd.to_datetime: {value}")
                                     elif isinstance(value, (int, float)):
                                         # 处理 Excel 日期序列号（数值形式）
                                         value = pd.Timestamp('1899-12-30') + pd.Timedelta(days=int(value))
                                         value = value.date()
-                                        print(f"Converted numeric Excel date: {value}")
                                     elif isinstance(value, pd.Timestamp):
                                         value = value.date()
-                                        print(f"Converted Timestamp to date: {value}")
                                     elif isinstance(value, datetime):
                                         value = value.date()
-                                        print(f"Converted datetime to date: {value}")
                                     else:
-                                        print(f"Unhandled date type: {type(value)}")
                                         continue
                                     
-                                    print(f"Final date value: {value}")
                                     ershoufang_data[db_col] = value
                                     
                                 except Exception as e:
-                                    print(f"Date conversion error: {str(e)}")
                                     continue
                                 
                             elif db_col in ['size', 'total_price', 'unit_price']:
@@ -708,22 +678,15 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                         ershoufang_data['unit_price'] = \
                             ershoufang_data['total_price'] * 10000 / ershoufang_data['size']
                     
-                    # 打印最终的日期数据
-                    print("\nFinal data:")
-                    print(f"listing_date: {ershoufang_data.get('listing_date')}")
-                    print(f"last_transaction_date: {ershoufang_data.get('last_transaction_date')}")
-                    
                     # 创建记录
                     await self.model.create(**ershoufang_data)
                     success_count += 1
                     
                 except Exception as e:
-                    print(f"Error processing row: {str(e)}")
                     error_list.append({
                         "name": row.get('小区名称', '未知'),
                         "error": str(e)
                     })
-                    continue
             
             return {
                 "code": 200,
@@ -736,7 +699,6 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
             }
             
         except Exception as e:
-            print(f"Import error: {str(e)}")
             return {
                 "code": 500,
                 "msg": f"导入失败：{str(e)}"
@@ -1151,7 +1113,6 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
             }
             
         except Exception as e:
-            print(f"Import error: {str(e)}")
             return {
                 "code": 500,
                 "msg": f"导入失败：{str(e)}"
@@ -1203,33 +1164,27 @@ class OpportunityController(CRUDBase[Opportunity, OpportunityCreate, Opportunity
         }
 
     async def create_opportunity(self, data: OpportunityCreate) -> Dict:
-        print(f"控制器创建商机: {data.dict()}")
         try:
             opportunity = await Opportunity.create(**data.dict())
-            print(f"创建的商机数据: {await opportunity.to_dict()}")
             return {
                 "code": 200,
                 "msg": "创建成功",
                 "data": await opportunity.to_dict()
             }
         except Exception as e:
-            print(f"创建商机失败: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))
 
     async def update_opportunity(self, id: int, data: OpportunityUpdate) -> Dict:
-        print(f"控制器更新商机: id={id}, data={data.dict()}")
         try:
             opportunity = await Opportunity.get(id=id)
             await opportunity.update_from_dict(data.dict(exclude_unset=True))
             await opportunity.save()
-            print(f"更新后的商机数据: {await opportunity.to_dict()}")
             return {
                 "code": 200,
                 "msg": "更新商机成功",
                 "data": await opportunity.to_dict()
             }
         except Exception as e:
-            print(f"更新商机失败: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))
 
     async def delete_opportunity(self, id: int) -> Dict:
@@ -1327,12 +1282,10 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
     
     async def create_project(self, data: dict):
         """创建项目"""
-        print("Controller - 创建项目的输入数据:", data)
         try:
             # 确保有商机信息
             opportunity = await Opportunity.get_or_none(id=data.get('opportunity_id'))
             if not opportunity:
-                print(f"Controller - 未找到ID为 {data.get('opportunity_id')} 的商机")
                 raise ValueError("商机不存在")
             
             # 创建项目
@@ -1349,22 +1302,15 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
                     current_phase=data['current_phase'],
                     decoration_company=data.get('decoration_company')  # 传递装修公司字段
                 )
-                print("Controller - 项目创建成功:", await project.to_dict())
                 return {
                     "code": 200,
                     "message": "创建成功",
                     "data": await project.to_dict()
                 }
             except Exception as create_error:
-                print("Controller - 创建项目时的具体错误:", str(create_error))
-                print("Controller - 尝试创建的数据:", data)
-                # 打印更多调试信息
-                print("Controller - community_name 值:", data.get('community_name'))
-                print("Controller - community_name 类型:", type(data.get('community_name')))
                 raise create_error
                 
         except Exception as e:
-            print("Controller - 创建项目时发生错误:", str(e))
             raise HTTPException(status_code=400, detail=str(e))
 
     async def get_project_details(self, project_id: int):
@@ -1388,6 +1334,10 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
             query = Q()
             
             # 添加筛选条件
+            if params.city:
+                # 通过商机关联的小区筛选城市
+                query &= Q(opportunity__community__city=params.city.lower())
+
             if params.opportunity_id:
                 query &= Q(opportunity_id=params.opportunity_id)
             if params.current_phase:
@@ -1398,14 +1348,11 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
                 query &= Q(delivery_date__gte=params.delivery_date_start)
             if params.delivery_date_end:
                 query &= Q(delivery_date__lte=params.delivery_date_end)
-            if params.city:
-                # 通过商机关联的小区筛选城市
-                query &= Q(opportunity__community__city=params.city.lower())
 
             # 构建查询，预加载关联数据
             base_query = self.model.filter(query)\
                 .prefetch_related('phases', 'opportunity', 'opportunity__community')
-
+            
             # 计算总数
             total = await base_query.count()
 
@@ -1439,7 +1386,6 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
                 }
             }
         except Exception as e:
-            print(f"获取项目列表失败: {str(e)}")
             return {
                 "code": 500,
                 "msg": f"获取项目列表失败: {str(e)}",
@@ -1466,7 +1412,6 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
                 "data": await project.to_dict()
             }
         except Exception as e:
-            print("更新项目失败:", str(e))
             raise HTTPException(status_code=400, detail=str(e))
 
 class ConstructionPhaseController(CRUDBase[ConstructionPhase, ConstructionPhaseCreate, ConstructionPhaseUpdate]):

@@ -157,7 +157,7 @@ const phaseRows = computed(() => {
 // 搜索参数
 const searchParams = ref({
   community_name: '',
-  city: ''
+  city: departmentStore.currentDepartment || 'shanghai'
 })
 
 // 渲染城市选择器的标签
@@ -170,7 +170,7 @@ const handleCityChange = (value) => {
   selectedCity.value = value
   searchParams.value.city = value
   departmentStore.setDepartment(value)
-  loadProjects()
+  loadProjects() // 刷新项目列表
 }
 
 // 项目列表数据
@@ -202,10 +202,11 @@ const buttonThemeOverrides = {
 const loadProjects = async () => {
   loading.value = true
   try {
-    const res = await projectApi.list({
+    const params = {
       ...searchParams.value,
-      city: selectedCity.value // 确保使用当前选中的城市
-    })
+      city: selectedCity.value
+    }
+    const res = await projectApi.list(params)
     if (res.code === 200) {
       projectList.value = res.data.items
     }
@@ -284,7 +285,7 @@ const handleSearch = () => {
 const handleReset = () => {
   searchParams.value = {
     community_name: '',
-    city: selectedCity.value // 保持当前选中的城市
+    city: selectedCity.value
   }
   loadProjects()
 }
@@ -343,6 +344,19 @@ const handleProjectUpdated = (updatedProject) => {
   }
 }
 
+// 监听城市变化
+watch(
+  () => departmentStore.currentDepartment,
+  (newValue, oldValue) => {
+    if (newValue) {
+      selectedCity.value = newValue
+      searchParams.value.city = newValue
+      loadProjects() // 刷新项目列表
+    }
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
   await departmentStore.getDepartmentOptions()
   await departmentStore.initCurrentDepartment()
@@ -350,17 +364,6 @@ onMounted(async () => {
   searchParams.value.city = selectedCity.value
   loadProjects()
 })
-
-watch(
-  () => departmentStore.currentDepartment,
-  (newValue) => {
-    if (newValue && newValue !== selectedCity.value) {
-      selectedCity.value = newValue
-      searchParams.value.city = newValue
-      loadProjects() // 刷新项目列表
-    }
-  }
-)
 </script>
 
 <style lang="scss" scoped>
