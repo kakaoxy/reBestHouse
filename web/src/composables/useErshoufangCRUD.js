@@ -181,7 +181,7 @@ export function useErshoufangCRUD(api) {
         sort_by: queryParams.sort_by || 'listing_date',
         sort_direction: queryParams.sort_direction || 'desc'
       }
-      console.log('Loading data with params:', params)
+      // console.log('Loading data with params:', params)
       
       // 移除空值参数，但保留分页参数
       const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
@@ -215,10 +215,10 @@ export function useErshoufangCRUD(api) {
           itemCount: parseInt(res.data.total) || 0,
           pageCount: Math.ceil((parseInt(res.data.total) || 0) / (parseInt(res.data.page_size) || 10))
         }
-        console.log('Response data:', res.data)
+        // console.log('Response data:', res.data)
       }
     } catch (error) {
-      console.error('Load data error:', error)
+      // console.error('Load data error:', error)
       message.error(error.message || '获取数据失败')
     } finally {
       loading.value = false
@@ -326,7 +326,7 @@ export function useErshoufangCRUD(api) {
         message.error(res.msg || '操作失败')
       }
     } catch (error) {
-      console.error('Submit error:', error)
+      // console.error('Submit error:', error)
       message.error(error.message || '操作失败')
     } finally {
       loading.value = false
@@ -340,13 +340,13 @@ export function useErshoufangCRUD(api) {
 
   // 分页处理
   const handlePageChange = (page) => {
-    console.log('Page changed to:', page)
+    // console.log('Page changed to:', page)
     pagination.value.page = page
     loadData()
   }
 
   const handlePageSizeChange = (pageSize) => {
-    console.log('Page size changed to:', pageSize)
+    // console.log('Page size changed to:', pageSize)
     pagination.value.page = 1
     pagination.value.pageSize = pageSize
     loadData()

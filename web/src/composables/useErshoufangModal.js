@@ -11,13 +11,13 @@ export function useErshoufangModal() {
   const loadCommunityOptions = async (params = {}) => {
     try {
       loading.value = true
-      console.log('Loading communities with params:', params)
+      // console.log('Loading communities with params:', params)
       const res = await communityApi.list({
         ...params,
         city: departmentStore.currentDepartment,
         page_size: 1000
       })
-      console.log('API response:', res)
+      // console.log('API response:', res)
       if (res.code === 200) {
         communityOptions.value = res.data.items.map(item => ({
           value: item.id,

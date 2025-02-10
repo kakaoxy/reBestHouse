@@ -57,7 +57,7 @@ export function useErshoufang(api) {
         pagination.itemCount = res.data.total
       }
     } catch (error) {
-      console.error('Failed to get list:', error)
+      // console.error('Failed to get list:', error)
       message.error(error.message || '获取数据失败')
     } finally {
       loading.value = false

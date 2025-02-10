@@ -238,7 +238,7 @@ onMounted(async () => {
     queryParams.city = selectedCity.value
     await loadData()
   } catch (error) {
-    console.error('初始化失败:', error)
+    // console.error('初始化失败:', error)
     // 如果初始化失败，使用上海作为默认值
     selectedCity.value = 'shanghai'
     queryParams.city = 'shanghai'
@@ -279,13 +279,13 @@ const handleImport = () => {
     const file = e.target.files[0]
     if (!file) return
     
-    console.log('开始上传文件:', file.name)
+    // console.log('开始上传文件:', file.name)
     
     // 读取并输出文件内容
     if (file.name.endsWith('.csv')) {
       const reader = new FileReader()
       reader.onload = (e) => {
-        console.log('CSV文件内容:', e.target.result)
+        // console.log('CSV文件内容:', e.target.result)
       }
       reader.readAsText(file)
     }
@@ -295,25 +295,25 @@ const handleImport = () => {
     formData.append('city', selectedCity.value)
     
     try {
-      console.log('发送请求参数:', {
-        fileName: file.name,
-        fileSize: file.size,
-        city: selectedCity.value
-      })
+      // console.log('发送请求参数:', {
+      //   fileName: file.name,
+      //   fileSize: file.size,
+      //   city: selectedCity.value
+      // })
       
       const res = await request.post('/house/ershoufangs/import', formData)
-      console.log('导入响应:', res)
+      // console.log('导入响应:', res)
       
       if (res.code === 200) {
         message.success('导入成功')
         loadData()
       } else {
         message.error(res.msg || '导入失败')
-        console.error('导入失败:', res)
+        // console.error('导入失败:', res)
       }
     } catch (error) {
       message.error('导入失败')
-      console.error('导入异常:', error)
+      // console.error('导入异常:', error)
     }
   }
   
