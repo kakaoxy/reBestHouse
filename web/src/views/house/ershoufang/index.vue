@@ -150,7 +150,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, watch } from 'vue'
+import { ref, onMounted, reactive, watch, h } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import { request } from '@/utils'
 import CommonPage from '@/components/page/CommonPage.vue'
@@ -278,43 +278,73 @@ const handleImport = () => {
   input.onchange = async (e) => {
     const file = e.target.files[0]
     if (!file) return
-    
-    // console.log('开始上传文件:', file.name)
-    
-    // 读取并输出文件内容
-    if (file.name.endsWith('.csv')) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        // console.log('CSV文件内容:', e.target.result)
+
+    // 显示文件确认对话框
+    dialog.warning({
+      title: '导入确认',
+      content: `确认导入以下文件？\n文件名：${file.name}\n文件大小：${(file.size / 1024).toFixed(2)}KB\n导入城市：${selectedCity.value}`,
+      positiveText: '确认导入',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        const loadingMessage = message.loading('正在导入...', {
+          duration: 0
+        })
+        
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('city', selectedCity.value)
+        
+        try {
+          const res = await request.post('/house/ershoufangs/import', formData)
+          
+          loadingMessage.destroy()
+          
+          if (res.code === 200) {
+            const { success_count, updated_count, error_count, error_details } = res.data || {}
+            const total = (success_count || 0) + (updated_count || 0) + (error_count || 0)
+            
+            dialog.success({
+              title: '导入完成',
+              content: () => h('div', {
+                innerHTML: `
+                  <div style="margin-bottom: 16px;">
+                    <div>总计：${total} 条</div>
+                    <div style="color: #18a058;">新增：${success_count || 0} 条</div>
+                    <div style="color: #2080f0;">更新：${updated_count || 0} 条</div>
+                    ${error_count > 0 ? `<div style="color: #d03050;">失败：${error_count} 条</div>` : ''}
+                  </div>
+                  ${error_details?.length ? `
+                    <div style="margin-bottom: 8px;">失败详情：</div>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                      ${error_details.map(item => `
+                        <div style="margin-bottom: 8px; color: #d03050;">
+                          ${item}
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+                `
+              }),
+              positiveText: '确定'
+            })
+            loadData()
+          } else {
+            dialog.error({
+              title: '导入失败',
+              content: res.msg || '未知错误',
+              positiveText: '确定'
+            })
+          }
+        } catch (error) {
+          loadingMessage.destroy()
+          dialog.error({
+            title: '导入失败',
+            content: error.message || '未知错误',
+            positiveText: '确定'
+          })
+        }
       }
-      reader.readAsText(file)
-    }
-    
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('city', selectedCity.value)
-    
-    try {
-      // console.log('发送请求参数:', {
-      //   fileName: file.name,
-      //   fileSize: file.size,
-      //   city: selectedCity.value
-      // })
-      
-      const res = await request.post('/house/ershoufangs/import', formData)
-      // console.log('导入响应:', res)
-      
-      if (res.code === 200) {
-        message.success('导入成功')
-        loadData()
-      } else {
-        message.error(res.msg || '导入失败')
-        // console.error('导入失败:', res)
-      }
-    } catch (error) {
-      message.error('导入失败')
-      // console.error('导入异常:', error)
-    }
+    })
   }
   
   input.click()

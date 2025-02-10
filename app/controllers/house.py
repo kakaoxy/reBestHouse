@@ -525,13 +525,13 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
         }
 
     async def import_ershoufangs(self, file: UploadFile, city: str) -> Dict:
-        print(f"[Controller] 开始处理导入: filename={file.filename}, city={city}")
+        # print(f"[Controller] 开始处理导入: filename={file.filename}, city={city}")
         
         try:
             # 读取Excel文件
             df = pd.read_excel(file.file) if file.filename.endswith(('.xlsx', '.xls')) else pd.read_csv(file.file)
-            print(f"[Controller] 成功读取文件, 数据行数: {len(df)}")
-            print(f"[Controller] 列名: {df.columns.tolist()}")
+            # print(f"[Controller] 成功读取文件, 数据行数: {len(df)}")
+            # print(f"[Controller] 列名: {df.columns.tolist()}")
             
             success_count = 0
             updated_count = 0
@@ -549,12 +549,12 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                         return datetime.strptime(date_str, '%Y-%m-%d').date()
                     return pd.to_datetime(date_str).date()
                 except Exception as e:
-                    print(f"日期解析失败: {date_str}, 错误: {str(e)}")
+                    # print(f"日期解析失败: {date_str}, 错误: {str(e)}")
                     return None
             
             for index, row in df.iterrows():
                 try:
-                    print(f"\n[Controller] 处理第{index+1}行数据:")
+                    # print(f"\n[Controller] 处理第{index+1}行数据:")
                     
                     # 转换Excel数据到数据库字段
                     house_data = {
@@ -612,7 +612,7 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                             if key in ['community_name', 'layout', 'size', 'total_price']:
                                 raise ValueError(f"必填字段 {key} 不能为空")
                     
-                    print(f"处理后的数据: {house_data}")
+                    # print(f"处理后的数据: {house_data}")
                     
                     # 检查小区是否存在，不存在则创建
                     community = await Community.filter(
@@ -621,7 +621,7 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                     ).first()
                     
                     if not community:
-                        print(f"创建新小区: {house_data['community_name']}")
+                        # print(f"创建新小区: {house_data['community_name']}")
                         community = await Community.create(
                             name=house_data['community_name'],
                             city=house_data['city'],
@@ -641,17 +641,17 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                         # 更新已存在的记录
                         await Ershoufang.filter(id=existing_house.id).update(**house_data)
                         updated_count += 1
-                        print(f"第{index+1}行更新成功")
+                        # print(f"第{index+1}行更新成功")
                     else:
                         # 创建新记录
                         await self.create_ershoufang(ErshoufangCreate(**house_data))
                         success_count += 1
-                        print(f"第{index+1}行创建成功")
+                        # print(f"第{index+1}行创建成功")
                     
                 except Exception as e:
                     error_count += 1
                     error_msg = f"第{index+1}行创建房源失败: {str(e)}"
-                    print(f"[Controller] {error_msg}")
+                    # print(f"[Controller] {error_msg}")
                     error_details.append(error_msg)
             
             result = {
@@ -664,12 +664,12 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                     "error_details": error_details
                 }
             }
-            print(f"[Controller] 导入完成: {result}")
+            # print(f"[Controller] 导入完成: {result}")
             return result
             
         except Exception as e:
             error_msg = f"导入过程异常: {str(e)}"
-            print(f"[Controller] {error_msg}")
+            # print(f"[Controller] {error_msg}")
             raise HTTPException(status_code=500, detail=error_msg)
 
     # 在 ErshoufangController 类中更新模板列定义
