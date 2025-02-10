@@ -132,7 +132,7 @@
 
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import { useCityStore } from '@/store/modules/city'
+import { useDepartmentStore } from '@/stores/department'
 import { opportunityApi } from '@/api/house'
 import { request } from '@/utils'
 
@@ -146,7 +146,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:show', 'submit', 'cancel'])
-const cityStore = useCityStore() // 获取城市store
+const departmentStore = useDepartmentStore() // 使用部门store
 
 // 表单相关
 const formRef = ref(null)
@@ -175,10 +175,24 @@ const PHASE_OPTIONS = [
 
 // 搜索参数
 const searchParams = ref({
-  city: cityStore.currentCity,
+  city: departmentStore.currentDepartment || '',
   status: ['已评估', '已签约'],
   page_size: 100
 })
+
+// 监听部门变化
+watch(
+  () => departmentStore.currentDepartment,
+  (newCity) => {
+    if (newCity) {
+      searchParams.value.city = newCity
+      // 清空并重新加载商机列表
+      opportunityOptions.value = []
+      handleOpportunityFocus()
+    }
+  },
+  { immediate: true } // 立即执行一次
+)
 
 // 加载商机列表
 const handleOpportunityFocus = async () => {
@@ -187,25 +201,17 @@ const handleOpportunityFocus = async () => {
   loadingOpportunities.value = true
   try {
     const res = await opportunityApi.list(searchParams.value)
-    console.log('Opportunities response:', res)
     if (res.code === 200) {
       opportunityOptions.value = res.data.items.map(item => ({
         label: `${item.community_name}-${item.area}m²-${item.layout}-${item.floor}层-${item.total_price}万-${item.belonging_owner}`,
         value: item.id,
-        raw: item // 保存原始数据，以便后续使用
+        raw: item
       }))
-      console.log('Mapped opportunity options:', opportunityOptions.value)
     }
   } finally {
     loadingOpportunities.value = false
   }
 }
-
-// 监听城市变化，更新搜索参数并清空已加载的商机列表
-watch(() => cityStore.currentCity, (newCity) => {
-  searchParams.value.city = newCity
-  opportunityOptions.value = [] // 清空商机列表，以便重新加载新城市的数据
-})
 
 // 加载用户选项
 const loadUserOptions = async () => {
@@ -288,7 +294,6 @@ const rules = {
 // 处理商机选择变化
 const handleOpportunityChange = (opportunityId) => {
   const selectedOpportunity = opportunityOptions.value.find(opt => opt.value === opportunityId)
-  console.log('Selected opportunity:', selectedOpportunity)
   
   if (selectedOpportunity?.raw) {
     // 从选中的商机中获取小区名称等信息
@@ -299,7 +304,6 @@ const handleOpportunityChange = (opportunityId) => {
       community_id: selectedOpportunity.raw.community_id,     // 设置小区ID
       // 可以添加其他需要的字段
     }
-    console.log('Updated form value after opportunity selection:', localFormValue.value)
   }
 }
 
@@ -307,7 +311,6 @@ const handleOpportunityChange = (opportunityId) => {
 const handleSubmit = () => {
   formRef.value?.validate(async (errors) => {
     if (errors) {
-      console.log('Form validation errors:', errors)
       return
     }
     
@@ -335,7 +338,6 @@ const handleSubmit = () => {
       decoration_company: localFormValue.value.decoration_company
     }
     
-    console.log('Final submit data:', submitData)
     submitting.value = true
     try {
       emit('submit', submitData)
@@ -417,4 +419,4 @@ const handleCancel = () => {
   color: #666;
   margin-left: 4px;
 }
-</style> 
+</style>

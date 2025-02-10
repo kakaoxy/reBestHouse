@@ -1139,28 +1139,38 @@ class OpportunityController(CRUDBase[Opportunity, OpportunityCreate, Opportunity
             }
 
     async def get_opportunities(self, params: OpportunityQueryParams) -> Dict:
+        """获取商机列表"""
         query = Q()
         
+        # 通过关联的小区来过滤城市
         if params.city:
             query &= Q(community__city=params.city.lower())
+            
         if params.community_name:
             query &= Q(community_name__icontains=params.community_name)
-        if params.status and params.status != 'all':
-            query &= Q(status=params.status)
+            
+        if params.status:
+            if isinstance(params.status, list):
+                query &= Q(status__in=params.status)
+            else:
+                query &= Q(status=params.status)
 
         total, items = await self.list(
             page=params.page,
             page_size=params.page_size,
-            search=query
+            search=query,
+            order=["-created_at"]
         )
-
+        
         return {
             "code": 200,
+            "msg": "OK",
             "data": {
+                "items": [await item.to_dict() for item in items],
                 "total": total,
-                "items": [await item.to_dict() for item in items]
-            },
-            "message": "获取商机列表成功"
+                "page": params.page,
+                "page_size": params.page_size
+            }
         }
 
     async def create_opportunity(self, data: OpportunityCreate) -> Dict:

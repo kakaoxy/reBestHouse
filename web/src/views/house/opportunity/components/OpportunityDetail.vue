@@ -383,7 +383,6 @@ const handleClose = () => {
 const loadOpportunityDetail = async (id) => {
   if (!id) return
   
-  console.log('开始加载机会详情...');
   loading.value = true
   try {
     const res = await opportunityApi.getDetail(id)
@@ -393,11 +392,9 @@ const loadOpportunityDetail = async (id) => {
         ...res.data,
         city: departmentStore.currentDepartment
       }
-      console.log('机会详情数据:', opportunityData.value);
-      console.log('城市信息:', opportunityData.value?.city);
     }
   } catch (error) {
-    console.error('加载机会详情失败:', error);
+    message.error('加载机会详情失败')
   } finally {
     loading.value = false
   }
@@ -408,10 +405,7 @@ const loadCommunityErshoufang = async (communityId) => {
   ershoufangLoading.value = true
   try {
     const city = opportunityData.value?.city?.toLowerCase()
-    if (!city || !communityId) {
-      console.log('城市信息或小区ID缺失，无法获取在售房源');
-      return
-    }
+    if (!city || !communityId) return
 
     const params = {
       community_id: Number(communityId),
@@ -426,11 +420,9 @@ const loadCommunityErshoufang = async (communityId) => {
     
     if (res.code === 200 && res.data?.items) {
       ershoufangList.value = res.data.items
-      console.log('获取到的在售房源数量:', ershoufangList.value.length);
-      console.log('在售房源详情:', ershoufangList.value);
     }
   } catch (error) {
-    console.error('加载同小区在售房源失败:', error);
+    message.error('加载同小区在售房源失败')
     ershoufangList.value = []
   } finally {
     ershoufangLoading.value = false
@@ -442,10 +434,7 @@ const loadCommunityDealRecords = async (communityId) => {
   dealRecordLoading.value = true
   try {
     const city = opportunityData.value?.city?.toLowerCase()
-    if (!city || !communityId) {
-      console.log('城市信息或小区ID缺失，无法获取成交记录');
-      return
-    }
+    if (!city || !communityId) return
 
     const params = {
       community_id: Number(communityId),
@@ -460,13 +449,11 @@ const loadCommunityDealRecords = async (communityId) => {
     
     if (res.code === 200 && res.data?.items) {
       dealRecordList.value = res.data.items
-      console.log('获取到的成交记录数量:', dealRecordList.value.length);
-      console.log('成交记录详情:', dealRecordList.value);
     } else {
       dealRecordList.value = []
     }
   } catch (error) {
-    console.error('加载同小区成交记录失败:', error);
+    message.error('加载同小区成交记录失败')
     dealRecordList.value = []
   } finally {
     dealRecordLoading.value = false
@@ -487,7 +474,6 @@ const loadAllData = async (id) => {
       ])
     }
   } catch (error) {
-    console.error('Load all data error:', error);
     message.error('加载数据失败')
   }
 }
@@ -523,12 +509,6 @@ const getDaysDiff = (dateStr) => {
   if (!dateStr) return 0
   const today = new Date()
   const listingDate = new Date(dateStr)
-  
-  // 检查日期是否有效
-  if (isNaN(listingDate.getTime())) {
-    console.warn('Invalid date:', dateStr)
-    return 0
-  }
   
   const diffTime = Math.abs(today - listingDate)
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
@@ -668,9 +648,6 @@ const floorColumns = [
 
 // 在售房源户型统计
 const layoutStats = computed(() => {
-  console.log('开始计算在售房源统计信息...');
-  console.log('当前可用在售房源数据:', ershoufangList.value);
-  
   const stats = {}
   const total = {
     layout: '合计',
@@ -762,15 +739,11 @@ const layoutStats = computed(() => {
     })
   }
 
-  console.log('统计结果:', result);
   return result
 })
 
 // 修改楼层统计数据计算
 const floorStats = computed(() => {
-  console.log('开始计算楼层统计信息...');
-  console.log('当前可用在售房源数据:', ershoufangList.value);
-  
   const stats = {}
   const total = {
     floor: '合计',
@@ -870,7 +843,6 @@ const floorStats = computed(() => {
     })
   }
 
-  console.log('统计结果:', result);
   return result
 })
 
@@ -892,12 +864,6 @@ const dealDateRange = computed(() => {
   const startDate = new Date(endDate)
   startDate.setMonth(startDate.getMonth() - 6)
   
-  console.log('计算统计时间范围:', {
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString(),
-    recordsCount: dealRecordList.value.length
-  })
-
   return {
     startDate,
     endDate
@@ -906,13 +872,6 @@ const dealDateRange = computed(() => {
 
 // 户型成交统计数据
 const dealLayoutStats = computed(() => {
-  console.log('开始计算成交统计信息...')
-  console.log('当前可用成交记录数据:', dealRecordList.value)
-  console.log('日期范围:', {
-    startDate: dealDateRange.value.startDate.toISOString(),
-    endDate: dealDateRange.value.endDate.toISOString()
-  })
-  
   const stats = {}
   const total = { 
     layout: '合计', 
@@ -950,12 +909,6 @@ const dealLayoutStats = computed(() => {
 
   dealRecordList.value.forEach(item => {
     const dealDate = new Date(item.deal_date)
-    console.log('处理成交记录:', {
-      dealDate: dealDate.toISOString(),
-      deal_date: item.deal_date,
-      layout: item.layout,
-      isInRange: dealDate >= dealDateRange.value.startDate && dealDate <= dealDateRange.value.endDate
-    })
     
     if (dealDate >= dealDateRange.value.startDate && dealDate <= dealDateRange.value.endDate) {
       const match = item.layout?.match(/^(\d)/)
@@ -1002,15 +955,11 @@ const dealLayoutStats = computed(() => {
     })
   }
 
-  console.log('统计结果:', result);
   return result
 })
 
 // 楼层成交统计数据
 const dealFloorStats = computed(() => {
-  console.log('开始计算楼层成交统计信息...')
-  console.log('当前可用成交记录数据:', dealRecordList.value)
-  
   const stats = {}
   const total = { 
     floor: '合计', 
@@ -1089,7 +1038,6 @@ const dealFloorStats = computed(() => {
     })
   }
 
-  console.log('统计结果:', result);
   return result
 })
 
