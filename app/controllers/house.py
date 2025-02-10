@@ -416,8 +416,9 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                 if size > 0:
                     create_data['unit_price'] = round(total_price * 10000 / size, 2)
             
-            # 添加今日日期作为挂牌时间
-            create_data['listing_date'] = datetime.now().strftime('%Y-%m-%d')
+            # 如果没有挂牌时间，才设置为当前日期
+            if not create_data.get('listing_date'):
+                create_data['listing_date'] = datetime.now().strftime('%Y-%m-%d')
             
             ershoufang = await self.create(create_data)
             
