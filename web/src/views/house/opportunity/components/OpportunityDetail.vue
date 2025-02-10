@@ -188,12 +188,10 @@
                 
                 <!-- 使用外层表格包裹四个统计表 -->
                 <n-card :bordered="false" class="stats-wrapper">
-                  <!-- 在售统计 -->
                   <div class="stats-section">
                     <div class="stats-section-title">在售房源统计</div>
                     <div class="stats-tables">
                       <div class="stats-table">
-                        <!-- <div class="text-lg font-bold">户型分布</div> -->
                         <n-data-table
                           :columns="layoutColumns"
                           :data="layoutStats"
@@ -204,7 +202,6 @@
                         />
                       </div>
                       <div class="stats-table">
-                        <!-- <div class="text-lg font-bold">楼层分布</div> -->
                         <n-data-table
                           :columns="floorColumns"
                           :data="floorStats"
@@ -215,40 +212,32 @@
                         />
                       </div>
                     </div>
-              </div>
-
-                  <!-- 成交统计 -->
+                  </div>
                   <div class="stats-section">
                     <div class="stats-section-title">成交房源统计</div>
                     <div class="stats-tables">
                       <div class="stats-table">
-                        <!-- <div class="text-lg font-bold">户型分布</div> -->
                         <n-data-table
                           :columns="dealLayoutColumns"
                           :data="dealLayoutStats"
                           :bordered="false"
                           :single-line="false"
                           size="small"
-                          v-bind="layoutTableProps"
                         />
-                  </div>
+                      </div>
                       <div class="stats-table">
-                        <!-- <div class="text-lg font-bold">楼层分布</div> -->
                         <n-data-table
                           :columns="dealFloorColumns"
                           :data="dealFloorStats"
                           :bordered="false"
                           :single-line="false"
                           size="small"
-                          v-bind="floorTableProps"
                         />
-              </div>
-            </div>
-          </div>
-
-                  <!-- 成交统计时间范围提示 -->
-                  <div class="text-gray-400 text-sm time-range-tip">
-                    * 成交统计范围：{{ formatDate(dealDateRange.endDate) }} 至 {{ formatDate(dealDateRange.startDate) }}
+                        <div class="text-right text-12 text-gray-400 mt-2">
+                          统计时间范围：{{ formatDate(dealDateRange.startDate) }} 至 {{ formatDate(dealDateRange.endDate) }}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </n-card>
 
@@ -353,6 +342,9 @@ import { OPPORTUNITY_STATUS_TAG_TYPE } from '../constants'
 import { useMessage } from 'naive-ui'
 import { formatDate } from '@/utils'
 import FollowUpDrawer from './FollowUpDrawer.vue'
+import { useDepartmentStore } from '@/stores/department'
+
+const departmentStore = useDepartmentStore()
 
 const message = useMessage()
 const loading = ref(false)
@@ -391,6 +383,7 @@ const handleClose = () => {
 const loadOpportunityDetail = async (id) => {
   if (!id) return
   
+  console.log('开始加载机会详情...');
   loading.value = true
   try {
     const res = await opportunityApi.getDetail(id)
@@ -398,11 +391,13 @@ const loadOpportunityDetail = async (id) => {
     if (res.code === 200) {
       opportunityData.value = {
         ...res.data,
-        city: 'shanghai'
+        city: departmentStore.currentDepartment
       }
+      console.log('机会详情数据:', opportunityData.value);
+      console.log('城市信息:', opportunityData.value?.city);
     }
   } catch (error) {
-    message.error('加载商机详情失败')
+    console.error('加载机会详情失败:', error);
   } finally {
     loading.value = false
   }
@@ -414,6 +409,7 @@ const loadCommunityErshoufang = async (communityId) => {
   try {
     const city = opportunityData.value?.city?.toLowerCase()
     if (!city || !communityId) {
+      console.log('城市信息或小区ID缺失，无法获取在售房源');
       return
     }
 
@@ -430,9 +426,11 @@ const loadCommunityErshoufang = async (communityId) => {
     
     if (res.code === 200 && res.data?.items) {
       ershoufangList.value = res.data.items
+      console.log('获取到的在售房源数量:', ershoufangList.value.length);
+      console.log('在售房源详情:', ershoufangList.value);
     }
   } catch (error) {
-    message.error('加载同小区在售房源失败')
+    console.error('加载同小区在售房源失败:', error);
     ershoufangList.value = []
   } finally {
     ershoufangLoading.value = false
@@ -445,6 +443,7 @@ const loadCommunityDealRecords = async (communityId) => {
   try {
     const city = opportunityData.value?.city?.toLowerCase()
     if (!city || !communityId) {
+      console.log('城市信息或小区ID缺失，无法获取成交记录');
       return
     }
 
@@ -461,11 +460,13 @@ const loadCommunityDealRecords = async (communityId) => {
     
     if (res.code === 200 && res.data?.items) {
       dealRecordList.value = res.data.items
+      console.log('获取到的成交记录数量:', dealRecordList.value.length);
+      console.log('成交记录详情:', dealRecordList.value);
     } else {
       dealRecordList.value = []
     }
   } catch (error) {
-    message.error('加载同小区成交记录失败')
+    console.error('加载同小区成交记录失败:', error);
     dealRecordList.value = []
   } finally {
     dealRecordLoading.value = false
@@ -486,7 +487,7 @@ const loadAllData = async (id) => {
       ])
     }
   } catch (error) {
-    console.error('Load all data error:', error)
+    console.error('Load all data error:', error);
     message.error('加载数据失败')
   }
 }
@@ -667,6 +668,9 @@ const floorColumns = [
 
 // 在售房源户型统计
 const layoutStats = computed(() => {
+  console.log('开始计算在售房源统计信息...');
+  console.log('当前可用在售房源数据:', ershoufangList.value);
+  
   const stats = {}
   const total = {
     layout: '合计',
@@ -749,7 +753,6 @@ const layoutStats = computed(() => {
   if (total.count > 0) {
     result.push({
       ...total,
-      layout: '合计',
       avgSize: (total.totalSize / total.count).toFixed(1),
       avgPrice: (total.totalPrice / total.count).toFixed(1),
       avgUnitPrice: Math.round(total.totalUnitPrice / total.count),
@@ -759,11 +762,15 @@ const layoutStats = computed(() => {
     })
   }
 
+  console.log('统计结果:', result);
   return result
 })
 
 // 修改楼层统计数据计算
 const floorStats = computed(() => {
+  console.log('开始计算楼层统计信息...');
+  console.log('当前可用在售房源数据:', ershoufangList.value);
+  
   const stats = {}
   const total = {
     floor: '合计',
@@ -863,108 +870,49 @@ const floorStats = computed(() => {
     })
   }
 
+  console.log('统计结果:', result);
   return result
 })
 
 // 计算统计时间范围
 const dealDateRange = computed(() => {
-  const startDate = new Date()
-  startDate.setDate(startDate.getDate() - 15)
-  const endDate = new Date(startDate)
-  endDate.setMonth(endDate.getMonth() - 6)
+  if (!dealRecordList.value || dealRecordList.value.length === 0) {
+    return {
+      startDate: new Date(0),
+      endDate: new Date()
+    }
+  }
+
+  // 按成交时间排序，找到最新的成交记录
+  const sortedRecords = [...dealRecordList.value].sort((a, b) => {
+    return new Date(b.deal_date) - new Date(a.deal_date)
+  })
+  
+  const endDate = new Date(sortedRecords[0].deal_date)
+  const startDate = new Date(endDate)
+  startDate.setMonth(startDate.getMonth() - 6)
+  
+  console.log('计算统计时间范围:', {
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    recordsCount: dealRecordList.value.length
+  })
+
   return {
     startDate,
     endDate
   }
 })
 
-// 处理成交记录数据 - 折线图
-const processLineChartData = (data) => {
-  // 按月份和户型分组
-  const groupedData = {}
-  
-  data.forEach(item => {
-    if (!item.deal_date || !item.unit_price) return
-    
-    const month = item.deal_date.substring(0, 7)
-    // 根据户型分类
-    let layout = '其他'
-    const match = item.layout?.match(/^(\d)/)
-    if (match) {
-      const rooms = parseInt(match[1])
-      layout = getLayoutName(rooms)
-    }
-
-    if (!groupedData[layout]) {
-      groupedData[layout] = new Map()
-    }
-    
-    if (!groupedData[layout].has(month)) {
-      groupedData[layout].set(month, {
-        prices: [],
-        count: 0,
-        sum: 0
-      })
-    }
-    
-    const monthData = groupedData[layout].get(month)
-    monthData.prices.push(item.unit_price)
-    monthData.count++
-    monthData.sum += item.unit_price
-  })
-
-  // 转换为echarts系列数据
-  const series = []
-  const layoutOrder = ['一房', '两房', '三房', '四房', '其他']
-  const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de']
-  
-  // 获取所有月份并排序
-  const allMonths = new Set()
-  Object.values(groupedData).forEach(layoutData => {
-    layoutData.forEach((_, month) => allMonths.add(month))
-  })
-  const sortedMonths = Array.from(allMonths).sort()
-  
-  layoutOrder.forEach((layout, index) => {
-    if (!groupedData[layout]) {
-      series.push({
-        name: layout,
-        type: 'line',
-        smooth: true,
-        color: colors[index],
-        data: []
-      })
-      return
-    }
-
-    // 处理每个月的数据，确保连续性
-    const monthlyData = sortedMonths.map(month => {
-      const data = groupedData[layout].get(month)
-      if (!data) return [month, null]
-      return [month, Math.round(data.sum / data.count)]
-    })
-
-    // 主折线 - 平均单价
-    series.push({
-      name: layout,
-      type: 'line',
-      smooth: true,
-      color: colors[index],
-      symbol: 'circle',
-      symbolSize: 6,
-      emphasis: {
-        scale: 1.5
-      },
-      data: monthlyData,
-      connectNulls: true // 连接空值点
-    })
-  })
-
-  return series
-}
-
 // 户型成交统计数据
 const dealLayoutStats = computed(() => {
+  console.log('开始计算成交统计信息...')
+  console.log('当前可用成交记录数据:', dealRecordList.value)
+  console.log('日期范围:', {
+    startDate: dealDateRange.value.startDate.toISOString(),
+    endDate: dealDateRange.value.endDate.toISOString()
+  })
+  
   const stats = {}
   const total = { 
     layout: '合计', 
@@ -1002,7 +950,14 @@ const dealLayoutStats = computed(() => {
 
   dealRecordList.value.forEach(item => {
     const dealDate = new Date(item.deal_date)
-    if (dealDate > dealDateRange.value.endDate && dealDate <= dealDateRange.value.startDate) {
+    console.log('处理成交记录:', {
+      dealDate: dealDate.toISOString(),
+      deal_date: item.deal_date,
+      layout: item.layout,
+      isInRange: dealDate >= dealDateRange.value.startDate && dealDate <= dealDateRange.value.endDate
+    })
+    
+    if (dealDate >= dealDateRange.value.startDate && dealDate <= dealDateRange.value.endDate) {
       const match = item.layout?.match(/^(\d)/)
       let layout = match ? layoutMapping[match[1]] || '其他' : '其他'
 
@@ -1047,11 +1002,15 @@ const dealLayoutStats = computed(() => {
     })
   }
 
+  console.log('统计结果:', result);
   return result
 })
 
 // 楼层成交统计数据
 const dealFloorStats = computed(() => {
+  console.log('开始计算楼层成交统计信息...')
+  console.log('当前可用成交记录数据:', dealRecordList.value)
+  
   const stats = {}
   const total = { 
     floor: '合计', 
@@ -1081,7 +1040,7 @@ const dealFloorStats = computed(() => {
 
   dealRecordList.value.forEach(item => {
     const dealDate = new Date(item.deal_date)
-    if (dealDate > dealDateRange.value.endDate && dealDate <= dealDateRange.value.startDate) {
+    if (dealDate >= dealDateRange.value.startDate && dealDate <= dealDateRange.value.endDate) {
       let floor = '其他'
       if (item.floor_info) {
         if (item.floor_info.includes('低楼层')) floor = '低楼层'
@@ -1130,11 +1089,12 @@ const dealFloorStats = computed(() => {
     })
   }
 
+  console.log('统计结果:', result);
   return result
 })
 
 // 处理成交记录数据 - 折线图
-const processLineData = (data) => {
+const processLineChartData = (data) => {
   // 按月份和户型分组
   const groupedData = {}
   
