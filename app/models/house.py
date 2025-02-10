@@ -269,7 +269,7 @@ class OpportunityFollowUp(Model):
             'updated_at': self.updated_at
         }
 
-class Project(BaseModel, TimestampMixin):
+class Project(Model):
     """项目表"""
     id = fields.IntField(pk=True)
     opportunity = fields.ForeignKeyField('models.Opportunity', related_name='projects', description='关联商机')
@@ -281,6 +281,8 @@ class Project(BaseModel, TimestampMixin):
     delivery_date = fields.DatetimeField(null=True, description='交房日期')
     current_phase = fields.CharField(max_length=20, null=True, description='当前阶段')
     decoration_company = fields.CharField(max_length=100, null=True, description='装修公司')
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
 
     class Meta:
         table = "project"
@@ -288,31 +290,41 @@ class Project(BaseModel, TimestampMixin):
 
     async def to_dict(self) -> dict:
         """转换为字典格式"""
-        # 获取施工阶段数据
-        phases_data = []
-        try:
-            phases_data = [await phase.to_dict() for phase in self.phases]
-        except NoValuesFetched:
-            pass
-
         # 获取商机数据
         opportunity_data = None
-        city = 'shanghai'  # 默认城市
+        print(f"[DEBUG] Project.to_dict - 开始转换项目 ID: {self.id}")
         try:
-            opportunity_data = await self.opportunity.to_dict()
-            # 获取商机关联的小区数据
-            if opportunity_data and 'community' in opportunity_data:
-                community_data = opportunity_data.get('community', {})
-                city = community_data.get('city', 'shanghai')
+            print("[DEBUG] Project.to_dict - 尝试获取预加载的商机数据")
+            opportunity = await self.opportunity
+            print(f"[DEBUG] Project.to_dict - 成功获取商机: {opportunity.id if opportunity else None}")
+            if opportunity:
+                opportunity_data = {
+                    "layout": opportunity.layout,
+                    "area": opportunity.area,
+                    "layout_image": opportunity.layout_image
+                }
+                print(f"[DEBUG] Project.to_dict - 商机数据: {opportunity_data}")
         except NoValuesFetched:
-            pass
-        
-        return {
+            print("[DEBUG] Project.to_dict - 商机数据未预加载，尝试重新查询")
+            # 如果关联数据未预加载，则重新查询
+            opportunity = await Opportunity.get_or_none(id=self.opportunity_id)
+            print(f"[DEBUG] Project.to_dict - 重新查询商机结果: {opportunity.id if opportunity else None}")
+            if opportunity:
+                opportunity_data = {
+                    "layout": opportunity.layout,
+                    "area": opportunity.area,
+                    "layout_image": opportunity.layout_image
+                }
+                print(f"[DEBUG] Project.to_dict - 重新查询获取的商机数据: {opportunity_data}")
+        except Exception as e:
+            print(f"[DEBUG] Project.to_dict - 获取商机数据时发生错误: {str(e)}")
+
+        result = {
             "id": self.id,
             "opportunity_id": self.opportunity_id,
             "community_name": self.community_name,
             "address": self.address,
-            "contract_price": float(self.contract_price),
+            "contract_price": float(self.contract_price),  # 转换 Decimal 为 float
             "contract_period": self.contract_period,
             "signer": self.signer,
             "delivery_date": self.delivery_date.isoformat() if self.delivery_date else None,
@@ -320,14 +332,13 @@ class Project(BaseModel, TimestampMixin):
             "decoration_company": self.decoration_company,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            # 添加阶段数据
-            "phases": phases_data,
             # 添加商机信息
-            "layout": opportunity_data.get("layout") if opportunity_data else None,
-            "area": opportunity_data.get("area") if opportunity_data else None,
-            # 添加城市信息
-            "city": city
+            "layout": opportunity_data["layout"] if opportunity_data else None,
+            "area": opportunity_data["area"] if opportunity_data else None,
+            "layout_image": opportunity_data["layout_image"] if opportunity_data else None
         }
+        print(f"[DEBUG] Project.to_dict - 最终返回数据: {result}")
+        return result
 
 class ConstructionPhase(BaseModel, TimestampMixin):
     """施工阶段表"""

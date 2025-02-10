@@ -32,11 +32,11 @@
               </div>
               <div class="info-item">
                 <span class="label">户型</span>
-                <span class="value">{{ project?.opportunity?.layout || '-' }}</span>
+                <span class="value">{{ project?.layout || '-' }}</span>
               </div>
               <div class="info-item">
                 <span class="label">面积</span>
-                <span class="value">{{ project?.opportunity?.area ? `${project.opportunity.area}m²` : '-' }}</span>
+                <span class="value">{{ project?.area ? `${project.area}m²` : '-' }}</span>
               </div>
             </div>
           </div>

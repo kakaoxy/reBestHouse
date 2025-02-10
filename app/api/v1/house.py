@@ -551,19 +551,36 @@ async def delete_project_material(material_id: int):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/projects/{project_id}", dependencies=[DependPermisson], summary="获取项目详情")
+@router.get(
+    "/projects/{project_id}",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="获取项目详情"
+)
 async def get_project_detail(project_id: int):
     return await project_controller.get_project_details(project_id)
 
-@router.put("/projects/{project_id}", dependencies=[DependPermisson], summary="更新项目信息")
+@router.put(
+    "/projects/{project_id}",
+    dependencies=[DependPermisson],
+    summary="更新项目信息"
+)
 async def update_project(project_id: int, data: ProjectUpdate):
     return await project_controller.update(project_id, data)
 
-@router.delete("/projects/{project_id}", dependencies=[DependPermisson], summary="删除项目")
+@router.delete(
+    "/projects/{project_id}",
+    dependencies=[DependPermisson],
+    summary="删除项目"
+)
 async def delete_project(project_id: int):
     return await project_controller.remove(project_id)
 
-@router.get("/projects/{project_id}/phases", dependencies=[DependPermisson], summary="获取项目施工阶段列表")
+@router.get(
+    "/projects/{project_id}/phases",
+    dependencies=[DependPermisson],
+    summary="获取项目施工阶段列表"
+)
 async def get_project_phases(project_id: int):
     try:
         phases = await ConstructionPhase.filter(project_id=project_id).order_by("-complete_time")

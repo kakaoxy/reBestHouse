@@ -48,7 +48,10 @@ class PermissionControl:
             'opportunities': 'id',
             'communities': 'id',
             'ershoufangs': 'id',
-            'deal-records': 'id'
+            'deal-records': 'id',
+            'projects': 'project_id',  # 修改为 project_id
+            'phases': 'phase_id',      # 添加 phases 的映射
+            'materials': 'material_id'  # 添加 materials 的映射
         }
         
         for part in parts:
@@ -62,7 +65,8 @@ class PermissionControl:
                 normalized_parts.append(part)
         
         # 重新组合路径
-        return '/'.join(normalized_parts)
+        normalized_path = '/'.join(normalized_parts)
+        return normalized_path
 
     @classmethod
     async def has_permission(cls, request: Request, current_user: User = Depends(AuthControl.is_authed)) -> None:
@@ -73,12 +77,17 @@ class PermissionControl:
         path = request.url.path
         normalized_path = cls.normalize_path(path)
         
+
+        
         roles: list[Role] = await current_user.roles
         if not roles:
             raise HTTPException(status_code=403, detail="The user is not bound to a role")
             
+
+        
         # 检查每个角色的权限
         for role in roles:
+
             apis = await role.apis.all()
             for api in apis:
                 # 检查方法和路径是否匹配
@@ -90,7 +99,7 @@ class PermissionControl:
             status_code=403,
             detail={
                 'code': 403,
-                'message': f'Permission denied method:{method} path:{path}',
+                'message': f'Permission denied method:{method} path:{normalized_path}',
                 'error': {
                     'type': 'permission_denied',
                     'message': '没有访问权限'
