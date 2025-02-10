@@ -81,16 +81,28 @@ class ErshoufangBase(BaseModel):
 class ErshoufangCreate(BaseModel):
     community_id: Optional[int] = None
     community_name: str
-    region: Optional[str] = None
-    area: Optional[str] = None
+    region: str
+    area: str
     layout: str
-    floor_number: int
-    total_floors: int
-    orientation: Optional[str] = None
     size: float
+    floor: Optional[str] = None
+    floor_number: Optional[int] = None
+    total_floors: Optional[int] = None
+    orientation: Optional[str] = None
+    ladder_ratio: Optional[str] = None
     total_price: float
-    data_source: str
-    city: str = 'shanghai'
+    unit_price: Optional[float] = None
+    listing_date: Optional[datetime] = None
+    last_transaction_date: Optional[datetime] = None
+    mortgage_info: Optional[str] = None
+    layout_image: Optional[str] = None
+    house_link: Optional[str] = None
+    city: Optional[str] = None
+    building_year: Optional[int] = None
+    building_structure: Optional[str] = None
+    data_source: str = 'import'
+    platform_listing_id: Optional[str] = None
+    house_id: Optional[str] = None
 
 class ErshoufangUpdate(ErshoufangBase):
     community_id: Optional[int] = Field(None, description='小区ID')

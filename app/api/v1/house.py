@@ -88,14 +88,26 @@ async def import_communities(
     file: UploadFile = File(..., description="Excel文件"),
     city: str = Form(..., description="城市")
 ):
+    print(f"[API] 接收到文件上传请求: filename={file.filename}, city={city}")
+    
     # 验证文件类型
-    if not file.filename.endswith(('.xlsx', '.xls')):
+    if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+        print(f"[API] 文件类型验证失败: {file.filename}")
         return {
             "code": 422,
-            "msg": "只支持 Excel 文件格式 (.xlsx, .xls)"
+            "msg": "只支持 Excel 或 CSV 文件格式 (.xlsx, .xls, .csv)"
         }
     
-    return await community_controller.import_communities(file, city)
+    try:
+        result = await community_controller.import_communities(file, city)
+        print(f"[API] 导入完成: {result}")
+        return result
+    except Exception as e:
+        print(f"[API] 导入异常: {str(e)}")
+        return {
+            "code": 500,
+            "msg": f"导入失败: {str(e)}"
+        }
 
 # Ershoufang routes
 @router.get(
@@ -144,51 +156,33 @@ async def import_ershoufangs(
     file: UploadFile = File(..., description="Excel文件"),
     city: str = Form(..., description="城市")
 ):
+    print(f"[API] 接收到文件上传请求: filename={file.filename}, city={city}")
+    
+    # 读取并输出文件内容
+    content = await file.read()
+    print(f"[API] 文件内容预览(前1000字节):\n{content[:1000]}")
+    
+    # 重置文件指针位置,否则后续读取会失败
+    await file.seek(0)
+    
     # 验证文件类型
-    if not file.filename.endswith(('.xlsx', '.xls')):
+    if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+        print(f"[API] 文件类型验证失败: {file.filename}")
         return {
             "code": 422,
-            "msg": "只支持 Excel 文件格式 (.xlsx, .xls)"
+            "msg": "只支持 Excel 或 CSV 文件格式 (.xlsx, .xls, .csv)"
         }
     
-    return await ershoufang_controller.import_ershoufangs(file, city)
-
-# DealRecord routes
-@router.get(
-    "/deal-records",
-    response_model=Dict,
-    dependencies=[DependPermisson],
-    summary="获取成交记录列表"
-)
-async def get_deal_records(params: DealRecordQueryParams = Depends()):
-    return await deal_record_controller.get_deal_records(params)
-
-@router.post(
-    "/deal-records",
-    response_model=Dict,
-    dependencies=[DependPermisson],
-    summary="创建成交记录"
-)
-async def create_deal_record(data: DealRecordCreate):
-    return await deal_record_controller.create_deal_record(data)
-
-@router.put(
-    "/deal-records/{id}",
-    response_model=Dict,
-    dependencies=[DependPermisson],
-    summary="更新成交记录"
-)
-async def update_deal_record(id: int, data: DealRecordUpdate):
-    return await deal_record_controller.update_deal_record(id, data)
-
-@router.delete(
-    "/deal-records/{id}",
-    response_model=Dict,
-    dependencies=[DependPermisson],
-    summary="删除成交记录"
-)
-async def delete_deal_record(id: int):
-    return await deal_record_controller.delete_deal_record(id)
+    try:
+        result = await ershoufang_controller.import_ershoufangs(file, city)
+        print(f"[API] 导入完成: {result}")
+        return result
+    except Exception as e:
+        print(f"[API] 导入异常: {str(e)}")
+        return {
+            "code": 500,
+            "msg": f"导入失败: {str(e)}"
+        }
 
 @router.post(
     "/deal-records/import",
@@ -200,14 +194,26 @@ async def import_deal_records(
     file: UploadFile = File(..., description="Excel文件"),
     city: str = Form(..., description="城市")
 ):
+    print(f"[API] 接收到文件上传请求: filename={file.filename}, city={city}")
+    
     # 验证文件类型
-    if not file.filename.endswith(('.xlsx', '.xls')):
+    if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+        print(f"[API] 文件类型验证失败: {file.filename}")
         return {
             "code": 422,
-            "msg": "只支持 Excel 文件格式 (.xlsx, .xls)"
+            "msg": "只支持 Excel 或 CSV 文件格式 (.xlsx, .xls, .csv)"
         }
     
-    return await deal_record_controller.import_deal_records(file, city)
+    try:
+        result = await deal_record_controller.import_deal_records(file, city)
+        print(f"[API] 导入完成: {result}")
+        return result
+    except Exception as e:
+        print(f"[API] 导入异常: {str(e)}")
+        return {
+            "code": 500,
+            "msg": f"导入失败: {str(e)}"
+        }
 
 @router.get(
         "/deal-records/template",

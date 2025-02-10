@@ -88,9 +88,12 @@ class Ershoufang(Model):
             "data_source": self.data_source,
             "ladder_ratio": self.ladder_ratio,
             "mortgage_info": self.mortgage_info,
+            "layout_image": self.layout_image,
+            "house_link": self.house_link,
             "house_id": self.house_id,
             "ke_code": self.ke_code,
-            "house_link": self.house_link,
+            "listing_date": self.listing_date.isoformat() if self.listing_date else None,
+            "last_transaction_date": self.last_transaction_date.isoformat() if self.last_transaction_date else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

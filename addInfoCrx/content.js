@@ -466,7 +466,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               '抵押信息': getTextContent('#introduction > div > div > div.transaction > div.content > ul > li:nth-child(7) > span:nth-child(2)'),
               '户型图链接': doc.querySelector('#layout > div.layout > div.content > div.imgdiv > img')?.src || '',
               '房源链接': link.href,
-              '所在城市': convertCityToPinyin(getTextContent('#beike > div.sellDetailPage > div:nth-child(4) > div.intro.clear > div > div > a:nth-child(1)')),
+              '所在城市': getTextContent('#beike > div.sellDetailPage > div:nth-child(4) > div.intro.clear > div > div > a:nth-child(1)')
+                        .replace(/房产$/, '').trim(),  // 移除"房产"后缀
               '建筑年代': '',    // 后续解析填充
               '建筑结构': '',    // 后续解析填充
               '数据来源': 'import',

@@ -273,77 +273,48 @@ const handleDownloadTemplate = () => {
 const handleImport = () => {
   const input = document.createElement('input')
   input.type = 'file'
-  input.accept = '.xlsx,.xls'
+  input.accept = '.xlsx,.xls,.csv'
   
   input.onchange = async (e) => {
     const file = e.target.files[0]
     if (!file) return
     
-    // 验证文件类型
-    if (!file.name.match(/\.(xlsx|xls)$/)) {
-      message.error('请上传 Excel 文件 (.xlsx, .xls)')
-      return
+    console.log('开始上传文件:', file.name)
+    
+    // 读取并输出文件内容
+    if (file.name.endsWith('.csv')) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        console.log('CSV文件内容:', e.target.result)
+      }
+      reader.readAsText(file)
     }
     
-    // 提示用户当前选择的城市
-    dialog.info({
-      title: '导入提示',
-      content: `即将导入到城市：${departmentStore.departments.find(item => item.value === departmentStore.currentDepartment)?.label}`,
-      positiveText: '继续',
-      negativeText: '取消',
-      onPositiveClick: async () => {
-        try {
-          loading.value = true
-          const formData = new FormData()
-          formData.append('file', file)
-          formData.append('city', departmentStore.currentDepartment)
-          
-          const res = await request.post('/house/ershoufangs/import', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-              'Accept': 'application/json'
-            }
-          })
-          
-          if ([200, 400, 422].includes(res.code)) {
-            // 显示导入结果
-            const resultDialog = dialog.success({
-              title: '导入结果',
-              content: () => h('div', [
-                h('p', `成功导入：${res.data.success_count} 条`),
-                h('p', `失败数量：${res.data.error_count} 条`),
-                // 只有存在错误时才显示错误详情
-                res.data.error_count > 0 ? h('div', [
-                  h('p', { style: 'margin-top: 10px; font-weight: bold;' }, '失败详情：'),
-                  h('div', { 
-                    style: 'max-height: 200px; overflow-y: auto; margin-top: 5px; padding: 10px; background-color: #f5f5f5; border-radius: 4px;' 
-                  }, [
-                    ...res.data.errors.map(error => 
-                      h('p', { style: 'color: #d03050; margin: 5px 0;' }, 
-                        `${error.name}: ${error.error}`
-                      )
-                    )
-                  ])
-                ]) : null
-              ]),
-              positiveText: '确定',
-              onPositiveClick: () => {
-                if (res.code === 200) {
-                  // 刷新列表
-                  loadData()
-                }
-              }
-            })
-          } else {
-            throw new Error(res.msg || '导入失败')
-          }
-        } catch (error) {
-          message.error(error.response?.data?.detail || error.message || '导入失败')
-        } finally {
-          loading.value = false
-        }
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('city', selectedCity.value)
+    
+    try {
+      console.log('发送请求参数:', {
+        fileName: file.name,
+        fileSize: file.size,
+        city: selectedCity.value
+      })
+      
+      const res = await request.post('/house/ershoufangs/import', formData)
+      console.log('导入响应:', res)
+      
+      if (res.code === 200) {
+        message.success('导入成功')
+        loadData()
+      } else {
+        message.error(res.msg || '导入失败')
+        console.error('导入失败:', res)
       }
-    })
+    } catch (error) {
+      message.error('导入失败')
+      console.error('导入异常:', error)
+    }
   }
   
   input.click()
