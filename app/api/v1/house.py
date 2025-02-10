@@ -570,11 +570,16 @@ async def update_project(project_id: int, data: ProjectUpdate):
 
 @router.delete(
     "/projects/{project_id}",
+    response_model=Dict,
     dependencies=[DependPermisson],
     summary="删除项目"
 )
 async def delete_project(project_id: int):
-    return await project_controller.remove(project_id)
+    """
+    删除项目及其相关数据
+    - project_id: 项目ID
+    """
+    return await project_controller.delete_project(project_id)
 
 @router.get(
     "/projects/{project_id}/phases",

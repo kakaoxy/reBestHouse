@@ -85,7 +85,34 @@
                 >
                   <div class="card-content">
                     <div class="location-info">
-                      <div class="community-name">{{ project.community_name || '未找到' }}</div>
+                      <div class="community-name">
+                        {{ project.community_name || '未找到' }}
+                        <n-dropdown
+                          trigger="hover"
+                          :options="[
+                            {
+                              label: '删除项目',
+                              key: 'delete',
+                              props: {
+                                style: 'color: #d03050;'
+                              }
+                            }
+                          ]"
+                          @select="handleProjectAction($event, project)"
+                          placement="bottom-end"
+                        >
+                          <n-button
+                            quaternary
+                            circle
+                            size="tiny"
+                            style="position: absolute; right: 8px; top: 8px;"
+                          >
+                            <template #icon>
+                              <TheIcon icon="material-symbols:more-vert" />
+                            </template>
+                          </n-button>
+                        </n-dropdown>
+                      </div>
                       <div class="address-text">{{ project.address }}</div>
                     </div>
                     <div class="main-info">
@@ -121,7 +148,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useMessage, useDialog } from 'naive-ui'
 import { useDepartmentStore } from '@/stores/department'
 import { useUserStore } from '@/store/modules/user'
 import { projectApi } from '@/api/house'
@@ -130,6 +157,7 @@ import ProjectDetail from './components/ProjectDetail.vue'
 import TheIcon from '@/components/icon/TheIcon.vue'
 
 const message = useMessage()
+const dialog = useDialog()
 const departmentStore = useDepartmentStore()
 const userStore = useUserStore()
 
@@ -344,6 +372,32 @@ const handleProjectUpdated = (updatedProject) => {
       ...projectList.value[index],
       ...updatedProject
     }
+  }
+}
+
+// 处理项目操作
+const handleProjectAction = async (key, project) => {
+  if (key === 'delete') {
+    dialog.warning({
+      title: '确认删除',
+      content: `确定要删除项目"${project.community_name}"吗？此操作不可恢复。`,
+      positiveText: '确定',
+      negativeText: '取消',
+      async onPositiveClick() {
+        try {
+          loading.value = true;
+          await projectApi.delete(project.id);
+          message.success('删除成功');
+          await loadProjects();
+        } catch (error) {
+          if (error?.response?.data?.detail) {
+            message.error(error.response.data.detail);
+          }
+        } finally {
+          loading.value = false;
+        }
+      }
+    });
   }
 }
 

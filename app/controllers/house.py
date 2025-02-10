@@ -1399,6 +1399,31 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 
+    async def delete_project(self, project_id: int) -> Dict:
+        """删除项目"""
+        try:
+            project = await Project.get(id=project_id)
+            if not project:
+                raise HTTPException(status_code=404, detail="项目不存在")
+            
+            # 删除项目相关的施工阶段和材料
+            await ConstructionPhase.filter(project_id=project_id).delete()
+            phases = await ConstructionPhase.filter(project_id=project_id).values_list('id', flat=True)
+            if phases:
+                await PhaseMaterial.filter(phase_id__in=phases).delete()
+            
+            # 删除项目本身
+            await project.delete()
+            
+            return {
+                "code": 200,
+                "msg": "删除成功",
+                "data": None
+            }
+        except Exception as e:
+            logging.error(f"删除项目失败: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"删除项目失败: {str(e)}")
+
 class ConstructionPhaseController(CRUDBase[ConstructionPhase, ConstructionPhaseCreate, ConstructionPhaseUpdate]):
     def __init__(self):
         super().__init__(model=ConstructionPhase)
