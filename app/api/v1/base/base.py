@@ -42,6 +42,9 @@ async def get_userinfo():
     user_id = CTX_USER_ID.get()
     user_obj = await user_controller.get(id=user_id)
     data = await user_obj.to_dict(exclude_fields=["password"])
+    # 加载角色数据
+    roles = await user_obj.roles
+    data["roles"] = [str(role.id) for role in roles]  # 转换为字符串类型的角色ID列表
     data["avatar"] = "https://avatars.githubusercontent.com/u/54677442?v=4"
     return Success(data=data)
 

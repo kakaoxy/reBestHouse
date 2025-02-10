@@ -146,7 +146,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:show', 'submit', 'cancel'])
-const departmentStore = useDepartmentStore() // 使用部门store
 
 // 表单相关
 const formRef = ref(null)
@@ -175,24 +174,10 @@ const PHASE_OPTIONS = [
 
 // 搜索参数
 const searchParams = ref({
-  city: departmentStore.currentDepartment || '',
+  city: '',
   status: ['已评估', '已签约'],
   page_size: 100
 })
-
-// 监听部门变化
-watch(
-  () => departmentStore.currentDepartment,
-  (newCity) => {
-    if (newCity) {
-      searchParams.value.city = newCity
-      // 清空并重新加载商机列表
-      opportunityOptions.value = []
-      handleOpportunityFocus()
-    }
-  },
-  { immediate: true } // 立即执行一次
-)
 
 // 加载商机列表
 const handleOpportunityFocus = async () => {
@@ -212,6 +197,21 @@ const handleOpportunityFocus = async () => {
     loadingOpportunities.value = false
   }
 }
+
+// 监听部门变化
+const departmentStore = useDepartmentStore()
+watch(
+  () => departmentStore.currentDepartment,
+  (newCity) => {
+    if (newCity) {
+      searchParams.value.city = newCity
+      // 清空并重新加载商机列表
+      opportunityOptions.value = []
+      handleOpportunityFocus()
+    }
+  },
+  { immediate: true } // 立即执行一次
+)
 
 // 加载用户选项
 const loadUserOptions = async () => {

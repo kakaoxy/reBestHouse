@@ -138,11 +138,29 @@ import { useMessage } from 'naive-ui'
 const $message = useMessage()
 const userStore = useUserStore()
 
+// 获取用户信息
+onMounted(async () => {
+  await userStore.getUserInfo()
+})
+
 // 判断用户角色
 const isAdmin = computed(() => {
   const roles = userStore.role
-  return roles?.includes('admin') || roles?.includes('manager') || userStore.isSuperUser
+  // 只有管理员（角色1）和城市管理员（角色3）可以授权价格
+  const hasPermission = roles?.some(role => {
+    const roleId = typeof role === 'string' ? parseInt(role) : role
+    return [1, 3].includes(roleId)
+  }) || userStore.isSuperUser
+  return hasPermission
 })
+
+// 监听权限变化
+watch(isAdmin, (newValue) => {
+})
+
+// 监听用户信息变化
+watch(() => userStore.userInfo, (newInfo) => {
+}, { deep: true })
 
 const props = defineProps({
   show: Boolean,
@@ -418,4 +436,4 @@ const finalStatusType = computed(() => {
 :deep(.n-divider) {
   margin: 24px 0;
 }
-</style> 
+</style>
