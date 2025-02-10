@@ -179,6 +179,9 @@ const searchParams = ref({
   page_size: 100
 })
 
+// 当前用户信息
+const currentUser = ref(null)
+
 // 加载商机列表
 const handleOpportunityFocus = async () => {
   if (opportunityOptions.value.length > 0) return
@@ -213,22 +216,62 @@ watch(
   { immediate: true } // 立即执行一次
 )
 
+// 获取当前用户信息
+const getCurrentUser = async () => {
+  try {
+    const res = await request.get('/base/userinfo')
+    if (res.code === 200) {
+      currentUser.value = res.data
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+  }
+}
+
 // 加载用户选项
 const loadUserOptions = async () => {
   if (userOptions.value.length > 0) return
   
   loadingUsers.value = true
   try {
+    // 获取用户列表
     const res = await request.get('/user/list', {
       params: {
         page: 1,
         page_size: 100,
-        dept_id: undefined
+        dept_id: currentUser.value?.dept_id || undefined
       }
     })
     
     if (res.code === 200 && res.data) {
-      userOptions.value = res.data.map(user => ({
+      // 过滤用户列表
+      const filteredUsers = res.data.filter(user => {
+        // 如果当前用户是超级管理员，显示所有用户
+        if (currentUser.value?.is_superuser) {
+          return true
+        }
+        
+        // 如果当前用户有部门
+        if (currentUser.value?.dept_id) {
+          // 同部门
+          if (user.dept_id === currentUser.value.dept_id) {
+            return true
+          }
+          // 下级部门（当前用户部门是父部门）
+          if (user.dept?.parent_id === currentUser.value.dept_id) {
+            return true
+          }
+          // 上级部门（当前用户部门是子部门）
+          if (currentUser.value.dept?.parent_id === user.dept_id) {
+            return true
+          }
+        }
+        
+        // 如果没有部门，只显示自己
+        return user.id === currentUser.value?.id
+      })
+      
+      userOptions.value = filteredUsers.map(user => ({
         label: `${user.username}${user.dept?.name ? ` (${user.dept.name})` : ''}`,
         value: user.username
       }))
@@ -364,6 +407,11 @@ const initFormValue = () => {
     decoration_company: ''  // 新增字段
   }
 }
+
+// 在组件挂载时获取当前用户信息
+onMounted(async () => {
+  await getCurrentUser()
+})
 
 // 在组件挂载时初始化表单
 onMounted(() => {
