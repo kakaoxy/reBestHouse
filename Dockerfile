@@ -30,6 +30,6 @@ RUN rm -f /etc/nginx/sites-enabled/default \
     && ln -s /etc/nginx/sites-available/web.conf /etc/nginx/sites-enabled/ 
 
 ENV LANG=zh_CN.UTF-8
-EXPOSE 80
+EXPOSE 80 443
 
 ENTRYPOINT [ "sh", "entrypoint.sh" ]
