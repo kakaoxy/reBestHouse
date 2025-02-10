@@ -278,22 +278,26 @@ const handleDownloadTemplate = () => {
 const handleImport = () => {
   const input = document.createElement('input')
   input.type = 'file'
-  input.accept = '.xlsx,.xls'
+  input.accept = '.xlsx,.xls,.csv'
   
   input.onchange = async (e) => {
     const file = e.target.files[0]
     if (!file) return
     
     // 验证文件类型
-    if (!file.name.match(/\.(xlsx|xls)$/)) {
-      message.error('请上传 Excel 文件 (.xlsx, .xls)')
+    if (!file.name.match(/\.(xlsx|xls|csv)$/)) {
+      message.error('请上传 Excel 或 CSV 文件 (.xlsx, .xls, .csv)')
       return
     }
     
     // 提示用户当前选择的城市
     dialog.info({
       title: '导入提示',
-      content: `即将导入到城市：${departmentStore.departments.find(item => item.value === departmentStore.currentDepartment)?.label}`,
+      content: () => h('div', [
+        h('p', `文件名：${file.name}`),
+        h('p', `文件类型：${file.name.split('.').pop().toUpperCase()}`),
+        h('p', `导入城市：${departmentStore.departments.find(item => item.value === departmentStore.currentDepartment)?.label}`)
+      ]),
       positiveText: '继续',
       negativeText: '取消',
       onPositiveClick: async () => {

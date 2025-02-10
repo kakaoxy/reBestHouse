@@ -184,6 +184,43 @@ async def import_ershoufangs(
             "msg": f"导入失败: {str(e)}"
         }
 
+# Deal Record routes
+@router.get(
+    "/deal-records",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="获取成交记录列表"
+)
+async def get_deal_records(params: DealRecordQueryParams = Depends()):
+    return await deal_record_controller.get_deal_records(params)
+
+@router.post(
+    "/deal-records",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="创建成交记录"
+)
+async def create_deal_record(data: DealRecordCreate):
+    return await deal_record_controller.create_deal_record(data)
+
+@router.put(
+    "/deal-records/{id}",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="更新成交记录"
+)
+async def update_deal_record(id: int, data: DealRecordUpdate):
+    return await deal_record_controller.update_deal_record(id, data)
+
+@router.delete(
+    "/deal-records/{id}",
+    response_model=Dict,
+    dependencies=[DependPermisson],
+    summary="删除成交记录"
+)
+async def delete_deal_record(id: int):
+    return await deal_record_controller.delete_deal_record(id)
+
 @router.post(
     "/deal-records/import",
     response_model=Dict,

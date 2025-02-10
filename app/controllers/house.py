@@ -529,7 +529,10 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
         
         try:
             # 读取Excel文件
-            df = pd.read_excel(file.file) if file.filename.endswith(('.xlsx', '.xls')) else pd.read_csv(file.file)
+            if file.filename.endswith(('.xlsx', '.xls')):
+                df = pd.read_excel(file.file)
+            else:
+                df = pd.read_csv(file.file)
             # print(f"[Controller] 成功读取文件, 数据行数: {len(df)}")
             # print(f"[Controller] 列名: {df.columns.tolist()}")
             
@@ -930,39 +933,14 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
         except Exception as e:
             raise HTTPException(status_code=404, detail="Record not found")
 
-    # 添加导入模板列定义
-    IMPORT_COLUMNS = {
-        'community_name': '小区名称',
-        'region': '所在区域',
-        'area': '所在商圈',
-        'layout': '户型',
-        'size': '建筑面积',
-        'floor_info': '楼层信息',
-        'floor_number': '所在楼层',
-        'total_floors': '总楼层',
-        'orientation': '房屋朝向',
-        'listing_price': '挂牌价',
-        'total_price': '成交价',
-        'unit_price': '单价',
-        'deal_date': '成交时间',
-        'deal_cycle': '成交周期',
-        'tags': '标签',
-        'layout_image': '户型图链接',
-        'house_link': '房源链接',
-        'city': '所在城市',
-        'building_year': '建筑年代',
-        'building_structure': '建筑结构',
-        'location': '位置',
-        'decoration': '装修',
-        'agency': '中介公司',
-        'source': '数据来源',
-        'source_transaction_id': '平台房源ID'
-    }
-
     async def import_deal_records(self, file: UploadFile, city: str) -> Dict:
         try:
             contents = await file.read()
-            df = pd.read_excel(BytesIO(contents))
+            # 根据文件扩展名选择不同的读取方式
+            if file.filename.endswith(('.xlsx', '.xls')):
+                df = pd.read_excel(BytesIO(contents))
+            else:
+                df = pd.read_csv(BytesIO(contents))
             df.columns = df.columns.str.replace('*', '').str.strip()
             
             # 验证必要的列
@@ -1072,7 +1050,7 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
             
             return {
                 "code": 200,
-                "msg": "导入完成",
+                "msg": "导入成功",
                 "data": {
                     "success_count": success_count,
                     "error_count": len(error_list),
@@ -1085,6 +1063,35 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
                 "code": 500,
                 "msg": f"导入失败：{str(e)}"
             }
+
+    # 添加导入模板列定义
+    IMPORT_COLUMNS = {
+        'community_name': '小区名称',
+        'region': '所在区域',
+        'area': '所在商圈',
+        'layout': '户型',
+        'size': '建筑面积',
+        'floor_info': '楼层信息',
+        'floor_number': '所在楼层',
+        'total_floors': '总楼层',
+        'orientation': '房屋朝向',
+        'listing_price': '挂牌价',
+        'total_price': '成交价',
+        'unit_price': '单价',
+        'deal_date': '成交时间',
+        'deal_cycle': '成交周期',
+        'tags': '标签',
+        'layout_image': '户型图链接',
+        'house_link': '房源链接',
+        'city': '所在城市',
+        'building_year': '建筑年代',
+        'building_structure': '建筑结构',
+        'location': '位置',
+        'decoration': '装修',
+        'agency': '中介公司',
+        'source': '数据来源',
+        'source_transaction_id': '平台房源ID'
+    }
 
 deal_record_controller = DealRecordController()
 
