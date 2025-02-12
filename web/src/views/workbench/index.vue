@@ -13,6 +13,14 @@
             </div>
           </div>
           <n-space :size="12" :wrap="false">
+            <n-button
+              type="primary"
+              @click="showCalculator = true"
+              class="h-full flex items-center"
+              style="height: 72px; padding: 0 24px; font-size: 16px;"
+            >
+              投资计算器
+            </n-button>
             <n-statistic v-for="item in statisticData" :key="item.id" v-bind="item"></n-statistic>
           </n-space>
         </div>
@@ -41,6 +49,7 @@
           </n-card>
         </div>
       </n-card>
+      <InvestmentCalculator :show="showCalculator" @update:show="showCalculator = $event" />
     </div>
   </AppPage>
 </template>
@@ -48,8 +57,10 @@
 <script setup>
 import { useUserStore } from '@/store'
 import { useI18n } from 'vue-i18n'
+import { ref } from 'vue'
+import InvestmentCalculator from '@/components/InvestmentCalculator.vue'
 
-const dummyText = '售前美化房源信息后台管理模板'
+const dummyText = '售前美化房源信息后台管理系统'
 const { t } = useI18n({ useScope: 'global' })
 
 const statisticData = computed(() => [
@@ -71,4 +82,5 @@ const statisticData = computed(() => [
 ])
 
 const userStore = useUserStore()
+const showCalculator = ref(false)
 </script>
