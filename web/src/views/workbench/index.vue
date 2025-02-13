@@ -21,7 +21,7 @@
             >
               投资计算器
             </n-button>
-            <n-statistic v-for="item in statisticData" :key="item.id" v-bind="item"></n-statistic>
+            <!-- <n-statistic v-for="item in statisticData" :key="item.id" v-bind="item"></n-statistic> -->
           </n-space>
         </div>
       </n-card>

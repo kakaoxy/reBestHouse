@@ -32,6 +32,14 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
         user.last_login = datetime.now()
         await user.save()
 
+    async def update_profile(self, id: int, obj_in: UserUpdate) -> User:
+        """更新用户基本信息,保留roles等其他信息"""
+        user = await self.get(id=id)
+        update_data = obj_in.model_dump(exclude_unset=True, exclude={"id", "role_ids", "is_superuser"})
+        user = user.update_from_dict(update_data)
+        await user.save()
+        return user
+
     async def authenticate(self, credentials: CredentialsSchema) -> Optional["User"]:
         user = await self.model.filter(username=credentials.username).first()
         if not user:

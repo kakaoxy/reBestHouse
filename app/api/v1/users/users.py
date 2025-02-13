@@ -62,8 +62,13 @@ async def create_user(
 async def update_user(
     user_in: UserUpdate,
 ):
-    user = await user_controller.update(id=user_in.id, obj_in=user_in)
-    await user_controller.update_roles(user, user_in.role_ids)
+    # 从个人资料页面更新时,只会传入 email 和 username
+    if len(user_in.model_dump(exclude_unset=True).keys()) <= 3 and "id" in user_in.model_dump(exclude_unset=True):
+        user = await user_controller.update_profile(id=user_in.id, obj_in=user_in)
+    else:
+        # 从用户管理页面更新,会传入更多字段
+        user = await user_controller.update(id=user_in.id, obj_in=user_in)
+        await user_controller.update_roles(user, user_in.role_ids or [])
     return Success(msg="Updated Successfully")
 
 
