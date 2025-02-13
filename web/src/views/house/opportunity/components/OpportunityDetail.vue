@@ -758,6 +758,7 @@ const floorStats = computed(() => {
 
   // 预定义楼层顺序
   const floorOrder = ['低楼层', '中楼层', '高楼层']
+  
   floorOrder.forEach(floor => {
     stats[floor] = {
       floor,
@@ -772,13 +773,23 @@ const floorStats = computed(() => {
   })
 
   // 统计数据
-  ershoufangList.value?.forEach(item => {
+
+  ershoufangList.value?.forEach((item, index) => {
     let floor = '其他'
-    if (item.floor_info) {
-      if (item.floor_info.includes('低楼层')) floor = '低楼层'
-      else if (item.floor_info.includes('中楼层')) floor = '中楼层'
-      else if (item.floor_info.includes('高楼层')) floor = '高楼层'
+    const floorInfo = item.floor_info?.toLowerCase() || ''
+    
+    if (floorInfo.includes('低楼层')) {
+      floor = '低楼层'
+    } else if (floorInfo.includes('中楼层')) {
+      floor = '中楼层'
+    } else if (floorInfo.includes('高楼层')) {
+      floor = '高楼层'
     }
+
+    const size = Number(item.size) || 0
+    const totalPrice = Number(item.total_price) || 0
+    const unitPrice = Number(item.unit_price) || 0
+    const listingDays = getDaysDiff(item.listing_date || item.created_at)
 
     if (!stats[floor]) {
       stats[floor] = {
@@ -792,11 +803,6 @@ const floorStats = computed(() => {
         totalListingDays: 0
       }
     }
-
-    const size = Number(item.size) || 0
-    const totalPrice = Number(item.total_price) || 0
-    const unitPrice = Number(item.unit_price) || 0
-    const listingDays = getDaysDiff(item.listing_date || item.created_at)
 
     stats[floor].count++
     stats[floor].totalSize += size
@@ -815,32 +821,47 @@ const floorStats = computed(() => {
     total.totalListingDays += listingDays
   })
 
-  // 格式化数据
-  const result = Object.entries(stats)
-    .filter(([floor]) => floorOrder.includes(floor))
-    .sort((a, b) => floorOrder.indexOf(a[0]) - floorOrder.indexOf(b[0]))
-    .map(([floor, stat]) => ({
-      floor,
-      count: stat.count,
-      avgSize: stat.count ? Number((stat.totalSize / stat.count).toFixed(1)) : 0,
-      avgUnitPrice: stat.count ? Math.round(stat.totalUnitPrice / stat.count) : 0,
-      avgPrice: stat.count ? Number((stat.totalPrice / stat.count).toFixed(1)) : 0,
-      maxTotalPrice: stat.maxTotalPrice === -Infinity ? 0 : stat.maxTotalPrice,
-      minTotalPrice: stat.minTotalPrice === Infinity ? 0 : stat.minTotalPrice,
-      avgListingDays: stat.count ? Math.round(stat.totalListingDays / stat.count) : 0
-    }))
+  // 按预定义顺序返回结果
+  const result = floorOrder.map(floor => {
+    if (!stats[floor]) {
+      return {
+        floor,
+        count: 0,
+        avgSize: '0.0',
+        avgPrice: '0.0',
+        avgUnitPrice: 0,
+        maxTotalPrice: 0,
+        minTotalPrice: 0,
+        avgListingDays: 0
+      }
+    }
+
+    const floorStats = {
+      ...stats[floor],
+      avgSize: stats[floor].count ? (stats[floor].totalSize / stats[floor].count).toFixed(1) : '0.0',
+      avgPrice: stats[floor].count ? (stats[floor].totalPrice / stats[floor].count).toFixed(1) : '0.0',
+      avgUnitPrice: stats[floor].count ? Math.round(stats[floor].totalUnitPrice / stats[floor].count) : 0,
+      maxTotalPrice: stats[floor].maxTotalPrice === 0 ? 0 : stats[floor].maxTotalPrice,
+      minTotalPrice: stats[floor].minTotalPrice === Infinity ? 0 : stats[floor].minTotalPrice,
+      avgListingDays: stats[floor].count ? Math.round(stats[floor].totalListingDays / stats[floor].count) : 0
+    }
+
+    return floorStats
+  })
 
   // 添加总计行
   if (total.count > 0) {
-    result.push({
+    const totalStats = {
       ...total,
-      avgSize: Number((total.totalSize / total.count).toFixed(1)),
+      avgSize: (total.totalSize / total.count).toFixed(1),
+      avgPrice: (total.totalPrice / total.count).toFixed(1),
       avgUnitPrice: Math.round(total.totalUnitPrice / total.count),
-      avgPrice: Number((total.totalPrice / total.count).toFixed(1)),
-      maxTotalPrice: total.maxTotalPrice,
-      minTotalPrice: total.minTotalPrice,
+      maxTotalPrice: total.maxTotalPrice === 0 ? 0 : total.maxTotalPrice,
+      minTotalPrice: total.minTotalPrice === Infinity ? 0 : total.minTotalPrice,
       avgListingDays: Math.round(total.totalListingDays / total.count)
-    })
+    }
+
+    result.push(totalStats)
   }
 
   return result

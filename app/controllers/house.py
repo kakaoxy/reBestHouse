@@ -585,24 +585,13 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                     # 处理楼层信息
                     floor_info = row['楼层信息']
                     if pd.notna(floor_info):
-                        # 从"低楼层/共8层"这样的格式中提取信息
+                        house_data['floor'] = floor_info
+                        # 从"低楼层/共8层"这样的格式中提取总楼层
                         floor_parts = floor_info.split('/')
                         if len(floor_parts) == 2:
-                            # 处理所在楼层
-                            floor_desc = floor_parts[0]  # 如"低楼层"
-                            if '低' in floor_desc:
-                                house_data['floor_number'] = 1
-                            elif '中' in floor_desc:
-                                house_data['floor_number'] = 4
-                            elif '高' in floor_desc:
-                                house_data['floor_number'] = 7
-                            
-                            # 处理总楼层
                             total_floors_str = floor_parts[1]  # 如"共8层"
-                            total_floors = ''.join(filter(str.isdigit, total_floors_str))
-                            if total_floors.isdigit():
-                                house_data['total_floors'] = int(total_floors)
-                    
+                            total_floors = int(''.join(filter(str.isdigit, total_floors_str)))
+                            house_data['total_floors'] = total_floors
                     # 如果没有楼层信息，设置默认值
                     if 'floor_number' not in house_data:
                         house_data['floor_number'] = 1
