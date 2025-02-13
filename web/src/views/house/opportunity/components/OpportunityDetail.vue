@@ -91,7 +91,17 @@
                       </n-tooltip>
                     </div>
                     <div class="status-tag">
-                      <n-tag :type="getStatusType(opportunityData.status)">
+                      <n-tag
+                        :style="{
+                          backgroundColor: getStatusType(opportunityData.status).color,
+                          color: getStatusType(opportunityData.status).textColor,
+                          border: `1px solid ${getStatusType(opportunityData.status).borderColor}`,
+                          padding: '4px 12px',
+                          fontSize: '12px',
+                          fontWeight: '500'
+                        }"
+                        size="small"
+                      >
                         {{ opportunityData.status }}
                       </n-tag>
                     </div>
@@ -501,7 +511,43 @@ const handleViewDealRecord = (item) => {
 
 // 获取状态类型
 const getStatusType = (status) => {
-  return OPPORTUNITY_STATUS_TAG_TYPE[status] || 'default'
+  switch (status) {
+    case '待评估':
+      return {
+        type: 'warning',
+        color: '#FF9800',
+        textColor: '#FFF',
+        borderColor: '#FF9800'
+      }
+    case '已评估':
+      return {
+        type: 'info',
+        color: '#2196F3',
+        textColor: '#FFF',
+        borderColor: '#2196F3'
+      }
+    case '已签约':
+      return {
+        type: 'success',
+        color: '#4CAF50',
+        textColor: '#FFF',
+        borderColor: '#4CAF50'
+      }
+    case '已放弃':
+      return {
+        type: 'error',
+        color: '#F44336',
+        textColor: '#FFF',
+        borderColor: '#F44336'
+      }
+    default:
+      return {
+        type: 'default',
+        color: '#9E9E9E',
+        textColor: '#FFF',
+        borderColor: '#9E9E9E'
+      }
+  }
 }
 
 // 计算天数差异
