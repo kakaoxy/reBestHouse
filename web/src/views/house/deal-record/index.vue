@@ -100,7 +100,7 @@
           @update:page="handlePageChange"
           @update:page-size="handlePageSizeChange"
           @update:sorter="handleSorterChange"
-          v-bind="tableProps"
+          :scroll-x="1800"
         />
       </n-space>
     </n-card>
@@ -138,27 +138,26 @@ const departmentStore = useDepartmentStore()
 const userStore = useUserStore()
 
 // 选中的城市
-const selectedCity = ref(null)
+const selectedCity = ref('')
 
 // 查询参数
 const queryParams = reactive({
-  city: '',
   search_keyword: '',
   page: 1,
   page_size: 10
 })
 
-// 处理城市变化
-const handleCityChange = (value) => {
-  selectedCity.value = value
-  queryParams.city = value
-  departmentStore.setDepartment(value)
-  loadData()
-}
-
 // 渲染城市选择器的标签
 const renderLabel = (option) => {
   return option.label
+}
+
+// API 定义
+const api = {
+  list: (params = {}) => request.get('/house/deal-records', { params: { ...params, city: selectedCity.value } }),
+  create: (data) => request.post('/house/deal-records', data),
+  update: (id, data) => request.put(`/house/deal-records/${id}`, data),
+  delete: (id) => request.delete(`/house/deal-records/${id}`)
 }
 
 // 使用 CRUD 函数
@@ -184,26 +183,21 @@ const {
   handleLayoutChange,
   handleFloorChange,
   handleReset
-} = useDealRecordCRUD({
-  list: (params = {}) => request.get('/house/deal-records', { params: { ...params, ...queryParams } }),
-  create: (data) => request.post('/house/deal-records', data),
-  update: (id, data) => request.put(`/house/deal-records/${id}`, data),
-  delete: (id) => request.delete(`/house/deal-records/${id}`)
-})
+} = useDealRecordCRUD(api)
+
+// 处理城市变化
+const handleCityChange = (value) => {
+  console.log('City changed to:', value)
+  selectedCity.value = value
+  departmentStore.setDepartment(value)
+  loadData()
+}
 
 // 处理重置
 const handleResetAll = () => {
   queryParams.search_keyword = ''
   handleReset()
   loadData()
-}
-
-// API 定义
-const api = {
-  list: (params = {}) => request.get('/house/deal-records', { params }),
-  create: (data) => request.post('/house/deal-records', data),
-  update: (id, data) => request.put(`/house/deal-records/${id}`, data),
-  delete: (id) => request.delete(`/house/deal-records/${id}`)
 }
 
 // 预定义选项
@@ -240,13 +234,11 @@ onMounted(async () => {
     await departmentStore.initCurrentDepartment()
     // 使用初始化后的部门
     selectedCity.value = departmentStore.currentDepartment
-    queryParams.city = selectedCity.value
     await loadData()
   } catch (error) {
     console.error('初始化失败:', error)
     // 如果初始化失败，使用上海作为默认值
     selectedCity.value = 'shanghai'
-    queryParams.city = 'shanghai'
     await loadData()
   }
 })
@@ -257,7 +249,6 @@ watch(
   (newValue) => {
     if (newValue && newValue !== selectedCity.value) {
       selectedCity.value = newValue
-      queryParams.city = newValue
       loadData()
     }
   },

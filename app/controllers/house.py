@@ -290,7 +290,26 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
         
         # 户型筛选
         if params.layout:
-            query &= Q(layout=params.layout)
+            if params.layout == '其他':
+                # 排除1-4室的情况
+                exclude_patterns = ['1室', '一室', '2室', '二室', '3室', '三室', '4室', '四室']
+                layout_query = Q()
+                for pattern in exclude_patterns:
+                    layout_query |= Q(layout__istartswith=pattern)
+                query &= ~layout_query  # 使用 ~ 操作符取反
+            else:
+                layout_mapping = {
+                    '一房': ['1室', '一室'],
+                    '二房': ['2室', '二室'],
+                    '三房': ['3室', '三室'],
+                    '四房': ['4室', '四室']
+                }
+                if params.layout in layout_mapping:
+                    layout_patterns = layout_mapping[params.layout]
+                    layout_query = Q()
+                    for pattern in layout_patterns:
+                        layout_query |= Q(layout__istartswith=pattern)
+                    query &= layout_query
         
         # 朝向筛选
         if params.orientation:

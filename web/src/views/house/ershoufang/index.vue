@@ -67,8 +67,8 @@
               <n-button
                 v-for="layout in CUSTOM_LAYOUT_OPTIONS"
                 :key="layout.value"
-                :type="queryParams.layout === layout.dbValue ? 'primary' : 'default'"
-                @click="handleLayoutChange(layout.dbValue)"
+                :type="queryParams.layout === layout.value ? 'primary' : 'default'"
+                @click="handleLayoutChange(layout.value)"
               >
                 {{ layout.label }}
               </n-button>

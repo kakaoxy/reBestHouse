@@ -25,18 +25,13 @@ export function useDealRecordCRUD(api) {
     },
     pageCount: 0,
     itemCount: 0,
-    onChange: (page) => {
-      handlePageChange(page)
-    },
-    onUpdatePageSize: (pageSize) => {
-      handlePageSizeChange(pageSize)
-    }
+    onChange: (page) => handlePageChange(page),
+    onUpdatePageSize: (pageSize) => handlePageSizeChange(pageSize)
   })
 
   // 查询参数
   const queryParams = reactive({
     search_keyword: '',
-    city: '',
     layout: null,
     floor_info: null,
     sort_by: 'deal_date',
@@ -226,28 +221,24 @@ export function useDealRecordCRUD(api) {
   const loadData = async () => {
     try {
       loading.value = true
+      // 确保所有参数都被正确传递
       const params = {
+        ...queryParams,
         page: pagination.value.page,
-        page_size: pagination.value.pageSize,
-        city: queryParams.city,
-        search_keyword: queryParams.search_keyword,
-        layout: queryParams.layout,
-        floor_info: queryParams.floor_info,
-        sort_by: queryParams.sort_by,
-        sort_direction: queryParams.sort_direction
+        page_size: pagination.value.pageSize
       }
 
-      const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
-        if (key === 'page' || key === 'page_size' || 
-            (value !== undefined && value !== null && value !== '')) {
-          acc[key] = value
+      // 移除空值参数
+      Object.keys(params).forEach(key => {
+        if (params[key] === null || params[key] === undefined || params[key] === '') {
+          delete params[key]
         }
-        return acc
-      }, {})
+      })
 
-      const res = await api.list(cleanParams)
-      
-      if (res?.code === 200 && res.data) {
+
+      const res = await api.list(params)
+
+      if (res.code === 200) {
         data.value = res.data.items.map(item => ({
           ...item,
           total_price: Number(item.total_price),
@@ -255,18 +246,25 @@ export function useDealRecordCRUD(api) {
           size: Number(item.size)
         }))
         
+        // 更新分页信息
+        const total = parseInt(res.data.total) || 0
+        const pageSize = parseInt(res.data.page_size) || pagination.value.pageSize
+        const page = parseInt(res.data.page) || pagination.value.page
+        
         pagination.value = {
           ...pagination.value,
-          page: parseInt(res.data.page) || 1,
-          pageSize: parseInt(res.data.page_size) || 10,
-          total: parseInt(res.data.total) || 0,
-          itemCount: parseInt(res.data.total) || 0,
-          pageCount: Math.ceil((parseInt(res.data.total) || 0) / (parseInt(res.data.page_size) || 10))
+          page,
+          pageSize,
+          total,
+          itemCount: total,
+          pageCount: Math.ceil(total / pageSize)
         }
+      } else {
+        throw new Error(res.msg || '加载数据失败')
       }
     } catch (error) {
-      console.error('Load data error:', error)
-      message.error(error.message || '获取数据失败')
+
+      message.error(error.message || '加载数据失败')
     } finally {
       loading.value = false
     }
@@ -274,7 +272,7 @@ export function useDealRecordCRUD(api) {
 
   // 处理新增
   const handleAdd = () => {
-    console.log('handleAdd called')
+
     modalTitle.value = '新增成交'
     formParams.value = {
       id: null,
@@ -378,7 +376,7 @@ export function useDealRecordCRUD(api) {
         throw new Error(res.msg || '删除失败')
       }
     } catch (error) {
-      console.error('Delete error:', error)
+
       message.error(error.message || '删除失败')
     }
   }
@@ -387,7 +385,7 @@ export function useDealRecordCRUD(api) {
   const handleModalSubmit = async (formData) => {
     try {
       loading.value = true
-      console.log('Submitting form data:', formData)
+
       
       // 处理提交数据
       const processedData = {
@@ -417,7 +415,7 @@ export function useDealRecordCRUD(api) {
         throw new Error(res.msg || '操作失败')
       }
     } catch (error) {
-      console.error('Submit error:', error)
+
       message.error(error.message || '操作失败')
     } finally {
       loading.value = false
@@ -436,7 +434,7 @@ export function useDealRecordCRUD(api) {
   }
 
   const handlePageSizeChange = (pageSize) => {
-    pagination.value.page = 1
+    pagination.value.page = 1  // 重置到第一页
     pagination.value.pageSize = pageSize
     loadData()
   }
@@ -450,13 +448,14 @@ export function useDealRecordCRUD(api) {
       queryParams.sort_by = 'deal_date'
       queryParams.sort_direction = 'desc'
     }
+    pagination.value.page = 1  // 重置到第一页
     loadData()
   }
 
   // 修改筛选条件处理函数
   const handleLayoutChange = (value) => {
     queryParams.layout = queryParams.layout === value ? null : value
-    pagination.value.page = 1
+    pagination.value.page = 1  // 重置到第一页
     loadData()
   }
 
@@ -466,30 +465,27 @@ export function useDealRecordCRUD(api) {
     } else {
       queryParams.floor_info = value
     }
-    pagination.value.page = 1
+    pagination.value.page = 1  // 重置到第一页
     loadData()
   }
 
   // 重置函数
   const handleReset = () => {
-    const currentCity = queryParams.city
     Object.assign(queryParams, {
       search_keyword: '',
-      city: currentCity,
       layout: null,
       floor_info: null,
       sort_by: 'deal_date',
       sort_direction: 'desc'
     })
-    pagination.value.page = 1
+    pagination.value.page = 1  // 重置到第一页
     loadData()
   }
 
   // 添加城市切换处理函数
   const handleCityChange = (city) => {
-    console.log('City changed to:', city)
     queryParams.city = city
-    pagination.value.page = 1  // 重置页码
+    pagination.value.page = 1  // 重置到第一页
     loadData()  // 重新加载数据
   }
 
