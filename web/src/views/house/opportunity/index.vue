@@ -83,9 +83,20 @@
                 class="w-full aspect-[1.36/1] object-cover rounded"
                 preview-disabled
               />
-              <div class="absolute left-4 bottom-4 right-4 flex justify-between items-center">
-                <span class="text-5xl font-bold text-white">{{ item.community_name }}</span>
-                <n-tag :type="getStatusType(item.status)" size="small">
+              <div class="absolute left-0 bottom-0 right-0 p-4 flex justify-between items-center bg-gradient-to-t from-black/70 to-transparent">
+                <span class="text-5xl font-bold text-white drop-shadow-lg">{{ item.community_name }}</span>
+                <n-tag
+                  :style="{
+                    backgroundColor: getStatusType(item.status).color,
+                    color: getStatusType(item.status).textColor,
+                    border: `1px solid ${getStatusType(item.status).borderColor}`,
+                    padding: '4px 12px',
+                    fontSize: '12px',
+                    fontWeight: '500'
+                  }"
+                  size="small"
+                  class="z-10 status-tag"
+                >
                   {{ item.status }}
                 </n-tag>
               </div>
@@ -539,7 +550,45 @@ const rules = {
   }
 }
 
-const getStatusType = (status) => OPPORTUNITY_STATUS_TAG_TYPE[status] || 'default'
+const getStatusType = (status) => {
+  switch (status) {
+    case '待评估':
+      return {
+        type: 'warning',
+        color: '#FF9800',
+        textColor: '#FFF',
+        borderColor: '#FF9800'
+      }
+    case '已评估':
+      return {
+        type: 'info',
+        color: '#2196F3',
+        textColor: '#FFF',
+        borderColor: '#2196F3'
+      }
+    case '已签约':
+      return {
+        type: 'success',
+        color: '#4CAF50',
+        textColor: '#FFF',
+        borderColor: '#4CAF50'
+      }
+    case '已放弃':
+      return {
+        type: 'error',
+        color: '#F44336',
+        textColor: '#FFF',
+        borderColor: '#F44336'
+      }
+    default:
+      return {
+        type: 'default',
+        color: '#9E9E9E',
+        textColor: '#FFF',
+        borderColor: '#9E9E9E'
+      }
+  }
+}
 
 const loadOpportunities = async () => {
   loading.value = true
@@ -1181,5 +1230,11 @@ watch(
 .action-button {
   position: relative;
   z-index: 2;
+}
+
+.status-tag {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
 }
 </style>

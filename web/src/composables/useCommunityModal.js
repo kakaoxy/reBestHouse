@@ -114,7 +114,6 @@ export function useCommunityModal(api) {
         return false
       }
     } catch (error) {
-      console.error('Submit error:', error)
       message.error('表单验证失败')
       return false
     } finally {
@@ -133,7 +132,6 @@ export function useCommunityModal(api) {
         return false
       }
     } catch (error) {
-      console.error('Delete error:', error)
       message.error('删除失败')
       return false
     }

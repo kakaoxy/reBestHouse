@@ -117,7 +117,6 @@ const api = {
       page: params.page || 1,
       page_size: params.page_size || 10
     }
-    console.log('API request params:', queryParams)
     return request.get('/house/communities', { params: queryParams })
   },
   create: (data) => request.post('/house/communities', data),
@@ -287,16 +286,13 @@ const loadData = async () => {
       page: pagination.page,
       page_size: pagination.pageSize
     }
-    console.log('Sending request with params:', params)
+
     const res = await api.list(params)
-    console.log('API response:', res)
     const processedData = processData(res)
-    console.log('Processed data:', processedData)
     if (!processedData) {
       message.error('加载数据失败')
     }
   } catch (error) {
-    console.error('Load data error:', error)
     message.error('加载数据失败')
   } finally {
     loading.value = false
@@ -377,7 +373,6 @@ const handleModalSubmit = async (formData) => {
       message.error(res.msg || '操作失败')
     }
   } catch (error) {
-    console.error('Submit error:', error)
     message.error('操作失败')
   } finally {
     loading.value = false
@@ -413,7 +408,6 @@ const handleDelete = async (row) => {
       loadData()
     }
   } catch (error) {
-    console.error('Delete error:', error)
     message.error('删除失败')
   } finally {
     loading.value = false
@@ -520,7 +514,6 @@ onMounted(async () => {
     queryParams.city = selectedCity.value
     await loadData()
   } catch (error) {
-    console.error('初始化失败:', error)
     // 如果初始化失败，使用上海作为默认值
     selectedCity.value = 'shanghai'
     queryParams.city = 'shanghai'
