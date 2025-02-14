@@ -52,42 +52,6 @@
 - Vue Router
 
 ### 快速开始
-#### 方法一：dockerhub拉取镜像
-
-```sh
-docker pull mizhexiaoxiao/reBestHouse:latest 
-docker run -d --restart=always --name=reBestHouse -p 9999:80 mizhexiaoxiao/reBestHouse
-```
-
-#### 方法二：dockerfile构建镜像
-##### docker安装(版本17.05+)
-
-```sh
-yum install -y docker-ce
-systemctl start docker
-```
-
-##### 构建镜像
-
-```sh
-git clone https://github.com/kakaoxy/reBestHouse.git
-cd reBestHouse
-docker build --no-cache . -t reBestHouse
-```
-
-##### 启动容器
-
-```sh
-docker run -d --restart=always --name=reBestHouse -p 9999:80 reBestHouse
-```
-
-##### 访问
-
-http://localhost:9999
-
-username：admin
-
-password：123456
 
 ### 本地启动
 #### 后端
