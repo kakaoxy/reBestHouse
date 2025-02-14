@@ -764,47 +764,67 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
         order: List[str] = None,
     ) -> Tuple[int, List[DealRecord]]:
         """
-        获取列表数据
+        获取列表数据，对于相同的 source_transaction_id 只返回最新更新的记录
         """
-        query = self.model.all()
-        if search:
-            query = query.filter(search)
+        base_query = search if search else Q()
         
+        # 获取每个 source_transaction_id 的最新记录的 id
+        latest_ids = await DealRecord.filter(base_query)\
+            .group_by('source_transaction_id')\
+            .annotate(latest_id=Max('id'))\
+            .values_list('latest_id', flat=True)
+            
+        # 构建最终查询，确保应用基础查询条件
+        query = DealRecord.filter(
+            (Q(id__in=latest_ids) | Q(source_transaction_id__isnull=True)) & base_query
+        )
+        
+        # 计算总数
         total = await query.count()
         
+        # 应用排序和分页
         if order:
-            query = query.order_by(*order)
-        
+            for o in order:
+                if o.startswith('-'):
+                    query = query.order_by(o)
+                else:
+                    query = query.order_by(o)
+                    
         items = await query.offset((page - 1) * page_size).limit(page_size)
         
         return total, items
 
     async def get_deal_records(self, params: DealRecordQueryParams) -> Dict:
+        """获取成交记录列表"""
+        logging.info(f"接收到查询参数: {params}")
         query = Q()
+        
         if params.city:
-            query &= Q(city=params.city.lower())
-
-        if params.community_id:
-            query &= Q(community_id=params.community_id)
+            city = params.city.lower()
+            query &= Q(city=city)
+            logging.info(f"添加城市筛选条件: {city}")
             
         if params.search_keyword:
-            query &= (
-                Q(community_name__icontains=params.search_keyword) |
-                Q(region__icontains=params.search_keyword) |
-                Q(area__icontains=params.search_keyword)
-            )
+            logging.info(f"添加小区名称搜索条件: {params.search_keyword}")
+            query &= Q(community_name__icontains=params.search_keyword)
+            
         if params.layout:
             query &= Q(layout=params.layout)
+            
         if params.floor_info:
-            # 移除 % 并使用 startswith
-            floor_value = params.floor_info.replace('%', '')
-            query &= Q(floor_info__startswith=floor_value)
+            query &= Q(floor_info=params.floor_info)
 
+        # 构建排序条件
+        order = []
+        if params.sort_by:
+            order.append(f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}")
+            
+        # 获取数据
         total, items = await self.list(
             page=params.page,
             page_size=params.page_size,
             search=query,
-            order=[f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}"]
+            order=order
         )
         
         response_items = []
@@ -815,26 +835,32 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
                 'community_name': item.community_name,
                 'region': item.region,
                 'area': item.area,
+                'city': item.city,
                 'source': item.source,
                 'source_transaction_id': item.source_transaction_id,
                 'layout': item.layout,
                 'size': item.size,
                 'floor_info': item.floor_info,
+                'floor_number': item.floor_number,
+                'total_floors': item.total_floors,
                 'orientation': item.orientation,
+                'listing_price': item.listing_price,  # 挂牌价
                 'total_price': item.total_price,
                 'unit_price': item.unit_price,
-                'listing_price': item.listing_price,
                 'tags': item.tags,
                 'location': item.location,
                 'decoration': item.decoration,
                 'agency': item.agency,
                 'deal_date': item.deal_date.isoformat() if item.deal_date else None,
                 'deal_cycle': item.deal_cycle,
-                'house_link': item.house_link,
-                'layout_image': item.layout_image,
+                'house_link': item.house_link,  # 房源链接
+                'layout_image': item.layout_image,  # 户型图链接
+                'building_year': item.building_year,
+                'building_structure': item.building_structure,
+                'platform_house_id': item.source_transaction_id,  # 使用source_transaction_id作为platform_house_id
                 'entry_time': item.entry_time.isoformat() if item.entry_time else None,
-                'created_at': item.created_at.isoformat(),
-                'updated_at': item.updated_at.isoformat()
+                'created_at': item.created_at.isoformat() if item.created_at else None,
+                'updated_at': item.updated_at.isoformat() if item.updated_at else None
             }
             response_items.append(item_dict)
 

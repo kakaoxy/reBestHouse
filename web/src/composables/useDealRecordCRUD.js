@@ -9,6 +9,7 @@ export function useDealRecordCRUD(api) {
   const modalTitle = ref('')
   const formParams = ref({})
   const cityStore = useCityStore()
+  const communityOptions = ref([]) // 新增小区选项
   
   // 表格数据
   const data = ref([])
@@ -314,9 +315,15 @@ export function useDealRecordCRUD(api) {
   // 处理编辑
   const handleEdit = (row) => {
     modalTitle.value = '编辑成交'
+    console.log('编辑行数据:', row)  // 添加调试日志
     
     // 处理日期格式
-    const dealDate = row.deal_date ? new Date(row.deal_date).getTime() : null
+    let dealDate = null
+    if (row.deal_date) {
+      // 确保日期字符串格式正确
+      const dateStr = row.deal_date.split('T')[0]  // 只取日期部分
+      dealDate = new Date(dateStr).getTime()
+    }
 
     // 处理户型数据
     let rooms = null
@@ -330,38 +337,51 @@ export function useDealRecordCRUD(api) {
       }
     }
 
+    // 准备小区选项
+    const communityOption = {
+      label: row.community_name,
+      value: row.community_id,
+      region: row.region,
+      area: row.area
+    }
+    communityOptions.value = [communityOption]
+
+    // 确保所有数值类型字段都正确转换
     formParams.value = {
       id: row.id,
-      community_id: row.community_id,
-      community_name: row.community_name,  // 小区名称用于显示
-      region: row.region,
-      area: row.area,
-      city: row.city,
+      community_id: row.community_id ? parseInt(row.community_id) : null,
+      community_name: row.community_name || '',
+      region: row.region || '',
+      area: row.area || '',
+      city: row.city || cityStore.currentCity,
       source: row.source || 'store',
-      source_transaction_id: row.source_transaction_id,
+      source_transaction_id: row.source_transaction_id || '',
       deal_date: dealDate,
       total_price: row.total_price ? parseFloat(row.total_price) : null,
       unit_price: row.unit_price ? parseFloat(row.unit_price) : null,
+      listing_price: row.listing_price ? parseFloat(row.listing_price) : null,  // 挂牌价
+      layout: row.layout || '',
       size: row.size ? parseFloat(row.size) : null,
-      floor_info: row.floor_info,
-      floor_number: row.floor_number,
-      total_floors: row.total_floors,
-      orientation: row.orientation,
-      building_year: row.building_year,
-      agency: row.agency,
-      deal_cycle: row.deal_cycle,
-      house_link: row.house_link,
-      layout_image: row.layout_image,
-      listing_price: row.listing_price ? parseFloat(row.listing_price) : null,
-      tags: row.tags,
-      location: row.location,
-      decoration: row.decoration,
+      floor_info: row.floor_info || '',
+      floor_number: row.floor_number ? parseInt(row.floor_number) : null,
+      total_floors: row.total_floors ? parseInt(row.total_floors) : null,
+      orientation: row.orientation || '',
+      building_year: row.building_year ? parseInt(row.building_year) : null,
+      agency: row.agency || '',
+      deal_cycle: row.deal_cycle ? parseInt(row.deal_cycle) : null,
+      house_link: row.house_link || '',  // 房源链接
+      layout_image: row.layout_image || '',  // 户型图链接
+      tags: row.tags || '',
+      location: row.location || '',
+      decoration: row.decoration || '',
+      building_structure: row.building_structure || '',
+      platform_house_id: row.source_transaction_id || '',  // 使用source_transaction_id
       // 户型相关
       rooms,
-      halls,
-      layout: row.layout
+      halls
     }
 
+    console.log('处理后的表单数据:', formParams.value)  // 添加调试日志
     showModal.value = true
   }
 
@@ -508,6 +528,7 @@ export function useDealRecordCRUD(api) {
     showModal,
     modalTitle,
     formParams,
+    communityOptions, // 新增小区选项
     CUSTOM_LAYOUT_OPTIONS,
     FLOOR_OPTIONS,
     loadData,

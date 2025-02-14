@@ -21,6 +21,7 @@
               placeholder="输入小区名称搜索"
               style="width: 200px"
               clearable
+              @update:value="handleSearchKeywordChange"
             />
             <n-button type="primary" @click="loadData">
               <template #icon>
@@ -142,9 +143,7 @@ const selectedCity = ref('')
 
 // 查询参数
 const queryParams = reactive({
-  search_keyword: '',
-  page: 1,
-  page_size: 10
+  search_keyword: ''
 })
 
 // 渲染城市选择器的标签
@@ -154,7 +153,16 @@ const renderLabel = (option) => {
 
 // API 定义
 const api = {
-  list: (params = {}) => request.get('/house/deal-records', { params: { ...params, city: selectedCity.value } }),
+  list: (params = {}) => {
+    const { search_keyword } = queryParams
+    const requestParams = {
+      ...params,
+      search_keyword,
+      city: selectedCity.value
+    }
+    console.log('发送API请求，参数:', requestParams)
+    return request.get('/house/deal-records', { params: requestParams })
+  },
   create: (data) => request.post('/house/deal-records', data),
   update: (id, data) => request.put(`/house/deal-records/${id}`, data),
   delete: (id) => request.delete(`/house/deal-records/${id}`)
@@ -184,6 +192,12 @@ const {
   handleFloorChange,
   handleReset
 } = useDealRecordCRUD(api)
+
+// 处理搜索关键词变化
+const handleSearchKeywordChange = (val) => {
+  console.log('搜索关键词更新:', val)
+  queryParams.search_keyword = val
+}
 
 // 处理城市变化
 const handleCityChange = (value) => {

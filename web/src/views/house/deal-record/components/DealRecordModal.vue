@@ -115,9 +115,9 @@
   
                 <!-- 挂牌价 -->
                 <n-grid-item>
-                  <n-form-item label="挂牌价" path="list_price">
+                  <n-form-item label="挂牌价" path="listing_price">
                     <n-input-number
-                      v-model:value="localFormValue.list_price"
+                      v-model:value="localFormValue.listing_price"
                       :min="0"
                       :precision="2"
                       placeholder="请输入挂牌价"
@@ -203,29 +203,24 @@
                   </n-form-item>
                 </n-grid-item>
   
-                <!-- 标签 -->
-                <n-grid-item>
-                  <n-form-item label="标签" path="tags">
-                    <n-dynamic-tags v-model:value="localFormValue.tags" />
-                  </n-form-item>
-                </n-grid-item>
-  
                 <!-- 户型图链接 -->
                 <n-grid-item>
-                  <n-form-item label="户型图链接" path="layout_url">
+                  <n-form-item label="户型图链接" path="layout_image">
                     <n-input
-                      v-model:value="localFormValue.layout_url"
+                      v-model:value="localFormValue.layout_image"
                       placeholder="请输入户型图链接"
+                      type="text"
                     />
                   </n-form-item>
                 </n-grid-item>
   
                 <!-- 房源链接 -->
                 <n-grid-item>
-                  <n-form-item label="房源链接" path="house_url">
+                  <n-form-item label="房源链接" path="house_link">
                     <n-input
-                      v-model:value="localFormValue.house_url"
+                      v-model:value="localFormValue.house_link"
                       placeholder="请输入房源链接"
+                      type="text"
                     />
                   </n-form-item>
                 </n-grid-item>
@@ -375,8 +370,8 @@
     agency: '',
     source: 'store',
     tags: [],
-    layout_url: '',
-    house_url: '',
+    layout_image: '',
+    house_link: '',
     building_year: null,
     decoration: '',
     building_structure: '',
@@ -561,8 +556,8 @@
             agency: '',
             source: 'store',
             tags: [],
-            layout_url: '',
-            house_url: '',
+            layout_image: '',
+            house_link: '',
             building_year: null,
             decoration: '',
             building_structure: '',
@@ -607,8 +602,8 @@
   // 处理面积变化
   const handleSizeChange = (value) => {
     if (value && localFormValue.value.total_price) {
-      const unitPrice = (localFormValue.value.total_price * 10000 / value).toFixed(2)
-      localFormValue.value.unit_price = parseFloat(unitPrice)
+      // 计算单价并保留两位小数
+      localFormValue.value.unit_price = Number((localFormValue.value.total_price * 10000 / value).toFixed(2))
     } else {
       localFormValue.value.unit_price = null
     }
@@ -617,8 +612,8 @@
   // 处理总价变化
   const handleTotalPriceChange = (value) => {
     if (value && localFormValue.value.size) {
-      const unitPrice = (value * 10000 / localFormValue.value.size).toFixed(2)
-      localFormValue.value.unit_price = parseFloat(unitPrice)
+      // 计算单价并保留两位小数
+      localFormValue.value.unit_price = Number((value * 10000 / localFormValue.value.size).toFixed(2))
     } else {
       localFormValue.value.unit_price = null
     }
@@ -696,8 +691,8 @@
       agency: null,
       source: 'store',
       tags: [],
-      layout_url: '',
-      house_url: '',
+      layout_image: '',
+      house_link: '',
       building_year: null,
       decoration: null,
       building_structure: null,
