@@ -51,38 +51,100 @@
 - Pinia
 - Vue Router
 
-## 快速开始
+### 快速开始
+#### 方法一：dockerhub拉取镜像
 
-### 后端启动
-
-```bash
-# 创建虚拟环境
-python -m venv venv
-source venv/bin/activate  # Windows 使用 venv\Scripts\activate
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 初始化数据库
-python fix_db.py
-
-# 启动服务
-uvicorn app.main:app --host 0.0.0.0 --port 9999 --reload
+```sh
+docker pull mizhexiaoxiao/reBestHouse:latest 
+docker run -d --restart=always --name=reBestHouse -p 9999:80 mizhexiaoxiao/reBestHouse
 ```
 
-### 前端启动
+#### 方法二：dockerfile构建镜像
+##### docker安装(版本17.05+)
 
-```bash
+```sh
+yum install -y docker-ce
+systemctl start docker
+```
+
+##### 构建镜像
+
+```sh
+git clone https://github.com/kakaoxy/reBestHouse.git
+cd reBestHouse
+docker build --no-cache . -t reBestHouse
+```
+
+##### 启动容器
+
+```sh
+docker run -d --restart=always --name=reBestHouse -p 9999:80 reBestHouse
+```
+
+##### 访问
+
+http://localhost:9999
+
+username：admin
+
+password：123456
+
+### 本地启动
+#### 后端
+启动项目需要以下环境：
+- Python 3.11
+
+#### 方法一（推荐）：[Poetry](https://python-poetry.org/docs/#installing-with-the-official-installer) 安装依赖
+1. 创建虚拟环境
+```sh
+poetry shell
+```
+2. 安装依赖
+```sh
+poetry install
+```
+3. 启动服务
+```sh
+make run
+```
+#### 方法二：Pip 安装依赖
+1. 创建虚拟环境
+```sh
+python3.11 -m venv venv
+```
+2. 激活虚拟环境
+```sh
+source venv/bin/activate
+```
+3. 安装依赖
+```sh
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
+3. 启动服务
+```sh
+python run.py
+```
+
+服务现在应该正在运行，访问 http://localhost:9999/docs 查看API文档
+
+#### 前端
+启动项目需要以下环境：
+- node v18.8.0+
+
+1. 进入前端目录
+```sh
 cd web
+```
 
-# 安装依赖
-npm install
+2. 安装依赖(建议使用pnpm: https://pnpm.io/zh/installation)
+```sh
+npm i -g pnpm # 已安装可忽略
+pnpm i # 或者 npm i
+```
 
-# 开发环境启动
-npm run dev
-
-# 生产环境构建
-npm run build
+3. 启动
+```sh
+pnpm dev
 ```
 
 ## 项目结构
