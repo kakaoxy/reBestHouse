@@ -581,19 +581,19 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                     # 转换Excel数据到数据库字段
                     house_data = {
                         'community_name': row['小区名称*'],
-                        'house_id': str(row['平台房源ID']),  # 使用平台房源ID作为房源编号
+                        'house_id': str(row['平台房源ID']) if pd.notna(row['平台房源ID']) else None,
                         'region': row['所在区域'],
                         'area': row['所在商圈'],
                         'layout': row['户型*'],
                         'size': row['建筑面积*'],
-                        'floor': row['楼层信息'],
-                        'orientation': row['房屋朝向'],
-                        'ladder_ratio': row['梯户比'],
+                        'floor': row['楼层信息'] if pd.notna(row['楼层信息']) else None,
+                        'orientation': row['房屋朝向'] if pd.notna(row['房屋朝向']) else None,
+                        'ladder_ratio': row['梯户比'] if pd.notna(row['梯户比']) else None,
                         'total_price': row['总价(万)*'],
-                        'unit_price': row['单价(元/平)'],
-                        'mortgage_info': row['抵押信息'],
-                        'layout_image': row['户型图链接'],
-                        'house_link': row['房源链接'],
+                        'unit_price': row['单价(元/平)'] if pd.notna(row['单价(元/平)']) else None,
+                        'mortgage_info': row['抵押信息'] if pd.notna(row['抵押信息']) else None,
+                        'layout_image': row['户型图链接'] if pd.notna(row['户型图链接']) else '',  # 将nan转换为空字符串
+                        'house_link': row['房源链接'] if pd.notna(row['房源链接']) else '',  # 将nan转换为空字符串
                         'city': city.lower(),
                         'data_source': 'import',  # 默认设置为'import'
                         'platform_listing_id': str(row['平台房源ID']) if pd.notna(row['平台房源ID']) else None,
