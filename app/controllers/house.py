@@ -587,35 +587,75 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
                         'layout': row['户型*'],
                         'size': row['建筑面积*'],
                         'floor': row['楼层信息'] if pd.notna(row['楼层信息']) else None,
+                        'floor_number': row.get('所在楼层'),
+                        'total_floors': row.get('总楼层'),
                         'orientation': row['房屋朝向'] if pd.notna(row['房屋朝向']) else None,
                         'ladder_ratio': row['梯户比'] if pd.notna(row['梯户比']) else None,
                         'total_price': row['总价(万)*'],
                         'unit_price': row['单价(元/平)'] if pd.notna(row['单价(元/平)']) else None,
+                        'listing_date': parse_chinese_date(row['挂牌时间']),
+                        'last_transaction_date': parse_chinese_date(row['上次交易时间']),
                         'mortgage_info': row['抵押信息'] if pd.notna(row['抵押信息']) else None,
                         'layout_image': row['户型图链接'] if pd.notna(row['户型图链接']) else '',  # 将nan转换为空字符串
                         'house_link': row['房源链接'] if pd.notna(row['房源链接']) else '',  # 将nan转换为空字符串
-                        'city': city.lower(),
-                        'data_source': 'import',  # 默认设置为'import'
+                        'building_year': row.get('建筑年代'),
+                        'building_structure': row.get('建筑结构'),
                         'platform_listing_id': str(row['平台房源ID']) if pd.notna(row['平台房源ID']) else None,
-                        'listing_date': parse_chinese_date(row['挂牌时间']),
-                        'last_transaction_date': parse_chinese_date(row['上次交易时间'])
+                        'data_source': 'import',  # 默认设置为'import'
+                        'city': city.lower()
                     }
                     
                     # 处理楼层信息
                     floor_info = row['楼层信息']
                     if pd.notna(floor_info):
-                        house_data['floor'] = floor_info
                         # 从"低楼层/共8层"这样的格式中提取总楼层
                         floor_parts = floor_info.split('/')
                         if len(floor_parts) == 2:
+                            # 提取总楼层数
                             total_floors_str = floor_parts[1]  # 如"共8层"
                             total_floors = int(''.join(filter(str.isdigit, total_floors_str)))
                             house_data['total_floors'] = total_floors
+                            
+                            # 从第一部分提取楼层数字或描述
+                            floor_description = floor_parts[0].strip()  # 如"低楼层"
+                            
+                            # 如果是具体楼层数
+                            if '层' in floor_description and any(c.isdigit() for c in floor_description):
+                                floor_number = int(''.join(filter(str.isdigit, floor_description)))
+                                house_data['floor_number'] = floor_number
+                            # 如果是描述性文字
+                            else:
+                                if '低' in floor_description:
+                                    house_data['floor_number'] = max(1, int(total_floors * 0.2))
+                                elif '中' in floor_description:
+                                    house_data['floor_number'] = int(total_floors * 0.5)
+                                elif '高' in floor_description:
+                                    house_data['floor_number'] = int(total_floors * 0.8)
+                                else:
+                                    house_data['floor_number'] = 1
+                            
+                            # 使用计算出的楼层数重新生成楼层描述
+                            floor_desc = self.calculate_floor_info(
+                                house_data['floor_number'],
+                                house_data['total_floors']
+                            )
+                            if floor_desc:
+                                house_data['floor'] = floor_desc
+                                house_data['floor_info'] = floor_desc
+                    
                     # 如果没有楼层信息，设置默认值
                     if 'floor_number' not in house_data:
                         house_data['floor_number'] = 1
                     if 'total_floors' not in house_data:
                         house_data['total_floors'] = 1
+                    if 'floor' not in house_data or 'floor_info' not in house_data:
+                        floor_desc = self.calculate_floor_info(
+                            house_data['floor_number'],
+                            house_data['total_floors']
+                        )
+                        if floor_desc:
+                            house_data['floor'] = floor_desc
+                            house_data['floor_info'] = floor_desc
                     
                     # 确保非空字段有值
                     for key, value in house_data.items():
@@ -702,7 +742,6 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
         'last_transaction_date': '上次交易时间',
         'mortgage_info': '抵押信息',
         'layout_image': '户型图链接',
-        'ke_code': '贝壳编号',
         'house_link': '房源链接',
         'building_year': '建筑年代',
         'building_structure': '建筑结构',
@@ -729,7 +768,6 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
         '上次交易时间': 'last_transaction_date',
         '抵押信息': 'mortgage_info',
         '户型图链接': 'layout_image',
-        '贝壳编号': 'ke_code',
         '房源链接': 'house_link',
         '建筑年代': 'building_year',
         '建筑结构': 'building_structure',
@@ -799,6 +837,10 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
         logging.info(f"接收到查询参数: {params}")
         query = Q()
         
+        if params.community_id:
+            query &= Q(community_id=params.community_id)
+            logging.info(f"添加小区ID筛选条件: {params.community_id}")
+            
         if params.city:
             city = params.city.lower()
             query &= Q(city=city)

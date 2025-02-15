@@ -70,7 +70,6 @@ class ErshoufangBase(BaseModel):
     last_transaction_date: Optional[datetime] = Field(None, description='上次交易时间')
     mortgage_info: Optional[str] = Field(None, description='抵押信息')
     layout_image: Optional[str] = Field(None, description='户型图链接')
-    ke_code: Optional[str] = Field(None, description='贝壳编号')
     house_link: Optional[str] = Field(None, description='房源链接')
     city: Optional[str] = Field(None, description='城市')
     building_year: Optional[int] = Field(None, description='建筑年代')
@@ -126,7 +125,7 @@ ErshoufangResponse = pydantic_model_creator(
         "id", "community_id", "house_id", "community_name", "region",
         "area", "layout", "size", "floor", "orientation", "ladder_ratio",
         "total_price", "unit_price", "listing_date", "last_transaction_date",
-        "mortgage_info", "layout_image", "ke_code", "house_link", "city",
+        "mortgage_info", "layout_image", "house_link", "city",
         "building_year", "building_structure", "data_source",
         "platform_listing_id", "created_at", "updated_at"
     )

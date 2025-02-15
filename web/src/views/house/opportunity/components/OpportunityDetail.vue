@@ -443,16 +443,10 @@ const loadCommunityErshoufang = async (communityId) => {
 const loadCommunityDealRecords = async (communityId) => {
   dealRecordLoading.value = true
   try {
-    const city = opportunityData.value?.city?.toLowerCase()
-    if (!city || !communityId) return
-
     const params = {
-      community_id: Number(communityId),
-      city,
+      community_id: communityId,
       page: 1,
-      page_size: 1000,
-      sort_by: 'deal_date',
-      sort_direction: 'desc'
+      page_size: 1000
     }
 
     const res = await dealRecordApi.list(params)
@@ -784,7 +778,6 @@ const layoutStats = computed(() => {
       avgListingDays: Math.round(total.totalListingDays / total.count)
     })
   }
-
   return result
 })
 
@@ -909,7 +902,6 @@ const floorStats = computed(() => {
 
     result.push(totalStats)
   }
-
   return result
 })
 
@@ -1104,7 +1096,6 @@ const dealFloorStats = computed(() => {
       avgDealCycle: total.totalDealCycle / total.count
     })
   }
-
   return result
 })
 
