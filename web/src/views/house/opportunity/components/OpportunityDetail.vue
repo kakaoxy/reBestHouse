@@ -123,7 +123,7 @@
                   </div>
                   <div class="info-item">
                     <div class="label">总价</div>
-                    <div class="value price">{{ opportunityData.total_price }}万</div>
+                    <div class="value">{{ opportunityData.total_price }}万</div>
                   </div>
                   <div class="info-item">
                     <div class="label">单价</div>
@@ -203,12 +203,12 @@
                     <div class="stats-tables">
                       <div class="stats-table w-full">
                         <n-data-table
-                          :columns="layoutColumns"
+                          :columns="listingLayoutColumns"
                           :data="layoutStats"
                           :bordered="false"
                           :single-line="false"
                           size="small"
-                          v-bind="layoutTableProps"
+                          v-bind="tableProps.layout"
                         />
                       </div>
                     </div>
@@ -223,6 +223,7 @@
                           :bordered="false"
                           :single-line="false"
                           size="small"
+                          v-bind="tableProps.floor"
                         />
                       </div>
                     </div>
@@ -600,61 +601,126 @@ const getListingDays = (listingTime) => {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 }
 
-// 子表格列定义
-const floorColumns = [
-  { 
+// 公共表格列配置
+const commonColumns = {
+  layout: {
+    title: '户型',
+    key: 'layout',
+    width: 100,
+    fixed: 'left',
+    className: 'layout-cell',
+    render: (row) => row.layout
+  },
+  floor: {
     key: 'floor',
     width: 100,
     fixed: 'left',
     className: 'floor-cell',
     render: (row) => row.floor
   },
-  { 
+  count: {
+    title: '套数',
     key: 'count',
     width: 80,
     align: 'right',
     render: (row) => row.count || '-'
   },
-  { 
+  avgSize: {
+    title: '平均面积',
     key: 'avgSize',
     width: 100,
     align: 'right',
     render: (row) => row.avgSize ? `${Math.round(row.avgSize)}㎡` : '-'
   },
-  { 
+  avgUnitPrice: {
+    title: '平均单价',
     key: 'avgUnitPrice',
     width: 120,
     align: 'right',
     render: (row) => row.avgUnitPrice ? `${Math.round(row.avgUnitPrice)}元/㎡` : '-'
   },
-  { 
+  avgTotalPrice: {
+    title: '平均总价',
     key: 'avgTotalPrice',
     width: 100,
     align: 'right',
     render: (row) => row.avgTotalPrice ? `${Math.round(row.avgTotalPrice)}万` : '-'
   },
-  { 
+  maxTotalPrice: {
+    title: '最高总价',
     key: 'maxTotalPrice',
     width: 100,
     align: 'right',
     render: (row) => row.maxTotalPrice ? `${Math.round(row.maxTotalPrice)}万` : '-'
   },
-  { 
+  minTotalPrice: {
+    title: '最低总价',
     key: 'minTotalPrice',
     width: 100,
     align: 'right',
     render: (row) => row.minTotalPrice ? `${Math.round(row.minTotalPrice)}万` : '-'
   },
-  { 
+  avgListingDays: {
+    title: '平均挂牌周期',
     key: 'avgListingDays',
-    width: 100,
+    width: 120,
     align: 'right',
     render: (row) => row.avgListingDays ? `${Math.round(row.avgListingDays)}天` : '-'
+  },
+  avgDealCycle: {
+    title: '平均成交周期',
+    key: 'avgDealCycle',
+    width: 120,
+    align: 'right',
+    render: (row) => row.avgDealCycle ? `${Math.round(row.avgDealCycle)}天` : '-'
   }
-]
+}
 
-// 主表格列定义
-const layoutColumns = [
+// 子表格列配置（不带标题）
+const floorColumns = {
+  ...commonColumns,
+  floor: {
+    ...commonColumns.floor,
+    title: ''
+  },
+  count: {
+    ...commonColumns.count,
+    title: ''
+  },
+  avgSize: {
+    ...commonColumns.avgSize,
+    title: ''
+  },
+  avgUnitPrice: {
+    ...commonColumns.avgUnitPrice,
+    title: ''
+  },
+  avgTotalPrice: {
+    ...commonColumns.avgTotalPrice,
+    title: ''
+  },
+  maxTotalPrice: {
+    ...commonColumns.maxTotalPrice,
+    title: ''
+  },
+  minTotalPrice: {
+    ...commonColumns.minTotalPrice,
+    title: ''
+  },
+  avgListingDays: {
+    ...commonColumns.avgListingDays,
+    title: '',
+    className: 'last-column'  // 为最后一列添加特殊类名
+  },
+  avgDealCycle: {
+    ...commonColumns.avgDealCycle,
+    title: '',
+    className: 'last-column'  // 为最后一列添加特殊类名
+  }
+}
+
+// 在售房源主表格列定义
+const listingLayoutColumns = [
   { 
     type: 'expand',
     width: 24,
@@ -662,7 +728,7 @@ const layoutColumns = [
     expandable: (row) => row.layout !== '合计' && row.floorStats?.length > 0,
     renderExpand: (row) => {
       return h(NDataTable, {
-        columns: floorColumns,
+        columns: listingFloorColumns,
         data: row.floorStats,
         size: 'small',
         bordered: false,
@@ -676,86 +742,84 @@ const layoutColumns = [
       })
     }
   },
-  { 
-    title: '户型',
-    key: 'layout',
-    width: 100,
-    fixed: 'left',
-    className: 'layout-cell',
-    render: (row) => row.layout
-  },
-  { 
-    title: '套数',
-    key: 'count',
-    width: 80,
-    align: 'right',
-    render: (row) => row.count || '-'
-  },
-  { 
-    title: '平均面积',
-    key: 'avgSize',
-    width: 100,
-    align: 'right',
-    render: (row) => row.avgSize ? `${Math.round(row.avgSize)}㎡` : '-'
-  },
-  { 
-    title: '平均单价',
-    key: 'avgUnitPrice',
-    width: 120,
-    align: 'right',
-    render: (row) => row.avgUnitPrice ? `${Math.round(row.avgUnitPrice)}元/㎡` : '-'
-  },
-  { 
-    title: '平均总价',
-    key: 'avgTotalPrice',
-    width: 100,
-    align: 'right',
-    render: (row) => row.avgTotalPrice ? `${Math.round(row.avgTotalPrice)}万` : '-'
-  },
-  { 
-    title: '最高总价',
-    key: 'maxTotalPrice',
-    width: 100,
-    align: 'right',
-    render: (row) => row.maxTotalPrice ? `${Math.round(row.maxTotalPrice)}万` : '-'
-  },
-  { 
-    title: '最低总价',
-    key: 'minTotalPrice',
-    width: 100,
-    align: 'right',
-    render: (row) => row.minTotalPrice ? `${Math.round(row.minTotalPrice)}万` : '-'
-  },
-  { 
-    title: '平均挂牌',
-    key: 'avgListingDays',
-    width: 100,
-    align: 'right',
-    render: (row) => row.avgListingDays ? `${Math.round(row.avgListingDays)}天` : '-'
-  }
+  commonColumns.layout,
+  commonColumns.count,
+  commonColumns.avgSize,
+  commonColumns.avgUnitPrice,
+  commonColumns.avgTotalPrice,
+  commonColumns.maxTotalPrice,
+  commonColumns.minTotalPrice,
+  commonColumns.avgListingDays
 ]
 
-// 表格响应式配置
-const tableRef = ref(null)
-const tableWidth = ref(0)
+// 在售房源子表格列定义
+const listingFloorColumns = [
+  floorColumns.floor,
+  floorColumns.count,
+  floorColumns.avgSize,
+  floorColumns.avgUnitPrice,
+  floorColumns.avgTotalPrice,
+  floorColumns.maxTotalPrice,
+  floorColumns.minTotalPrice,
+  floorColumns.avgListingDays
+]
 
-onMounted(() => {
-  const resizeObserver = new ResizeObserver(entries => {
-    for (const entry of entries) {
-      tableWidth.value = entry.contentRect.width
+// 成交房源主表格列定义
+const dealLayoutColumns = [
+  { 
+    type: 'expand',
+    width: 24,
+    fixed: 'left',
+    expandable: (row) => row.layout !== '合计' && row.floorStats?.length > 0,
+    renderExpand: (row) => {
+      return h(NDataTable, {
+        columns: dealFloorColumns,
+        data: row.floorStats,
+        size: 'small',
+        bordered: false,
+        class: 'floor-table',
+        hideHeader: true,
+        scrollX: true,
+        style: {
+          marginLeft: '24px',
+          marginTop: '4px'
+        }
+      })
     }
-  })
+  },
+  commonColumns.layout,
+  commonColumns.count,
+  commonColumns.avgSize,
+  commonColumns.avgUnitPrice,
+  commonColumns.avgTotalPrice,
+  commonColumns.maxTotalPrice,
+  commonColumns.minTotalPrice,
+  commonColumns.avgDealCycle
+]
 
-  if (tableRef.value) {
-    resizeObserver.observe(tableRef.value.$el)
+// 成交房源子表格列定义
+const dealFloorColumns = [
+  floorColumns.floor,
+  floorColumns.count,
+  floorColumns.avgSize,
+  floorColumns.avgUnitPrice,
+  floorColumns.avgTotalPrice,
+  floorColumns.maxTotalPrice,
+  floorColumns.minTotalPrice,
+  floorColumns.avgDealCycle
+]
+
+// 表格行样式配置
+const tableProps = {
+  layout: {
+    rowClassName: (row) => getRowClass(row, 'layout')
+  },
+  floor: {
+    rowClassName: (row) => getRowClass(row, 'floor')
   }
+}
 
-  onBeforeUnmount(() => {
-    resizeObserver.disconnect()
-  })
-})
-
-// 在售房源户型统计
+// 在售房源统计
 const layoutStats = computed(() => {
   if (!ershoufangList.value?.length) {
     return []
@@ -1520,148 +1584,58 @@ const handleFollowUpSuccess = () => {
 }
 
 // 添加之前被误删的成交房源统计相关的列定义
-const dealFloorColumns = [
-  { 
-    key: 'floor',
-    width: 100,
-    fixed: 'left',
-    className: 'floor-cell',
-    render: (row) => row.floor
-  },
-  { 
-    key: 'count',
-    width: 80,
-    align: 'right',
-    render: (row) => row.count || '-'
-  },
-  { 
-    key: 'avgSize',
-    width: 100,
-    align: 'right',
-    render: (row) => row.avgSize ? `${Math.round(row.avgSize)}㎡` : '-'
-  },
-  { 
-    key: 'avgUnitPrice',
-    width: 120,
-    align: 'right',
-    render: (row) => row.avgUnitPrice ? `${Math.round(row.avgUnitPrice)}元/㎡` : '-'
-  },
-  { 
-    key: 'avgTotalPrice',
-    width: 100,
-    align: 'right',
-    render: (row) => row.avgTotalPrice ? `${Math.round(row.avgTotalPrice)}万` : '-'
-  },
-  { 
-    key: 'maxTotalPrice',
-    width: 100,
-    align: 'right',
-    render: (row) => row.maxTotalPrice ? `${Math.round(row.maxTotalPrice)}万` : '-'
-  },
-  { 
-    key: 'minTotalPrice',
-    width: 100,
-    align: 'right',
-    render: (row) => row.minTotalPrice ? `${Math.round(row.minTotalPrice)}万` : '-'
-  },
-  { 
-    key: 'avgDealCycle',
-    width: 120,
-    align: 'right',
-    render: (row) => row.avgDealCycle ? `${Math.round(row.avgDealCycle)}天` : '-'
-  }
-]
+// const dealFloorColumns = [
+//   commonColumns.floor,
+//   commonColumns.count,
+//   commonColumns.avgSize,
+//   commonColumns.avgUnitPrice,
+//   commonColumns.avgTotalPrice,
+//   commonColumns.maxTotalPrice,
+//   commonColumns.minTotalPrice,
+//   commonColumns.avgDealCycle
+// ]
 
 // 成交房源主表格列定义
-const dealLayoutColumns = [
-  { 
-    type: 'expand',
-    width: 24,
-    fixed: 'left',
-    expandable: (row) => row.layout !== '合计' && row.floorStats?.length > 0,
-    renderExpand: (row) => {
-      return h(NDataTable, {
-        columns: dealFloorColumns,
-        data: row.floorStats,
-        size: 'small',
-        bordered: false,
-        class: 'floor-table',
-        hideHeader: true,
-        scrollX: true,
-        style: {
-          marginLeft: '24px',
-          marginTop: '4px'
-        }
-      })
-    }
-  },
-  { 
-    title: '户型',
-    key: 'layout',
-    width: 100,
-    fixed: 'left',
-    className: 'layout-cell',
-    render: (row) => row.layout
-  },
-  { 
-    title: '套数',
-    key: 'count',
-    width: 80,
-    align: 'right',
-    render: (row) => row.count || '-'
-  },
-  { 
-    title: '平均面积',
-    key: 'avgSize',
-    width: 100,
-    align: 'right',
-    render: (row) => row.avgSize ? `${Math.round(row.avgSize)}㎡` : '-'
-  },
-  { 
-    title: '平均单价',
-    key: 'avgUnitPrice',
-    width: 120,
-    align: 'right',
-    render: (row) => row.avgUnitPrice ? `${Math.round(row.avgUnitPrice)}元/㎡` : '-'
-  },
-  { 
-    title: '平均总价',
-    key: 'avgTotalPrice',
-    width: 100,
-    align: 'right',
-    render: (row) => row.avgTotalPrice ? `${Math.round(row.avgTotalPrice)}万` : '-'
-  },
-  { 
-    title: '最高总价',
-    key: 'maxTotalPrice',
-    width: 100,
-    align: 'right',
-    render: (row) => row.maxTotalPrice ? `${Math.round(row.maxTotalPrice)}万` : '-'
-  },
-  { 
-    title: '最低总价',
-    key: 'minTotalPrice',
-    width: 100,
-    align: 'right',
-    render: (row) => row.minTotalPrice ? `${Math.round(row.minTotalPrice)}万` : '-'
-  },
-  { 
-    title: '平均成交周期',
-    key: 'avgDealCycle',
-    width: 120,
-    align: 'right',
-    render: (row) => row.avgDealCycle ? `${Math.round(row.avgDealCycle)}天` : '-'
-  }
-]
+// const dealLayoutColumns = [
+//   { 
+//     type: 'expand',
+//     width: 24,
+//     fixed: 'left',
+//     expandable: (row) => row.layout !== '合计' && row.floorStats?.length > 0,
+//     renderExpand: (row) => {
+//       return h(NDataTable, {
+//         columns: dealFloorColumns,
+//         data: row.floorStats,
+//         size: 'small',
+//         bordered: false,
+//         class: 'floor-table',
+//         hideHeader: true,
+//         scrollX: true,
+//         style: {
+//           marginLeft: '24px',
+//           marginTop: '4px'
+//         }
+//       })
+//     }
+//   },
+//   commonColumns.layout,
+//   commonColumns.count,
+//   commonColumns.avgSize,
+//   commonColumns.avgUnitPrice,
+//   commonColumns.avgTotalPrice,
+//   commonColumns.maxTotalPrice,
+//   commonColumns.minTotalPrice,
+//   commonColumns.avgDealCycle
+// ]
 
 // 表格响应式配置
-const layoutTableProps = {
-  rowClassName: (row) => getRowClass(row, 'layout')
-}
+// const layoutTableProps = {
+//   rowClassName: (row) => getRowClass(row, 'layout')
+// }
 
-const floorTableProps = {
-  rowClassName: (row) => getRowClass(row, 'floor')
-}
+// const floorTableProps = {
+//   rowClassName: (row) => getRowClass(row, 'floor')
+// }
 
 // 添加侧边栏折叠状态控制
 const collapsed = ref(false)
@@ -2199,5 +2173,13 @@ const getLayoutWeight = (layout) => {
   .info-grid {
     grid-template-columns: 1fr;
   }
+}
+
+:deep(.last-column) {
+  padding-right: 16px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 </style>
