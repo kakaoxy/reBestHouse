@@ -83,11 +83,12 @@ async def init_superuser():
 async def init_menus():
     menus = await Menu.exists()
     if not menus:
-        parent_menu = await Menu.create(
+        # 1. 创建系统管理菜单
+        system_menu = await Menu.create(
             menu_type=MenuType.CATALOG,
             name="系统管理",
             path="/system",
-            order=1,
+            order=10,  # 保持与现有顺序一致
             parent_id=0,
             icon="carbon:gui-management",
             is_hidden=False,
@@ -95,13 +96,15 @@ async def init_menus():
             keepalive=False,
             redirect="/system/user",
         )
-        children_menu = [
+
+        # 系统管理子菜单
+        system_children = [
             Menu(
                 menu_type=MenuType.MENU,
                 name="用户管理",
                 path="user",
                 order=1,
-                parent_id=parent_menu.id,
+                parent_id=system_menu.id,
                 icon="material-symbols:person-outline-rounded",
                 is_hidden=False,
                 component="/system/user",
@@ -112,7 +115,7 @@ async def init_menus():
                 name="角色管理",
                 path="role",
                 order=2,
-                parent_id=parent_menu.id,
+                parent_id=system_menu.id,
                 icon="carbon:user-role",
                 is_hidden=False,
                 component="/system/role",
@@ -123,7 +126,7 @@ async def init_menus():
                 name="菜单管理",
                 path="menu",
                 order=3,
-                parent_id=parent_menu.id,
+                parent_id=system_menu.id,
                 icon="material-symbols:list-alt-outline",
                 is_hidden=False,
                 component="/system/menu",
@@ -134,7 +137,7 @@ async def init_menus():
                 name="API管理",
                 path="api",
                 order=4,
-                parent_id=parent_menu.id,
+                parent_id=system_menu.id,
                 icon="ant-design:api-outlined",
                 is_hidden=False,
                 component="/system/api",
@@ -145,7 +148,7 @@ async def init_menus():
                 name="部门管理",
                 path="dept",
                 order=5,
-                parent_id=parent_menu.id,
+                parent_id=system_menu.id,
                 icon="mingcute:department-line",
                 is_hidden=False,
                 component="/system/dept",
@@ -156,26 +159,94 @@ async def init_menus():
                 name="审计日志",
                 path="auditlog",
                 order=6,
-                parent_id=parent_menu.id,
+                parent_id=system_menu.id,
                 icon="ph:clipboard-text-bold",
                 is_hidden=False,
                 component="/system/auditlog",
                 keepalive=False,
             ),
         ]
-        await Menu.bulk_create(children_menu)
-        await Menu.create(
-            menu_type=MenuType.MENU,
-            name="一级菜单",
-            path="/top-menu",
-            order=2,
+        await Menu.bulk_create(system_children)
+
+        # 2. 创建房源管理菜单
+        house_menu = await Menu.create(
+            menu_type=MenuType.CATALOG,
+            name="房源管理",
+            path="/house",
+            order=3,
             parent_id=0,
-            icon="material-symbols:featured-play-list-outline",
+            icon="material-symbols:home-work",
             is_hidden=False,
-            component="/top-menu",
+            component="/house",
             keepalive=False,
-            redirect="",
         )
+
+        # 房源管理子菜单
+        house_children = [
+            Menu(
+                menu_type=MenuType.MENU,
+                name="小区信息",
+                path="community",
+                order=1,
+                parent_id=house_menu.id,
+                icon="material-symbols:home-work-outline",
+                is_hidden=False,
+                component="/house/community",
+                keepalive=True,
+            ),
+            Menu(
+                menu_type=MenuType.MENU,
+                name="在售房源",
+                path="ershoufang",
+                order=2,
+                parent_id=house_menu.id,
+                icon="material-symbols:other-houses-outline-rounded",
+                is_hidden=False,
+                component="/house/ershoufang",
+                keepalive=True,
+            ),
+            Menu(
+                menu_type=MenuType.MENU,
+                name="成交房源",
+                path="deal-record",
+                order=3,
+                parent_id=house_menu.id,
+                icon="material-symbols:in-home-mode-outline",
+                is_hidden=False,
+                component="/house/deal-record",
+                keepalive=True,
+            ),
+        ]
+        await Menu.bulk_create(house_children)
+
+        # 3. 创建商机和项目管理菜单（作为顶级菜单）
+        business_menus = [
+            Menu(
+                menu_type=MenuType.MENU,
+                name="商机管理",
+                path="/house/opportunity",
+                order=1,
+                parent_id=0,
+                icon="mdi:floppy-variant",
+                is_hidden=False,
+                component="/house/opportunity",
+                keepalive=True,
+                redirect="/house/opportunity",
+            ),
+            Menu(
+                menu_type=MenuType.MENU,
+                name="项目管理",
+                path="/house/project",
+                order=2,
+                parent_id=0,
+                icon="si:projects-alt-fill",
+                is_hidden=False,
+                component="/house/project",
+                keepalive=True,
+                redirect="/house/project",
+            ),
+        ]
+        await Menu.bulk_create(business_menus)
 
 
 async def init_apis():
