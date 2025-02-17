@@ -31,69 +31,81 @@ class CommunityController(CRUDBase[Community, CommunityCreate, CommunityUpdate])
         super().__init__(model=Community)
     
     async def get_communities(self, params: CommunityQueryParams) -> Dict:
-        query = Q()
-        if params.city:
-            query &= Q(city=params.city.lower())
-        if params.name:
-            query &= Q(name__icontains=params.name)
-        if params.region:
-            query &= Q(region=params.region)
-        if params.area:
-            query &= Q(area=params.area)
-        if params.building_year:
-            query &= Q(building_year=params.building_year)
-        if params.search_keyword:
-            query &= (
-                Q(name__icontains=params.search_keyword) |
-                Q(region__icontains=params.search_keyword) |
-                Q(area__icontains=params.search_keyword)
+        try:
+            query = Q()
+            if params.city:
+                query &= Q(city=params.city.lower())
+            if params.name:
+                query &= Q(name__icontains=params.name)
+            if params.region:
+                query &= Q(region=params.region)
+            if params.area:
+                query &= Q(area=params.area)
+            if params.building_year:
+                query &= Q(building_year=params.building_year)
+            if params.search_keyword:
+                query &= (
+                    Q(name__icontains=params.search_keyword) |
+                    Q(region__icontains=params.search_keyword) |
+                    Q(area__icontains=params.search_keyword)
+                )
+                
+            total, items = await self.list(
+                page=params.page,
+                page_size=params.page_size,
+                search=query,
+                order=["-created_at"]
             )
             
-        total, items = await self.list(
-            page=params.page,
-            page_size=params.page_size,
-            search=query,
-            order=["-created_at"]
-        )
-        
-        return {
-            "code": 200,
-            "msg": "OK",
-            "data": {
-                "items": [await CommunityResponse.from_tortoise_orm(item) for item in items],
-                "total": total,
-                "page": params.page,
-                "page_size": params.page_size
+            return {
+                "code": 200,
+                "msg": "OK",
+                "data": {
+                    "items": [await CommunityResponse.from_tortoise_orm(item) for item in items],
+                    "total": total,
+                    "page": params.page,
+                    "page_size": params.page_size
+                }
             }
-        }
+        except Exception as e:
+            logging.error(f"获取小区列表失败: {str(e)}")
+            return {
+                "code": 500,
+                "msg": f"获取小区列表失败: {str(e)}",
+                "data": None
+            }
 
     async def check_duplicate(self, name: str, region: str, area: str, city: str) -> Community:
         """检查小区是否存在，如果存在返回小区对象，否则返回None"""
-        return await self.model.filter(
-            name=name,
-            region=region,
-            area=area,
-            city=city.lower()
-        ).first()
+        try:
+            return await self.model.filter(
+                name=name,
+                region=region,
+                area=area,
+                city=city.lower()
+            ).first()
+        except Exception as e:
+            logging.error(f"检查小区重复失败: {str(e)}")
+            return None
 
     async def create(self, data: CommunityCreate) -> Dict:
         """创建小区前检查是否重复"""
-        # 检查是否存在重复小区
-        existing = await self.check_duplicate(
-            name=data.name,
-            region=data.region,
-            area=data.area,
-            city=data.city
-        )
-        
-        if existing:
-            return {
-                "code": 400,
-                "msg": f"小区已存在：{data.region} {data.area} {data.name}",
-                "data": await CommunityResponse.from_tortoise_orm(existing)
-            }
-        
         try:
+            # 检查是否存在重复小区
+            existing = await self.check_duplicate(
+                name=data.name,
+                region=data.region,
+                area=data.area,
+                city=data.city
+            )
+            
+            if existing:
+                return {
+                    "code": 400,
+                    "msg": f"小区已存在：{data.region} {data.area} {data.name}",
+                    "data": await CommunityResponse.from_tortoise_orm(existing)
+                }
+            
             community = await self.model.create(**data.dict())
             return {
                 "code": 200,
@@ -101,21 +113,34 @@ class CommunityController(CRUDBase[Community, CommunityCreate, CommunityUpdate])
                 "data": await CommunityResponse.from_tortoise_orm(community)
             }
         except Exception as e:
+            logging.error(f"创建小区失败: {str(e)}")
             return {
                 "code": 500,
-                "msg": f"创建失败：{str(e)}"
+                "msg": f"创建小区失败: {str(e)}",
+                "data": None
             }
 
     async def update_community(self, id: int, data: CommunityUpdate) -> Dict:
         try:
             community = await self.update(id, data)
+            if not community:
+                return {
+                    "code": 404,
+                    "msg": "小区不存在",
+                    "data": None
+                }
             return {
                 "code": 200,
                 "msg": "更新成功",
                 "data": await CommunityResponse.from_tortoise_orm(community)
             }
         except Exception as e:
-            raise HTTPException(status_code=404, detail="Community not found")
+            logging.error(f"更新小区失败: {str(e)}")
+            return {
+                "code": 500,
+                "msg": f"更新小区失败: {str(e)}",
+                "data": None
+            }
 
     async def delete_community(self, id: int) -> Dict:
         try:
@@ -392,13 +417,23 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
 
     async def _get_filter_options(self) -> Dict:
         """获取筛选选项"""
-        return {
-            "regions": await self.model.all().distinct().values_list('region', flat=True),
-            "areas": await self.model.all().distinct().values_list('area', flat=True),
-            "layouts": await self.model.all().distinct().values_list('layout', flat=True),
-            "orientations": await self.model.all().distinct().values_list('orientation', flat=True),
-            "cities": await self.model.all().distinct().values_list('city', flat=True)
-        }
+        try:
+            return {
+                "regions": await self.model.all().distinct().values_list('region', flat=True),
+                "areas": await self.model.all().distinct().values_list('area', flat=True),
+                "layouts": await self.model.all().distinct().values_list('layout', flat=True),
+                "orientations": await self.model.all().distinct().values_list('orientation', flat=True),
+                "cities": await self.model.all().distinct().values_list('city', flat=True)
+            }
+        except Exception as e:
+            logging.error(f"获取筛选选项失败: {str(e)}")
+            return {
+                "regions": [],
+                "areas": [],
+                "layouts": [],
+                "orientations": [],
+                "cities": []
+            }
 
     async def create_ershoufang(self, data: ErshoufangCreate) -> Dict:
         try:
@@ -533,15 +568,27 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
         }
 
     async def delete_ershoufang(self, id: int) -> Dict:
-        ershoufang = await Ershoufang.get_or_none(id=id)
-        if not ershoufang:
-            raise HTTPException(status_code=404, detail="Ershoufang not found")
-        await ershoufang.delete()
-        return {
-            "code": 200,
-            "msg": "删除成功",
-            "data": None
-        }
+        try:
+            ershoufang = await Ershoufang.get_or_none(id=id)
+            if not ershoufang:
+                return {
+                    "code": 404,
+                    "msg": "房源不存在",
+                    "data": None
+                }
+            await ershoufang.delete()
+            return {
+                "code": 200,
+                "msg": "删除成功",
+                "data": None
+            }
+        except Exception as e:
+            logging.error(f"删除房源失败: {str(e)}")
+            return {
+                "code": 500,
+                "msg": f"删除房源失败: {str(e)}",
+                "data": None
+            }
 
     async def import_ershoufangs(self, file: UploadFile, city: str) -> Dict:
         # print(f"[Controller] 开始处理导入: filename={file.filename}, city={city}")
@@ -804,118 +851,134 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
         """
         获取列表数据，对于相同的 source_transaction_id 只返回最新更新的记录
         """
-        base_query = search if search else Q()
-        
-        # 获取每个 source_transaction_id 的最新记录的 id
-        latest_ids = await DealRecord.filter(base_query)\
-            .group_by('source_transaction_id')\
-            .annotate(latest_id=Max('id'))\
-            .values_list('latest_id', flat=True)
+        try:
+            base_query = search if search else Q()
             
-        # 构建最终查询，确保应用基础查询条件
-        query = DealRecord.filter(
-            (Q(id__in=latest_ids) | Q(source_transaction_id__isnull=True)) & base_query
-        )
-        
-        # 计算总数
-        total = await query.count()
-        
-        # 应用排序和分页
-        if order:
-            for o in order:
-                if o.startswith('-'):
-                    query = query.order_by(o)
-                else:
-                    query = query.order_by(o)
-                    
-        items = await query.offset((page - 1) * page_size).limit(page_size)
-        
-        return total, items
+            # 获取每个 source_transaction_id 的最新记录的 id
+            latest_ids = await DealRecord.filter(base_query)\
+                .group_by('source_transaction_id')\
+                .annotate(latest_id=Max('id'))\
+                .values_list('latest_id', flat=True)
+                
+            # 构建最终查询，确保应用基础查询条件
+            query = DealRecord.filter(
+                (Q(id__in=latest_ids) | Q(source_transaction_id__isnull=True)) & base_query
+            )
+            
+            # 计算总数
+            total = await query.count()
+            
+            # 应用排序和分页
+            if order:
+                for o in order:
+                    if o.startswith('-'):
+                        query = query.order_by(o)
+                    else:
+                        query = query.order_by(o)
+                        
+            items = await query.offset((page - 1) * page_size).limit(page_size)
+            
+            return total, items
+        except Exception as e:
+            logging.error(f"获取成交记录列表失败: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"获取成交记录列表失败: {str(e)}")
 
     async def get_deal_records(self, params: DealRecordQueryParams) -> Dict:
         """获取成交记录列表"""
-        logging.info(f"接收到查询参数: {params}")
-        query = Q()
-        
-        if params.community_id:
-            query &= Q(community_id=params.community_id)
-            logging.info(f"添加小区ID筛选条件: {params.community_id}")
+        try:
+            logging.info(f"接收到查询参数: {params}")
+            query = Q()
             
-        if params.city:
-            city = params.city.lower()
-            query &= Q(city=city)
-            logging.info(f"添加城市筛选条件: {city}")
-            
-        if params.search_keyword:
-            logging.info(f"添加小区名称搜索条件: {params.search_keyword}")
-            query &= Q(community_name__icontains=params.search_keyword)
-            
-        if params.layout:
-            query &= Q(layout=params.layout)
-            
-        if params.floor_info:
-            query &= Q(floor_info=params.floor_info)
+            if params.community_id:
+                query &= Q(community_id=params.community_id)
+                logging.info(f"添加小区ID筛选条件: {params.community_id}")
+                
+            if params.city:
+                city = params.city.lower()
+                query &= Q(city=city)
+                logging.info(f"添加城市筛选条件: {city}")
+                
+            if params.search_keyword:
+                logging.info(f"添加小区名称搜索条件: {params.search_keyword}")
+                query &= Q(community_name__icontains=params.search_keyword)
+                
+            if params.layout:
+                query &= Q(layout=params.layout)
+                
+            if params.floor_info:
+                query &= Q(floor_info=params.floor_info)
 
-        # 构建排序条件
-        order = []
-        if params.sort_by:
-            order.append(f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}")
+            # 构建排序条件
+            order = []
+            if params.sort_by:
+                order.append(f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}")
+                
+            # 获取数据
+            total, items = await self.list(
+                page=params.page,
+                page_size=params.page_size,
+                search=query,
+                order=order
+            )
             
-        # 获取数据
-        total, items = await self.list(
-            page=params.page,
-            page_size=params.page_size,
-            search=query,
-            order=order
-        )
-        
-        response_items = []
-        for item in items:
-            item_dict = {
-                'id': item.id,
-                'community_id': item.community_id,
-                'community_name': item.community_name,
-                'region': item.region,
-                'area': item.area,
-                'city': item.city,
-                'source': item.source,
-                'source_transaction_id': item.source_transaction_id,
-                'layout': item.layout,
-                'size': item.size,
-                'floor_info': item.floor_info,
-                'floor_number': item.floor_number,
-                'total_floors': item.total_floors,
-                'orientation': item.orientation,
-                'listing_price': item.listing_price,  # 挂牌价
-                'total_price': item.total_price,
-                'unit_price': item.unit_price,
-                'tags': item.tags,
-                'location': item.location,
-                'decoration': item.decoration,
-                'agency': item.agency,
-                'deal_date': item.deal_date.isoformat() if item.deal_date else None,
-                'deal_cycle': item.deal_cycle,
-                'house_link': item.house_link,  # 房源链接
-                'layout_image': item.layout_image,  # 户型图链接
-                'building_year': item.building_year,
-                'building_structure': item.building_structure,
-                'platform_house_id': item.source_transaction_id,  # 使用source_transaction_id作为platform_house_id
-                'entry_time': item.entry_time.isoformat() if item.entry_time else None,
-                'created_at': item.created_at.isoformat() if item.created_at else None,
-                'updated_at': item.updated_at.isoformat() if item.updated_at else None
-            }
-            response_items.append(item_dict)
+            response_items = []
+            for item in items:
+                try:
+                    item_dict = {
+                        'id': item.id,
+                        'community_id': item.community_id,
+                        'community_name': item.community_name,
+                        'region': item.region,
+                        'area': item.area,
+                        'city': item.city,
+                        'source': item.source,
+                        'source_transaction_id': item.source_transaction_id,
+                        'layout': item.layout,
+                        'size': item.size,
+                        'floor_info': item.floor_info,
+                        'floor_number': item.floor_number,
+                        'total_floors': item.total_floors,
+                        'orientation': item.orientation,
+                        'listing_price': item.listing_price,  # 挂牌价
+                        'total_price': item.total_price,
+                        'unit_price': item.unit_price,
+                        'tags': item.tags,
+                        'location': item.location,
+                        'decoration': item.decoration,
+                        'agency': item.agency,
+                        'deal_date': item.deal_date.isoformat() if item.deal_date else None,
+                        'deal_cycle': item.deal_cycle,
+                        'house_link': item.house_link,  # 房源链接
+                        'layout_image': item.layout_image,  # 户型图链接
+                        'building_year': item.building_year,
+                        'building_structure': item.building_structure,
+                        'platform_house_id': item.source_transaction_id,  # 使用source_transaction_id作为platform_house_id
+                        'entry_time': item.entry_time.isoformat() if item.entry_time else None,
+                        'created_at': item.created_at.isoformat() if item.created_at else None,
+                        'updated_at': item.updated_at.isoformat() if item.updated_at else None
+                    }
+                    response_items.append(item_dict)
+                except Exception as e:
+                    logging.error(f"处理成交记录数据失败: {str(e)}")
+                    continue
 
-        return {
-            "code": 200,
-            "msg": "OK",
-            "data": {
-                "items": response_items,
-                "total": total,
-                "page": params.page,
-                "page_size": params.page_size
+            return {
+                "code": 200,
+                "msg": "OK",
+                "data": {
+                    "items": response_items,
+                    "total": total,
+                    "page": params.page,
+                    "page_size": params.page_size
+                }
             }
-        }
+        except Exception as e:
+            logging.error(f"获取成交记录列表失败: {str(e)}")
+            return {
+                "code": 500,
+                "msg": f"获取成交记录列表失败: {str(e)}",
+                "data": None
+            }
 
     async def create_deal_record(self, data: DealRecordCreate) -> Dict:
         try:
@@ -1023,10 +1086,10 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
             required_columns = ['小区名称', '建筑面积', '成交价', '成交时间']
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
-                return {
-                    "code": 400,
-                    "msg": f"缺少必要的列: {', '.join(missing_columns)}"
-                }
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"缺少必要的列: {', '.join(missing_columns)}"
+                )
             
             success_count = 0
             error_list = []
@@ -1134,11 +1197,10 @@ class DealRecordController(CRUDBase[DealRecord, DealRecordCreate, DealRecordUpda
                 }
             }
             
+        except HTTPException as e:
+            raise e
         except Exception as e:
-            return {
-                "code": 500,
-                "msg": f"导入失败：{str(e)}"
-            }
+            raise HTTPException(status_code=400, detail=str(e))
 
     # 添加导入模板列定义
     IMPORT_COLUMNS = {
@@ -1177,52 +1239,58 @@ class OpportunityController(CRUDBase[Opportunity, OpportunityCreate, Opportunity
 
     async def get_opportunity(self, id: int) -> Dict:
         try:
-            opportunity = await self.get(id)
+            opportunity = await Opportunity.get_or_none(id=id)
+            if not opportunity:
+                raise HTTPException(status_code=404, detail="商机不存在")
             return {
                 "code": 200,
                 "data": await opportunity.to_dict(),
                 "message": "获取商机详情成功"
             }
-        except Exception:
-            return {
-                "code": 404,
-                "message": "商机不存在"
-            }
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     async def get_opportunities(self, params: OpportunityQueryParams) -> Dict:
         """获取商机列表"""
-        query = Q()
-        
-        # 通过关联的小区来过滤城市
-        if params.city:
-            query &= Q(community__city=params.city.lower())
+        try:
+            query = Q()
             
-        if params.community_name:
-            query &= Q(community_name__icontains=params.community_name)
-            
-        if params.status:
-            if isinstance(params.status, list):
-                query &= Q(status__in=params.status)
-            else:
-                query &= Q(status=params.status)
+            # 通过关联的小区来过滤城市
+            if params.city:
+                query &= Q(community__city=params.city.lower())
+                
+            if params.community_name:
+                query &= Q(community_name__icontains=params.community_name)
+                
+            if params.status:
+                if isinstance(params.status, list):
+                    query &= Q(status__in=params.status)
+                else:
+                    query &= Q(status=params.status)
 
-        total, items = await self.list(
-            page=params.page,
-            page_size=params.page_size,
-            search=query,
-            order=["-created_at"]
-        )
-        
-        return {
-            "code": 200,
-            "msg": "OK",
-            "data": {
-                "items": [await item.to_dict() for item in items],
-                "total": total,
-                "page": params.page,
-                "page_size": params.page_size
+            total, items = await self.list(
+                page=params.page,
+                page_size=params.page_size,
+                search=query,
+                order=["-created_at"]
+            )
+            
+            return {
+                "code": 200,
+                "msg": "OK",
+                "data": {
+                    "items": [await item.to_dict() for item in items],
+                    "total": total,
+                    "page": params.page,
+                    "page_size": params.page_size
+                }
             }
-        }
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     async def create_opportunity(self, data: OpportunityCreate) -> Dict:
         try:
@@ -1232,12 +1300,17 @@ class OpportunityController(CRUDBase[Opportunity, OpportunityCreate, Opportunity
                 "msg": "创建成功",
                 "data": await opportunity.to_dict()
             }
+        except HTTPException as e:
+            raise e
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 
     async def update_opportunity(self, id: int, data: OpportunityUpdate) -> Dict:
         try:
-            opportunity = await Opportunity.get(id=id)
+            opportunity = await Opportunity.get_or_none(id=id)
+            if not opportunity:
+                raise HTTPException(status_code=404, detail="商机不存在")
+                
             await opportunity.update_from_dict(data.dict(exclude_unset=True))
             await opportunity.save()
             return {
@@ -1245,95 +1318,121 @@ class OpportunityController(CRUDBase[Opportunity, OpportunityCreate, Opportunity
                 "msg": "更新商机成功",
                 "data": await opportunity.to_dict()
             }
+        except HTTPException as e:
+            raise e
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 
     async def delete_opportunity(self, id: int) -> Dict:
         try:
-            await self.remove(id)
+            opportunity = await Opportunity.get_or_none(id=id)
+            if not opportunity:
+                raise HTTPException(status_code=404, detail="商机不存在")
+                
+            await opportunity.delete()
             return {
                 "code": 200,
                 "message": "删除商机成功"
             }
-        except Exception:
-            return {"code": 404, "message": "商机不存在"}
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
 opportunity_controller = OpportunityController()
 
 class OpportunityFollowUpController(CRUDBase[OpportunityFollowUp, OpportunityFollowUpCreate, None]):
     async def create_follow_up(self, obj_in: OpportunityFollowUpCreate, user_id: int) -> dict:
         """创建跟进记录"""
-        # 获取商机
-        opportunity = await Opportunity.get(id=obj_in.opportunity_id)
-        if not opportunity:
-            raise HTTPException(status_code=404, detail="商机不存在")
+        try:
+            # 获取商机
+            opportunity = await Opportunity.get_or_none(id=obj_in.opportunity_id)
+            if not opportunity:
+                raise HTTPException(status_code=404, detail="商机不存在")
+                
+            # 创建跟进记录
+            follow_up_dict = obj_in.model_dump()
+            follow_up_dict['user_id'] = user_id
+            follow_up = await self.model.create(**follow_up_dict)
             
-        # 创建跟进记录
-        follow_up_dict = obj_in.model_dump()
-        follow_up_dict['user_id'] = user_id
-        follow_up = await self.model.create(**follow_up_dict)
-        
-        # 根据跟进结果更新商机状态
-        if obj_in.follow_up_result == '已签约':
-            opportunity.status = '已签约'
-        elif obj_in.follow_up_result == '已放弃':
-            opportunity.status = '已放弃'
-        elif obj_in.follow_up_result == '已评估':
-            opportunity.status = '已评估'
+            # 根据跟进结果更新商机状态
+            if obj_in.follow_up_result == '已签约':
+                opportunity.status = '已签约'
+            elif obj_in.follow_up_result == '已放弃':
+                opportunity.status = '已放弃'
+            elif obj_in.follow_up_result == '已评估':
+                opportunity.status = '已评估'
+                
+            await opportunity.save()
             
-        await opportunity.save()
-        
-        # 构造返回数据
-        user = await User.get(id=user_id)
-        return {
-            'code': 200,
-            'msg': '创建成功',
-            'data': {
-                'id': follow_up.id,
-                'opportunity_id': follow_up.opportunity_id,
-                'follow_up_time': follow_up.follow_up_time,
-                'follow_up_method': follow_up.follow_up_method,
-                'follow_up_content': follow_up.follow_up_content,
-                'authorized_price': follow_up.authorized_price,
-                'price_adjusted': follow_up.price_adjusted,
-                'adjust_reason': follow_up.adjust_reason,
-                'follow_up_result': follow_up.follow_up_result,
-                'user_id': user.id,
-                'user_name': user.username,
-                'created_at': follow_up.created_at,
-                'updated_at': follow_up.updated_at
+            # 构造返回数据
+            user = await User.get_or_none(id=user_id)
+            if not user:
+                raise HTTPException(status_code=404, detail="用户不存在")
+                
+            return {
+                'code': 200,
+                'msg': '创建成功',
+                'data': {
+                    'id': follow_up.id,
+                    'opportunity_id': follow_up.opportunity_id,
+                    'follow_up_time': follow_up.follow_up_time,
+                    'follow_up_method': follow_up.follow_up_method,
+                    'follow_up_content': follow_up.follow_up_content,
+                    'authorized_price': follow_up.authorized_price,
+                    'price_adjusted': follow_up.price_adjusted,
+                    'adjust_reason': follow_up.adjust_reason,
+                    'follow_up_result': follow_up.follow_up_result,
+                    'user_id': user.id,
+                    'user_name': user.username,
+                    'created_at': follow_up.created_at,
+                    'updated_at': follow_up.updated_at
+                }
             }
-        }
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     async def get_follow_ups(self, opportunity_id: int) -> dict:
         """获取商机的所有跟进记录"""
-        follow_ups = await self.model.filter(
-            opportunity_id=opportunity_id
-        ).order_by('-follow_up_time').prefetch_related('user')
-        
-        data = []
-        for follow_up in follow_ups:
-            data.append({
-                'id': follow_up.id,
-                'opportunity_id': follow_up.opportunity_id,
-                'follow_up_time': follow_up.follow_up_time,
-                'follow_up_method': follow_up.follow_up_method,
-                'follow_up_content': follow_up.follow_up_content,
-                'authorized_price': follow_up.authorized_price,
-                'price_adjusted': follow_up.price_adjusted,
-                'adjust_reason': follow_up.adjust_reason,
-                'follow_up_result': follow_up.follow_up_result,
-                'user_id': follow_up.user.id,
-                'user_name': follow_up.user.username,
-                'created_at': follow_up.created_at,
-                'updated_at': follow_up.updated_at
-            })
+        try:
+            # 检查商机是否存在
+            opportunity = await Opportunity.get_or_none(id=opportunity_id)
+            if not opportunity:
+                raise HTTPException(status_code=404, detail="商机不存在")
+                
+            follow_ups = await self.model.filter(
+                opportunity_id=opportunity_id
+            ).order_by('-follow_up_time').prefetch_related('user')
             
-        return {
-            'code': 200,
-            'msg': '获取成功',
-            'data': data
-        }
+            data = []
+            for follow_up in follow_ups:
+                data.append({
+                    'id': follow_up.id,
+                    'opportunity_id': follow_up.opportunity_id,
+                    'follow_up_time': follow_up.follow_up_time,
+                    'follow_up_method': follow_up.follow_up_method,
+                    'follow_up_content': follow_up.follow_up_content,
+                    'authorized_price': follow_up.authorized_price,
+                    'price_adjusted': follow_up.price_adjusted,
+                    'adjust_reason': follow_up.adjust_reason,
+                    'follow_up_result': follow_up.follow_up_result,
+                    'user_id': follow_up.user.id,
+                    'user_name': follow_up.user.username,
+                    'created_at': follow_up.created_at,
+                    'updated_at': follow_up.updated_at
+                })
+                
+            return {
+                'code': 200,
+                'msg': '获取成功',
+                'data': data
+            }
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
 opportunity_follow_up_controller = OpportunityFollowUpController(OpportunityFollowUp)
 
