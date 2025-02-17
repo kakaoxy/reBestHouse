@@ -299,14 +299,28 @@ const rules = {
   contract_price: {
     required: true,
     type: 'number',
-    message: '请输入签约价格',
-    trigger: ['blur', 'change']
+    message: '签约价格必须在0-10亿之间',
+    trigger: ['blur', 'change'],
+    validator: (rule, value) => {
+      if (value === null || value === undefined) return false
+      if (value < 0 || value > 1000000000) {
+        return false
+      }
+      return true
+    }
   },
   contract_period: {
     required: true,
     type: 'number',
-    message: '请输入签约周期',
-    trigger: ['blur', 'change']
+    message: '签约周期必须在1-3650天之间',
+    trigger: ['blur', 'change'],
+    validator: (rule, value) => {
+      if (value === null || value === undefined) return false
+      if (value < 1 || value > 3650) {
+        return false
+      }
+      return true
+    }
   },
   signer: {
     required: true,

@@ -132,7 +132,7 @@
                   <n-icon class="mr-1 text-gray-400">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
                       <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87c1.96 0 2.4-.98 2.4-1.59c0-.83-.44-1.61-2.67-2.14c-2.48-.6-4.18-1.62-4.18-3.67c0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87c-1.5 0-2.4.68-2.4 1.64c0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
-                    </svg>
+                  </svg>
                   </n-icon>
                   <span>{{ item.total_price }}万</span>
                 </div>
@@ -167,7 +167,7 @@
         <n-divider>基础信息</n-divider>
         <n-grid :cols="2" :x-gap="24">
           <n-grid-item>
-            <n-form-item label="小区" path="community_name">
+            <n-form-item label="小区" path="community_id">
               <n-select
                 v-model:value="formData.community_id"
                 :options="communityOptions"
@@ -512,10 +512,16 @@ const loadUserOptions = async () => {
 }
 
 const rules = {
-  community_name: {
+  community_id: {
     required: true,
     message: '请选择小区',
-    trigger: 'change'
+    trigger: ['blur', 'change'],
+    validator(rule, value) {
+      if (!value) {
+        return new Error('请选择小区')
+      }
+      return true
+    }
   },
   layout: {
     required: true,
@@ -528,25 +534,148 @@ const rules = {
     trigger: ['input', 'change']
   },
   area: {
-    required: true,
-    message: '请输入面积',
-    trigger: ['input', 'change'],
-    validator: (rule, value) => {
-      return value > 0
-    }
+    validator(rule, value) {
+      if (value !== null && (value < 1 || value > 10000)) {
+        return new Error('面积必须在1-10000平方米之间')
+      }
+      return true
+    },
+    trigger: ['blur', 'change']
   },
   total_price: {
     required: true,
-    message: '请输入总价',
-    trigger: ['input', 'change'],
-    validator: (rule, value) => {
-      return value > 0
-    }
+    validator(rule, value) {
+      if (!value) {
+        return new Error('请输入总价')
+      }
+      if (value < 0 || value > 1000000000) {
+        return new Error('总价必须在0-10亿元之间')
+      }
+      return true
+    },
+    trigger: ['blur', 'change']
+  },
+  unit_price: {
+    validator(rule, value) {
+      if (value !== null && (value < 0 || value > 1000000)) {
+        return new Error('单价必须在0-100万元/平米之间')
+      }
+      return true
+    },
+    trigger: ['blur', 'change']
   },
   status: {
     required: true,
     message: '请选择状态',
     trigger: 'change'
+  },
+  layout: {
+    validator(rule, value) {
+      if (value && value.length > 50) {
+        return new Error('户型不能超过50个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  floor: {
+    validator(rule, value) {
+      if (value && value.length > 50) {
+        return new Error('楼层信息不能超过50个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  address: {
+    validator(rule, value) {
+      if (value && value.length > 200) {
+        return new Error('地址不能超过200个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  building_number: {
+    validator(rule, value) {
+      if (value && value.length > 50) {
+        return new Error('楼栋号不能超过50个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  room_number: {
+    validator(rule, value) {
+      if (value && value.length > 50) {
+        return new Error('房号不能超过50个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  transaction_source: {
+    validator(rule, value) {
+      if (value && value.length > 50) {
+        return new Error('交易来源不能超过50个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  layout_image: {
+    validator(rule, value) {
+      if (value && value.length > 500) {
+        return new Error('户型图链接不能超过500个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  interior_image: {
+    validator(rule, value) {
+      if (value && value.length > 500) {
+        return new Error('室内图链接不能超过500个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  location_image: {
+    validator(rule, value) {
+      if (value && value.length > 500) {
+        return new Error('位置图链接不能超过500个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  opportunity_owner: {
+    validator(rule, value) {
+      if (value && value.length > 50) {
+        return new Error('商机负责人不能超过50个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  belonging_owner: {
+    validator(rule, value) {
+      if (value && value.length > 50) {
+        return new Error('归属人不能超过50个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  remarks: {
+    validator(rule, value) {
+      if (value && value.length > 500) {
+        return new Error('备注不能超过500个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
   }
 }
 
