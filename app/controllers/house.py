@@ -1475,18 +1475,23 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
 
     async def get_project_details(self, project_id: int):
         """获取项目详情"""
-        project = await self.model.get_or_none(id=project_id).prefetch_related(
-            'phases',  # 修改为正确的关联名称
-            'opportunity'
-        )
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-        
-        return {
-            "code": 200,
-            "msg": "获取成功",
-            "data": await project.to_dict()
-        }
+        try:
+            project = await self.model.get_or_none(id=project_id).prefetch_related(
+                'phases',  # 修改为正确的关联名称
+                'opportunity'
+            )
+            if not project:
+                raise HTTPException(status_code=404, detail="项目不存在")
+            
+            return {
+                "code": 200,
+                "msg": "获取成功",
+                "data": await project.to_dict()
+            }
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     async def get_projects(self, params: ProjectQueryParams) -> Dict:
         try:
@@ -1524,16 +1529,20 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
             # 处理返回数据
             result_items = []
             for item in items:
-                item_dict = await item.to_dict()
-                # 添加商机关联的小区城市信息
-                if hasattr(item, 'opportunity') and item.opportunity:
-                    if hasattr(item.opportunity, 'community') and item.opportunity.community:
-                        item_dict['city'] = item.opportunity.community.city
+                try:
+                    item_dict = await item.to_dict()
+                    # 添加商机关联的小区城市信息
+                    if hasattr(item, 'opportunity') and item.opportunity:
+                        if hasattr(item.opportunity, 'community') and item.opportunity.community:
+                            item_dict['city'] = item.opportunity.community.city
+                        else:
+                            item_dict['city'] = 'shanghai'  # 默认城市
                     else:
                         item_dict['city'] = 'shanghai'  # 默认城市
-                else:
-                    item_dict['city'] = 'shanghai'  # 默认城市
-                result_items.append(item_dict)
+                    result_items.append(item_dict)
+                except Exception as item_e:
+                    logging.error(f"处理项目数据失败: {str(item_e)}")
+                    continue
 
             return {
                 "code": 200,
@@ -1545,12 +1554,10 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
                     "page_size": params.page_size
                 }
             }
+        except HTTPException as e:
+            raise e
         except Exception as e:
-            return {
-                "code": 500,
-                "msg": f"获取项目列表失败: {str(e)}",
-                "data": None
-            }
+            raise HTTPException(status_code=400, detail=str(e))
 
     async def update(self, id: int, data: ProjectUpdate) -> Dict:
         """更新项目"""
@@ -1577,7 +1584,7 @@ class ProjectController(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
     async def delete_project(self, project_id: int) -> Dict:
         """删除项目"""
         try:
-            project = await Project.get(id=project_id)
+            project = await self.model.get(id=project_id)
             if not project:
                 raise HTTPException(status_code=404, detail="项目不存在")
             
