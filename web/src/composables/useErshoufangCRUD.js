@@ -120,6 +120,7 @@ export function useErshoufangCRUD(api) {
       width: 100,
       align: 'right',
       sorter: true,
+      sortOrder: queryParams.sort_by === 'total_price' ? queryParams.sort_direction : false,
       render: (row) => row.total_price?.toFixed(2) || '-'
     },
     { 
@@ -128,6 +129,7 @@ export function useErshoufangCRUD(api) {
       width: 120,
       align: 'right',
       sorter: true,
+      sortOrder: queryParams.sort_by === 'unit_price' ? queryParams.sort_direction : false,
       render: (row) => row.unit_price?.toFixed(0) || '-'
     },
     { 
@@ -135,6 +137,7 @@ export function useErshoufangCRUD(api) {
       key: 'listing_date',
       width: 150,
       sorter: true,
+      sortOrder: queryParams.sort_by === 'listing_date' ? queryParams.sort_direction : false,
       render: (row) => row.listing_date?.split('T')[0] || '-'
     },
     {
@@ -181,9 +184,8 @@ export function useErshoufangCRUD(api) {
         sort_by: queryParams.sort_by || 'listing_date',
         sort_direction: queryParams.sort_direction || 'desc'
       }
-      // console.log('Loading data with params:', params)
+
       
-      // 移除空值参数，但保留分页参数
       const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
         if (key === 'page' || key === 'page_size' || 
             (value !== undefined && value !== null && value !== '')) {
@@ -193,7 +195,6 @@ export function useErshoufangCRUD(api) {
       }, {})
       
       const res = await api.list(cleanParams)
-      
       if (res?.code === 200 && res.data) {
         data.value = (res.data.items || []).map(item => ({
           ...item,
@@ -215,10 +216,8 @@ export function useErshoufangCRUD(api) {
           itemCount: parseInt(res.data.total) || 0,
           pageCount: Math.ceil((parseInt(res.data.total) || 0) / (parseInt(res.data.page_size) || 10))
         }
-        // console.log('Response data:', res.data)
       }
     } catch (error) {
-      // console.error('Load data error:', error)
       message.error(error.message || '获取数据失败')
     } finally {
       loading.value = false
@@ -326,7 +325,6 @@ export function useErshoufangCRUD(api) {
         message.error(res.msg || '操作失败')
       }
     } catch (error) {
-      // console.error('Submit error:', error)
       message.error(error.message || '操作失败')
     } finally {
       loading.value = false
@@ -340,13 +338,11 @@ export function useErshoufangCRUD(api) {
 
   // 分页处理
   const handlePageChange = (page) => {
-    // console.log('Page changed to:', page)
     pagination.value.page = page
     loadData()
   }
 
   const handlePageSizeChange = (pageSize) => {
-    // console.log('Page size changed to:', pageSize)
     pagination.value.page = 1
     pagination.value.pageSize = pageSize
     loadData()
@@ -354,11 +350,11 @@ export function useErshoufangCRUD(api) {
 
   // 排序处理
   const handleSorterChange = (sorter) => {
-    if (sorter) {
-      queryParams.sort_by = sorter.key
+    if (sorter && sorter.columnKey) {
+      queryParams.sort_by = sorter.columnKey
       queryParams.sort_direction = sorter.order === 'ascend' ? 'asc' : 'desc'
     } else {
-      queryParams.sort_by = 'created_at'
+      queryParams.sort_by = 'listing_date'
       queryParams.sort_direction = 'desc'
     }
     loadData()

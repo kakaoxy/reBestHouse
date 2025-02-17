@@ -21,6 +21,7 @@
               placeholder="输入小区名称搜索"
               style="width: 200px"
               clearable
+              @keydown.enter="loadData"
             />
             <n-button type="primary" @click="loadData">
               <template #icon>

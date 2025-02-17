@@ -356,9 +356,14 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
         # 计算总数
         total = await base_query.count()
         
+        # 验证排序字段是否有效
+        valid_sort_fields = ['listing_date', 'total_price', 'unit_price', 'size', 'created_at']
+        sort_by = params.sort_by if params.sort_by in valid_sort_fields else 'listing_date'
+        sort_direction = params.sort_direction if params.sort_direction in ['asc', 'desc'] else 'desc'
+        
         # 获取分页数据
         items = await base_query\
-            .order_by(f"{'-' if params.sort_direction == 'desc' else ''}{params.sort_by}")\
+            .order_by(f"{'-' if sort_direction == 'desc' else ''}{sort_by}")\
             .offset((params.page - 1) * params.page_size)\
             .limit(params.page_size)
         
@@ -783,8 +788,8 @@ class ErshoufangController(CRUDBase[Ershoufang, ErshoufangCreate, ErshoufangUpda
         'total_floors': '总楼层',
         'orientation': '房屋朝向',
         'ladder_ratio': '梯户比',
-        'total_price': '总价',
-        'unit_price': '单价',
+        'total_price': '总价(万)',
+        'unit_price': '单价(元/平)',
         'listing_date': '挂牌时间',
         'last_transaction_date': '上次交易时间',
         'mortgage_info': '抵押信息',
