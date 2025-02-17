@@ -15,8 +15,8 @@ class CommunityBase(BaseModel):
     address: Optional[str] = None
     building_type: Optional[str] = None
     property_rights: Optional[str] = None
-    total_houses: Optional[int] = None
-    building_year: Optional[int] = None
+    total_houses: Optional[int] = Field(None, ge=0, le=100000, description='房屋总数')
+    building_year: Optional[int] = Field(None, ge=1800, le=2100, description='建筑年代')
 
 class CommunityCreate(CommunityBase):
     pass
@@ -30,8 +30,8 @@ class CommunityUpdate(CommunityBase):
     address: Optional[str] = None
     building_type: Optional[str] = None
     property_rights: Optional[str] = None
-    total_houses: Optional[int] = None
-    building_year: Optional[int] = None
+    total_houses: Optional[int] = Field(None, ge=0, le=100000, description='房屋总数')
+    building_year: Optional[int] = Field(None, ge=1800, le=2100, description='建筑年代')
 
 class CommunityInDB(CommunityBase):
     id: int
@@ -60,19 +60,21 @@ class ErshoufangBase(BaseModel):
     region: Optional[str] = Field(None, description='区域')
     area: Optional[str] = Field(None, description='商圈')
     layout: Optional[str] = Field(None, description='户型描述')
-    size: Optional[float] = Field(None, description='建筑面积')
+    size: Optional[float] = Field(None, ge=1, le=10000, description='建筑面积')
     floor: Optional[str] = Field(None, description='楼层信息')
+    floor_number: Optional[int] = Field(None, ge=-10, le=150, description='所在楼层')
+    total_floors: Optional[int] = Field(None, ge=1, le=150, description='总楼层')
     orientation: Optional[str] = Field(None, description='房屋朝向')
     ladder_ratio: Optional[str] = Field(None, description='梯户比')
-    total_price: float = Field(..., description='房源总价')
-    unit_price: Optional[float] = Field(None, description='房源单价')
+    total_price: float = Field(..., ge=0, le=1000000000, description='房源总价')
+    unit_price: Optional[float] = Field(None, ge=0, le=1000000, description='房源单价')
     listing_date: Optional[datetime] = Field(None, description='挂牌时间')
     last_transaction_date: Optional[datetime] = Field(None, description='上次交易时间')
     mortgage_info: Optional[str] = Field(None, description='抵押信息')
     layout_image: Optional[str] = Field(None, description='户型图链接')
     house_link: Optional[str] = Field(None, description='房源链接')
     city: Optional[str] = Field(None, description='城市')
-    building_year: Optional[int] = Field(None, description='建筑年代')
+    building_year: Optional[int] = Field(None, ge=1800, le=2100, description='建筑年代')
     building_structure: Optional[str] = Field(None, description='楼栋结构')
     data_source: str = Field(..., description='数据来源')
     platform_listing_id: Optional[str] = Field(None, description='来源平台房源ID')
@@ -83,21 +85,21 @@ class ErshoufangCreate(BaseModel):
     region: str
     area: str
     layout: str
-    size: float
+    size: float = Field(..., ge=1, le=10000)
     floor: Optional[str] = None
-    floor_number: Optional[int] = None
-    total_floors: Optional[int] = None
+    floor_number: Optional[int] = Field(None, ge=-10, le=150)
+    total_floors: Optional[int] = Field(None, ge=1, le=150)
     orientation: Optional[str] = None
     ladder_ratio: Optional[str] = None
-    total_price: float
-    unit_price: Optional[float] = None
+    total_price: float = Field(..., ge=0, le=1000000000)
+    unit_price: Optional[float] = Field(None, ge=0, le=1000000)
     listing_date: Optional[datetime] = None
     last_transaction_date: Optional[datetime] = None
     mortgage_info: Optional[str] = None
     layout_image: Optional[str] = None
     house_link: Optional[str] = None
     city: Optional[str] = None
-    building_year: Optional[int] = None
+    building_year: Optional[int] = Field(None, ge=1800, le=2100)
     building_structure: Optional[str] = None
     data_source: str = 'import'
     platform_listing_id: Optional[str] = None
@@ -105,7 +107,7 @@ class ErshoufangCreate(BaseModel):
 
 class ErshoufangUpdate(ErshoufangBase):
     community_id: Optional[int] = Field(None, description='小区ID')
-    total_price: Optional[float] = Field(None, description='房源总价')
+    total_price: Optional[float] = Field(None, ge=0, le=1000000000, description='房源总价')
     data_source: Optional[str] = Field(None, description='数据来源')
     city: Optional[str] = Field('shanghai', description='城市')
 
@@ -139,7 +141,7 @@ class CommunityQueryParams(BaseModel):
     name: Optional[str] = None
     region: Optional[str] = None
     area: Optional[str] = None
-    building_year: Optional[int] = None
+    building_year: Optional[int] = Field(None, ge=1800, le=2100)
     search_keyword: Optional[str] = None
 
 class ErshoufangQueryParams(BaseModel):
@@ -150,8 +152,8 @@ class ErshoufangQueryParams(BaseModel):
     layout: Optional[str] = None
     orientation: Optional[str] = None
     floor: Optional[str] = None
-    size_min: Optional[float] = None
-    size_max: Optional[float] = None
+    size_min: Optional[float] = Field(None, ge=1, le=10000)
+    size_max: Optional[float] = Field(None, ge=1, le=10000)
     sort_by: str = 'listing_date'
     sort_direction: str = 'desc'
     community_id: Optional[int] = None
@@ -180,22 +182,22 @@ class DealRecordBase(BaseModel):
     community_name: Optional[str] = None
     region: Optional[str] = None
     area: Optional[str] = None
-    size: float
-    total_price: float
+    size: float = Field(..., ge=1, le=10000)
+    total_price: float = Field(..., ge=0, le=1000000000)
     deal_date: date
     layout: Optional[str] = None
-    floor_number: Optional[int] = None
-    total_floors: Optional[int] = None
+    floor_number: Optional[int] = Field(None, ge=-10, le=150)
+    total_floors: Optional[int] = Field(None, ge=1, le=150)
     floor_info: Optional[str] = None
     orientation: Optional[str] = None
-    unit_price: Optional[float] = None
-    deal_cycle: Optional[int] = None
+    unit_price: Optional[float] = Field(None, ge=0, le=1000000)
+    deal_cycle: Optional[int] = Field(None, ge=0, le=3650)
     agency: Optional[str] = None
     source: Optional[str] = 'store'
     tags: Optional[str] = None
     layout_url: Optional[str] = None
     house_url: Optional[str] = None
-    building_year: Optional[int] = None
+    building_year: Optional[int] = Field(None, ge=1800, le=2100)
     decoration: Optional[str] = None
     building_structure: Optional[str] = None
     platform_house_id: Optional[str] = None
@@ -242,8 +244,8 @@ class DealRecordCreate(DealRecordBase):
 
 class DealRecordUpdate(DealRecordBase):
     community_id: Optional[int] = None
-    size: Optional[float] = None
-    total_price: Optional[float] = None
+    size: Optional[float] = Field(None, ge=1, le=10000)
+    total_price: Optional[float] = Field(None, ge=0, le=1000000000)
     deal_date: Optional[date] = None
 
     class Config:
@@ -324,9 +326,9 @@ class OpportunityBase(BaseModel):
     community_name: Optional[str] = None
     layout: Optional[str] = None
     floor: Optional[str] = None
-    area: Optional[float] = None
-    total_price: Optional[float] = None
-    unit_price: Optional[float] = None
+    area: Optional[float] = Field(None, ge=1, le=10000)
+    total_price: Optional[float] = Field(None, ge=0, le=1000000000)
+    unit_price: Optional[float] = Field(None, ge=0, le=1000000)
     address: Optional[str] = None
     building_number: Optional[str] = None
     room_number: Optional[str] = None
@@ -361,7 +363,7 @@ class OpportunityFollowUpCreate(BaseModel):
     follow_up_time: datetime = Field(..., description='跟进时间')
     follow_up_method: str = Field(..., description='跟进方式')
     follow_up_content: str = Field(..., description='跟进内容')
-    authorized_price: Optional[float] = Field(None, description='本次授权价格')
+    authorized_price: Optional[float] = Field(None, ge=0, le=1000000000, description='本次授权价格')
     price_adjusted: bool = Field(default=False, description='价格是否调整')
     adjust_reason: Optional[str] = Field(None, description='价格调整原因')
     follow_up_result: str = Field(..., description='跟进结果')
@@ -384,8 +386,8 @@ class OpportunityFollowUpResponse(BaseModel):
 class ProjectBase(BaseModel):
     opportunity_id: int
     address: str
-    contract_price: Decimal
-    contract_period: int
+    contract_price: Decimal = Field(..., ge=0, le=1000000000)
+    contract_period: int = Field(..., ge=1, le=3650)
     signer: str
     delivery_date: datetime
     current_phase: Optional[str] = None
@@ -393,8 +395,8 @@ class ProjectBase(BaseModel):
 class ProjectCreate(BaseModel):
     opportunity_id: int
     address: str
-    contract_price: Decimal
-    contract_period: int
+    contract_price: Decimal = Field(..., ge=0, le=1000000000)
+    contract_period: int = Field(..., ge=1, le=3650)
     signer: str
     delivery_date: Optional[datetime]
     current_phase: str = 'delivery'
@@ -402,8 +404,8 @@ class ProjectCreate(BaseModel):
 
 class ProjectUpdate(BaseModel):
     address: Optional[str] = None
-    contract_price: Optional[Decimal] = None
-    contract_period: Optional[int] = None
+    contract_price: Optional[Decimal] = Field(None, ge=0, le=1000000000)
+    contract_period: Optional[int] = Field(None, ge=1, le=3650)
     signer: Optional[str] = None
     delivery_date: Optional[datetime] = None
     current_phase: Optional[str] = None

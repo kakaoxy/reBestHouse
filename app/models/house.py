@@ -3,18 +3,21 @@ from tortoise.models import Model
 from tortoise.exceptions import NoValuesFetched
 from app.models.base import BaseModel, TimestampMixin
 from datetime import datetime, date
+from tortoise.validators import MinValueValidator, MaxValueValidator
 
 class Community(Model):
     id = fields.IntField(pk=True)
-    name = fields.CharField(max_length=100, null=False, description='小区名称')
+    name = fields.CharField(max_length=200, null=False, description='小区名称')
     city = fields.CharField(max_length=50, null=False, default='shanghai', description='城市')
-    region = fields.CharField(max_length=50, null=False, default='', description='区域')
-    area = fields.CharField(max_length=50, null=False, default='', description='商圈')
-    address = fields.CharField(max_length=200, null=True, description='地址')
-    building_type = fields.CharField(max_length=50, null=True, description='建筑类型')
-    property_rights = fields.CharField(max_length=100, null=True, description='交易权属')
-    total_houses = fields.IntField(null=True, description='房屋总数')
-    building_year = fields.IntField(null=True, description='建筑年代')
+    region = fields.CharField(max_length=100, null=False, default='', description='区域')
+    area = fields.CharField(max_length=100, null=False, default='', description='商圈')
+    address = fields.CharField(max_length=500, null=True, description='地址')
+    building_type = fields.CharField(max_length=100, null=True, description='建筑类型')
+    property_rights = fields.CharField(max_length=200, null=True, description='交易权属')
+    total_houses = fields.IntField(null=True, description='房屋总数', 
+                                 validators=[MinValueValidator(0), MaxValueValidator(100000)])
+    building_year = fields.IntField(null=True, description='建筑年代',
+                                  validators=[MinValueValidator(1800), MaxValueValidator(2100)])
     created_at = fields.DatetimeField(auto_now_add=True, description='创建时间')
     updated_at = fields.DatetimeField(auto_now=True, description='更新时间')
 
@@ -38,30 +41,30 @@ class Community(Model):
 class Ershoufang(Model):
     id = fields.IntField(pk=True)
     community = fields.ForeignKeyField('models.Community', related_name='houses')
-    community_name = fields.CharField(max_length=100)
-    house_id = fields.CharField(max_length=50, null=True)  # 房源ID
-    region = fields.CharField(max_length=50, null=True)  # 区域
-    area = fields.CharField(max_length=50, null=True)  # 商圈
-    layout = fields.CharField(max_length=50)  # 户型
-    size = fields.FloatField()  # 面积
-    floor = fields.CharField(max_length=50, null=True)  # 楼层描述
-    floor_number = fields.IntField(null=True)  # 所在楼层
-    total_floors = fields.IntField(null=True)  # 总楼层
-    orientation = fields.CharField(max_length=50, null=True)  # 朝向
-    ladder_ratio = fields.CharField(max_length=50, null=True)  # 梯户比
-    total_price = fields.FloatField()  # 总价
-    unit_price = fields.FloatField(null=True)  # 单价
+    community_name = fields.CharField(max_length=200)
+    house_id = fields.CharField(max_length=100, null=True)  # 房源ID
+    region = fields.CharField(max_length=100, null=True)  # 区域
+    area = fields.CharField(max_length=100, null=True)  # 商圈
+    layout = fields.CharField(max_length=100)  # 户型
+    size = fields.FloatField(validators=[MinValueValidator(1), MaxValueValidator(10000)], description='建筑面积(平方米)')
+    floor = fields.CharField(max_length=100, null=True)  # 楼层描述
+    floor_number = fields.IntField(null=True, validators=[MinValueValidator(-10), MaxValueValidator(150)])  # 所在楼层
+    total_floors = fields.IntField(null=True, validators=[MinValueValidator(1), MaxValueValidator(150)])  # 总楼层
+    orientation = fields.CharField(max_length=100, null=True)  # 朝向
+    ladder_ratio = fields.CharField(max_length=100, null=True)  # 梯户比
+    total_price = fields.FloatField(validators=[MinValueValidator(0), MaxValueValidator(1000000000)], description='总价(万元)')
+    unit_price = fields.FloatField(null=True, validators=[MinValueValidator(0), MaxValueValidator(1000000)], description='单价(元/平)')
     listing_date = fields.DateField(null=True)  # 挂牌时间
     last_transaction_date = fields.DateField(null=True)  # 上次交易时间
-    mortgage_info = fields.CharField(max_length=200, null=True)  # 抵押信息
-    layout_image = fields.CharField(max_length=500, null=True)  # 户型图链接
-    ke_code = fields.CharField(max_length=50, null=True)  # 贝壳编号
-    house_link = fields.CharField(max_length=500, null=True)  # 房源链接
+    mortgage_info = fields.CharField(max_length=500, null=True)  # 抵押信息
+    layout_image = fields.CharField(max_length=1000, null=True)  # 户型图链接
+    ke_code = fields.CharField(max_length=100, null=True)  # 贝壳编号
+    house_link = fields.CharField(max_length=1000, null=True)  # 房源链接
     city = fields.CharField(max_length=50)  # 城市
-    building_year = fields.IntField(null=True)  # 建筑年代
-    building_structure = fields.CharField(max_length=50, null=True)  # 楼栋结构
+    building_year = fields.IntField(null=True, validators=[MinValueValidator(1800), MaxValueValidator(2100)])  # 建筑年代
+    building_structure = fields.CharField(max_length=100, null=True)  # 楼栋结构
     data_source = fields.CharField(max_length=50)  # 数据来源
-    platform_listing_id = fields.CharField(max_length=50, null=True)  # 来源平台房源ID
+    platform_listing_id = fields.CharField(max_length=100, null=True)  # 来源平台房源ID
     created_at = fields.DatetimeField(auto_now_add=True, description='创建时间')
     updated_at = fields.DatetimeField(auto_now=True, description='更新时间')
 
@@ -100,39 +103,47 @@ class Ershoufang(Model):
 
 class DealRecord(BaseModel, TimestampMixin):
     id = fields.IntField(pk=True)
-    house_id = fields.CharField(max_length=50, null=True, description='房源ID')
+    house_id = fields.CharField(max_length=100, null=True, description='房源ID')
     community = fields.ForeignKeyField('models.Community', related_name='deal_records')
-    community_name = fields.CharField(max_length=100, null=False, description='小区名称')
-    region = fields.CharField(max_length=50, null=False, description='所在区域')
-    area = fields.CharField(max_length=50, null=False, description='所在商圈')
-    layout = fields.CharField(max_length=50, null=True, description='户型')
-    size = fields.FloatField(null=False, description='建筑面积')
-    floor_info = fields.CharField(max_length=50, null=True, description='楼层信息')
-    floor_number = fields.IntField(null=True, description='所在楼层')
-    total_floors = fields.IntField(null=True, description='总楼层')
-    orientation = fields.CharField(max_length=50, null=True, description='房屋朝向')
-    listing_price = fields.FloatField(null=True, description='挂牌价')
-    total_price = fields.FloatField(null=False, description='成交价')
-    unit_price = fields.FloatField(null=True, description='单价(元/平)')
+    community_name = fields.CharField(max_length=200, null=False, description='小区名称')
+    region = fields.CharField(max_length=100, null=False, description='所在区域')
+    area = fields.CharField(max_length=100, null=False, description='所在商圈')
+    layout = fields.CharField(max_length=100, null=True, description='户型')
+    size = fields.FloatField(null=False, description='建筑面积',
+                           validators=[MinValueValidator(1), MaxValueValidator(10000)])
+    floor_info = fields.CharField(max_length=100, null=True, description='楼层信息')
+    floor_number = fields.IntField(null=True, description='所在楼层',
+                                 validators=[MinValueValidator(-10), MaxValueValidator(150)])
+    total_floors = fields.IntField(null=True, description='总楼层',
+                                 validators=[MinValueValidator(1), MaxValueValidator(150)])
+    orientation = fields.CharField(max_length=100, null=True, description='房屋朝向')
+    listing_price = fields.FloatField(null=True, description='挂牌价',
+                                    validators=[MinValueValidator(0), MaxValueValidator(1000000000)])
+    total_price = fields.FloatField(null=False, description='成交价',
+                                  validators=[MinValueValidator(0), MaxValueValidator(1000000000)])
+    unit_price = fields.FloatField(null=True, description='单价(元/平)',
+                                 validators=[MinValueValidator(0), MaxValueValidator(1000000)])
     deal_date = fields.DateField(null=False, description='成交日期')
-    deal_cycle = fields.IntField(null=True, description='成交周期')
-    tags = fields.CharField(max_length=200, null=True, description='标签')
-    layout_image = fields.CharField(max_length=500, null=True, description='户型图链接')
-    house_link = fields.CharField(max_length=500, null=True, description='房源链接')
+    deal_cycle = fields.IntField(null=True, description='成交周期',
+                               validators=[MinValueValidator(0), MaxValueValidator(3650)])
+    tags = fields.CharField(max_length=500, null=True, description='标签')
+    layout_image = fields.CharField(max_length=1000, null=True, description='户型图链接')
+    house_link = fields.CharField(max_length=1000, null=True, description='房源链接')
     city = fields.CharField(max_length=50, null=False, description='所在城市')
-    building_year = fields.IntField(null=True, description='建筑年代')
-    building_structure = fields.CharField(max_length=50, null=True, description='建筑结构')
-    location = fields.CharField(max_length=200, null=True, description='位置')
-    decoration = fields.CharField(max_length=50, null=True, description='装修')
-    agency = fields.CharField(max_length=100, null=True, description='中介公司')
+    building_year = fields.IntField(null=True, description='建筑年代',
+                                  validators=[MinValueValidator(1800), MaxValueValidator(2100)])
+    building_structure = fields.CharField(max_length=100, null=True, description='建筑结构')
+    location = fields.CharField(max_length=500, null=True, description='位置')
+    decoration = fields.CharField(max_length=100, null=True, description='装修')
+    agency = fields.CharField(max_length=200, null=True, description='中介公司')
     source = fields.CharField(max_length=50, null=False, description='数据来源')
-    source_transaction_id = fields.CharField(max_length=50, null=True, description='来源平台交易ID')
+    source_transaction_id = fields.CharField(max_length=100, null=True, description='来源平台交易ID')
     entry_time = fields.DatetimeField(auto_now_add=True, description='数据入库时间')
     original_data = fields.JSONField(null=True, description='原始数据')
 
     # 标记为已废弃的字段
     data_source = fields.CharField(max_length=50, null=True, description='数据来源', deprecated=True)
-    platform_listing_id = fields.CharField(max_length=50, null=True, description='平台房源ID', deprecated=True)
+    platform_listing_id = fields.CharField(max_length=100, null=True, description='平台房源ID', deprecated=True)
 
     class Meta:
         table = "deal_record"
@@ -153,25 +164,25 @@ class DealRecord(BaseModel, TimestampMixin):
 class Opportunity(Model):
     id = fields.IntField(pk=True)
     community = fields.ForeignKeyField('models.Community', related_name='opportunities')
-    community_name = fields.CharField(max_length=100, null=True)
-    layout = fields.CharField(max_length=50, null=True)
-    floor = fields.CharField(max_length=50, null=True)
-    area = fields.FloatField(null=True)
-    total_price = fields.FloatField(null=True)
-    unit_price = fields.FloatField(null=True)
-    address = fields.CharField(max_length=200, null=True)
-    building_number = fields.CharField(max_length=50, null=True)
-    room_number = fields.CharField(max_length=50, null=True)
+    community_name = fields.CharField(max_length=200, null=True)
+    layout = fields.CharField(max_length=100, null=True)
+    floor = fields.CharField(max_length=100, null=True)
+    area = fields.FloatField(null=True, validators=[MinValueValidator(1), MaxValueValidator(10000)])
+    total_price = fields.FloatField(null=True, validators=[MinValueValidator(0), MaxValueValidator(1000000000)])
+    unit_price = fields.FloatField(null=True, validators=[MinValueValidator(0), MaxValueValidator(1000000)])
+    address = fields.CharField(max_length=500, null=True)
+    building_number = fields.CharField(max_length=100, null=True)
+    room_number = fields.CharField(max_length=100, null=True)
     is_full_five = fields.BooleanField(default=False)
     is_full_two = fields.BooleanField(default=False)
     is_unique = fields.BooleanField(default=False)
-    transaction_source = fields.CharField(max_length=50, null=True)
-    layout_image = fields.CharField(max_length=500, null=True)
-    interior_image = fields.CharField(max_length=500, null=True)
-    location_image = fields.CharField(max_length=500, null=True)
-    opportunity_owner = fields.CharField(max_length=100, null=True)
-    belonging_owner = fields.CharField(max_length=100, null=True)
-    status = fields.CharField(max_length=20, default='待评估')
+    transaction_source = fields.CharField(max_length=100, null=True)
+    layout_image = fields.CharField(max_length=1000, null=True)
+    interior_image = fields.CharField(max_length=1000, null=True)
+    location_image = fields.CharField(max_length=1000, null=True)
+    opportunity_owner = fields.CharField(max_length=200, null=True)
+    belonging_owner = fields.CharField(max_length=200, null=True)
+    status = fields.CharField(max_length=50, default='待评估')
     remarks = fields.TextField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
@@ -222,15 +233,16 @@ class OpportunityFollowUp(Model):
         on_delete=fields.CASCADE
     )
     follow_up_time = fields.DatetimeField(description='跟进时间')
-    follow_up_method = fields.CharField(max_length=20, description='跟进方式')
+    follow_up_method = fields.CharField(max_length=50, description='跟进方式')
     follow_up_content = fields.TextField(description='跟进内容')
     authorized_price = fields.FloatField(
         null=True,
-        description='本次授权价格'
+        description='本次授权价格',
+        validators=[MinValueValidator(0), MaxValueValidator(1000000000)]
     )
     price_adjusted = fields.BooleanField(default=False, description='价格是否调整')
     adjust_reason = fields.TextField(null=True, description='价格调整原因')
-    follow_up_result = fields.CharField(max_length=20, description='跟进结果')
+    follow_up_result = fields.CharField(max_length=50, description='跟进结果')
     user = fields.ForeignKeyField(
         'models.User',
         related_name='follow_ups',
@@ -273,14 +285,16 @@ class Project(Model):
     """项目表"""
     id = fields.IntField(pk=True)
     opportunity = fields.ForeignKeyField('models.Opportunity', related_name='projects', description='关联商机')
-    community_name = fields.CharField(max_length=100, description='小区名称')
-    address = fields.CharField(max_length=200, description='具体房屋地址')
-    contract_price = fields.DecimalField(max_digits=10, decimal_places=2, description='签约价格')
-    contract_period = fields.IntField(description='签约周期(天)')
-    signer = fields.CharField(max_length=50, description='签约人')
+    community_name = fields.CharField(max_length=200, description='小区名称')
+    address = fields.CharField(max_length=500, description='具体房屋地址')
+    contract_price = fields.DecimalField(max_digits=12, decimal_places=2, description='签约价格',
+                                       validators=[MinValueValidator(0), MaxValueValidator(1000000000)])
+    contract_period = fields.IntField(description='签约周期(天)',
+                                    validators=[MinValueValidator(1), MaxValueValidator(3650)])
+    signer = fields.CharField(max_length=100, description='签约人')
     delivery_date = fields.DatetimeField(null=True, description='交房日期')
-    current_phase = fields.CharField(max_length=20, null=True, description='当前阶段')
-    decoration_company = fields.CharField(max_length=100, null=True, description='装修公司')
+    current_phase = fields.CharField(max_length=50, null=True, description='当前阶段')
+    decoration_company = fields.CharField(max_length=200, null=True, description='装修公司')
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 
@@ -348,8 +362,8 @@ class ConstructionPhase(BaseModel, TimestampMixin):
         related_name='phases',
         description='关联项目'
     )
-    phase_type = fields.CharField(max_length=50, description='阶段类型')
-    responsible = fields.CharField(max_length=50, null=True, description='负责人')
+    phase_type = fields.CharField(max_length=100, description='阶段类型')
+    responsible = fields.CharField(max_length=100, null=True, description='负责人')
     notes = fields.TextField(null=True, description='备注')
     complete_time = fields.DatetimeField(null=True, description='完成时间')
 
@@ -375,9 +389,9 @@ class PhaseMaterial(BaseModel, TimestampMixin):
     """阶段材料表"""
     id = fields.IntField(pk=True)
     phase = fields.ForeignKeyField('models.ConstructionPhase', related_name='phase_materials', description='关联施工阶段')
-    material_type = fields.CharField(max_length=50, description='材料类型')
-    file_path = fields.CharField(max_length=500, description='文件路径')
-    uploader = fields.CharField(max_length=50, description='上传人')
+    material_type = fields.CharField(max_length=100, description='材料类型')
+    file_path = fields.CharField(max_length=1000, description='文件路径')
+    uploader = fields.CharField(max_length=100, description='上传人')
 
     class Meta:
         table = "phase_material"
@@ -399,11 +413,11 @@ class ProjectMaterial(Model):
     """项目材料表"""
     id = fields.IntField(pk=True)
     project = fields.ForeignKeyField('models.Project', related_name='materials', description='关联项目')
-    phase = fields.CharField(max_length=20, description='阶段类型')  # delivery/design/construction/completion
-    file_type = fields.CharField(max_length=20, description='文件类型')  # image/cad/document
-    material_type = fields.CharField(max_length=50, description='材料类型')  # 交房材料/设计图/CAD文件/报价单/现场照片
-    file_url = fields.CharField(max_length=500, description='文件URL')
-    file_name = fields.CharField(max_length=100, description='原始文件名')
+    phase = fields.CharField(max_length=50, description='阶段类型')  # delivery/design/construction/completion
+    file_type = fields.CharField(max_length=50, description='文件类型')  # image/cad/document
+    material_type = fields.CharField(max_length=100, description='材料类型')  # 交房材料/设计图/CAD文件/报价单/现场照片
+    file_url = fields.CharField(max_length=1000, description='文件URL')
+    file_name = fields.CharField(max_length=200, description='原始文件名')
     created_at = fields.DatetimeField(auto_now_add=True, description='创建时间')
     updated_at = fields.DatetimeField(auto_now=True, description='更新时间')
 
