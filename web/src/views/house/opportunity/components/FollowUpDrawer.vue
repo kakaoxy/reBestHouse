@@ -37,7 +37,11 @@
           />
         </n-form-item>
 
-        <n-form-item label="跟进内容" path="follow_up_content">
+        <n-form-item label="跟进内容" path="follow_up_content" :rule="{
+            required: true,
+            trigger: ['blur', 'input'],
+            message: '请输入跟进内容'
+          }">
           <n-input
             v-model:value="formData.follow_up_content"
             type="textarea"
@@ -49,11 +53,23 @@
           v-if="isAdmin"
           label="授权价格"
           path="authorized_price"
+          :rule="{
+            trigger: ['blur', 'input'],
+            validator: (rule, value) => {
+              if (value !== null && value !== undefined) {
+                if (value < 0 || value > 1000000000) {
+                  return new Error('授权价格必须在0-10亿之间')
+                }
+              }
+              return true
+            }
+          }"
         >
           <n-input-number
             v-model:value="formData.authorized_price"
             clearable
             :min="0"
+            :max="1000000000"
             :precision="2"
             style="width: 100%"
           >

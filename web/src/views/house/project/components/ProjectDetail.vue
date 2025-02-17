@@ -117,6 +117,8 @@
                       type="text"
                       size="small"
                       :disabled="updating"
+                      maxlength="50"
+                      show-count
                       style="width: 150px"
                     />
                     <n-button text type="primary" size="tiny" :loading="updating" @click="saveDecorationCompany">
