@@ -82,7 +82,8 @@
                   <n-form-item label="建筑面积" path="size" required>
                     <n-input-number
                       v-model:value="localFormValue.size"
-                      :min="0"
+                      :min="1"
+                      :max="10000"
                       :precision="2"
                       placeholder="请输入面积"
                       style="width: 100%"
@@ -99,13 +100,15 @@
                     <n-input-group>
                       <n-input-number
                         v-model:value="localFormValue.floor_number"
-                        :min="1"
+                        :min="-10"
+                        :max="150"
                         placeholder="所在楼层"
                         @update:value="handleFloorChange"
                       />
                       <n-input-number
                         v-model:value="localFormValue.total_floors"
                         :min="1"
+                        :max="150"
                         placeholder="总楼层"
                         @update:value="handleFloorChange"
                       />
@@ -119,6 +122,7 @@
                     <n-input-number
                       v-model:value="localFormValue.listing_price"
                       :min="0"
+                      :max="1000000000"
                       :precision="2"
                       placeholder="请输入挂牌价"
                       style="width: 100%"
@@ -134,6 +138,7 @@
                     <n-input-number
                       v-model:value="localFormValue.total_price"
                       :min="0"
+                      :max="1000000000"
                       :precision="2"
                       placeholder="请输入成交价"
                       style="width: 100%"
@@ -150,6 +155,7 @@
                     <n-input-number
                       v-model:value="localFormValue.unit_price"
                       :min="0"
+                      :max="1000000"
                       :precision="2"
                       placeholder="自动计算"
                       readonly
@@ -196,6 +202,7 @@
                     <n-input-number
                       v-model:value="localFormValue.deal_cycle"
                       :min="0"
+                      :max="3650"
                       placeholder="请输入成交周期"
                     >
                       <template #suffix>天</template>
@@ -205,22 +212,26 @@
   
                 <!-- 户型图链接 -->
                 <n-grid-item>
-                  <n-form-item label="户型图链接" path="layout_image">
+                  <n-form-item label="户型图链接" path="layout_url">
                     <n-input
-                      v-model:value="localFormValue.layout_image"
+                      v-model:value="localFormValue.layout_url"
                       placeholder="请输入户型图链接"
                       type="text"
+                      maxlength="500"
+                      show-count
                     />
                   </n-form-item>
                 </n-grid-item>
   
                 <!-- 房源链接 -->
                 <n-grid-item>
-                  <n-form-item label="房源链接" path="house_link">
+                  <n-form-item label="房源链接" path="house_url">
                     <n-input
-                      v-model:value="localFormValue.house_link"
+                      v-model:value="localFormValue.house_url"
                       placeholder="请输入房源链接"
                       type="text"
+                      maxlength="500"
+                      show-count
                     />
                   </n-form-item>
                 </n-grid-item>
@@ -261,7 +272,7 @@
   
                 <!-- 装修 -->
                 <n-grid-item>
-                  <n-form-item label="装修" path="decoration">
+                  <n-form-item label="装修情况" path="decoration">
                     <n-select
                       v-model:value="localFormValue.decoration"
                       :options="DECORATION_OPTIONS"
@@ -297,6 +308,9 @@
                     <n-input
                       v-model:value="localFormValue.platform_house_id"
                       placeholder="请输入平台房源ID"
+                      type="text"
+                      maxlength="50"
+                      show-count
                     />
                   </n-form-item>
                 </n-grid-item>
@@ -370,8 +384,8 @@
     agency: '',
     source: 'store',
     tags: [],
-    layout_image: '',
-    house_link: '',
+    layout_url: '',
+    house_url: '',
     building_year: null,
     decoration: '',
     building_structure: '',
@@ -381,21 +395,52 @@
 
   // Props 定义
   const props = defineProps({
-    show: Boolean,
-    title: String,
+    show: {
+      type: Boolean,
+      default: false
+    },
+    id: {
+      type: [Number, null],
+      default: null
+    },
+    title: {
+      type: String,
+      default: '添加成交记录'
+    },
     loading: Boolean,
     formValue: Object,
     ORIENTATION_OPTIONS: {
       type: Array,
-      default: () => []
+      default() {
+        return [
+          { label: '南', value: '南' },
+          { label: '北', value: '北' },
+          { label: '东', value: '东' },
+          { label: '西', value: '西' },
+          { label: '南北', value: '南北' }
+        ]
+      }
     },
     DECORATION_OPTIONS: {
       type: Array,
-      default: () => []
+      default() {
+        return [
+          { label: '毛坯', value: '毛坯' },
+          { label: '简单装修', value: '简单装修' },
+          { label: '精装修', value: '精装修' },
+          { label: '豪华装修', value: '豪华装修' }
+        ]
+      }
     },
     STRUCTURE_OPTIONS: {
       type: Array,
-      default: () => []
+      default() {
+        return [
+          { label: '板楼', value: '板楼' },
+          { label: '塔楼', value: '塔楼' },
+          { label: '板塔结合', value: '板塔结合' }
+        ]
+      }
     },
     SOURCE_OPTIONS: {
       type: Array,
@@ -556,8 +601,8 @@
             agency: '',
             source: 'store',
             tags: [],
-            layout_image: '',
-            house_link: '',
+            layout_url: '',
+            house_url: '',
             building_year: null,
             decoration: '',
             building_structure: '',
@@ -630,6 +675,11 @@
       // 添加当前部门
       formData.city = currentDepartment.value
       
+      // 如果是编辑模式，添加 id
+      if (props.id) {
+        formData.id = props.id
+      }
+      
       // 确保数值字段为数字类型
       if (formData.community_id) {
         formData.community_id = parseInt(formData.community_id)
@@ -691,8 +741,8 @@
       agency: null,
       source: 'store',
       tags: [],
-      layout_image: '',
-      house_link: '',
+      layout_url: '',
+      house_url: '',
       building_year: null,
       decoration: null,
       building_structure: null,
@@ -746,27 +796,136 @@
   const rules = {
     community_id: {
       required: true,
-      type: 'number',
       message: '请选择小区',
+      trigger: ['blur', 'change'],
+      type: 'number'
+    },
+    size: {
+      required: true,
+      validator(rule, value) {
+        if (!value) {
+          return new Error('请输入建筑面积')
+        }
+        if (value < 1 || value > 10000) {
+          return new Error('建筑面积必须在1-10000平方米之间')
+        }
+        return true
+      },
+      trigger: ['blur', 'change']
+    },
+    floor_number: {
+      validator(rule, value) {
+        if (value !== null && (value < -10 || value > 150)) {
+          return new Error('所在楼层必须在-10到150层之间')
+        }
+        return true
+      },
+      trigger: ['blur', 'change']
+    },
+    total_floors: {
+      validator(rule, value) {
+        if (value !== null && (value < 1 || value > 150)) {
+          return new Error('总楼层必须在1到150层之间')
+        }
+        return true
+      },
+      trigger: ['blur', 'change']
+    },
+    listing_price: {
+      validator(rule, value) {
+        if (value !== null && (value < 0 || value > 1000000000)) {
+          return new Error('挂牌价必须在0-10亿元之间')
+        }
+        return true
+      },
       trigger: ['blur', 'change']
     },
     total_price: {
       required: true,
-      type: 'number',
-      message: '请输入成交价',
+      validator(rule, value) {
+        if (!value) {
+          return new Error('请输入成交价')
+        }
+        if (value < 0 || value > 1000000000) {
+          return new Error('成交价必须在0-10亿元之间')
+        }
+        return true
+      },
       trigger: ['blur', 'change']
+    },
+    unit_price: {
+      validator(rule, value) {
+        if (value !== null && (value < 0 || value > 1000000)) {
+          return new Error('单价必须在0-100万元/平米之间')
+        }
+        return true
+      },
+      trigger: ['blur', 'change']
+    },
+    deal_cycle: {
+      validator(rule, value) {
+        if (value !== null && (value < 0 || value > 3650)) {
+          return new Error('成交周期必须在0-3650天之间')
+        }
+        return true
+      },
+      trigger: ['blur', 'change']
+    },
+    decoration: {
+      validator(rule, value) {
+        if (value && value.length > 50) {
+          return new Error('装修情况不能超过50个字符')
+        }
+        return true
+      },
+      trigger: ['blur', 'input']
+    },
+    building_structure: {
+      validator(rule, value) {
+        if (value && value.length > 50) {
+          return new Error('建筑结构不能超过50个字符')
+        }
+        return true
+      },
+      trigger: ['blur', 'input']
+    },
+    house_url: {
+      validator(rule, value) {
+        if (value && value.length > 500) {
+          return new Error('房源链接不能超过500个字符')
+        }
+        return true
+      },
+      trigger: ['blur', 'input']
+    },
+    layout_url: {
+      validator(rule, value) {
+        if (value && value.length > 500) {
+          return new Error('户型图链接不能超过500个字符')
+        }
+        return true
+      },
+      trigger: ['blur', 'input']
+    },
+    platform_house_id: {
+      validator(rule, value) {
+        if (value && value.length > 50) {
+          return new Error('平台房源编号不能超过50个字符')
+        }
+        return true
+      },
+      trigger: ['blur', 'input']
     },
     deal_date: {
       required: true,
-      type: 'number',
-      message: '请选择成交日期',
-      trigger: ['blur', 'change']
-    },
-    size: {
-      required: true,
-      type: 'number',
-      message: '请输入建筑面积',
-      trigger: ['blur', 'change']
+      message: '请选择成交时间',
+      trigger: ['blur', 'change'],
+      validator(rule, value) {
+        if (!value) {
+          return new Error('请选择成交时间')
+        }
+        return true
+      }
     }
   }
   

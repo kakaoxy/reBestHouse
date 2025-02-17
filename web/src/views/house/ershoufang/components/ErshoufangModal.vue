@@ -77,7 +77,8 @@
           <div class="floor-input">
             <n-input-number
               v-model:value="localFormValue.floor_number"
-              :min="1"
+              :min="-10"
+              :max="150"
               placeholder="所在楼层"
               @update:value="handleFloorChange"
               class="number-input"
@@ -86,6 +87,7 @@
             <n-input-number
               v-model:value="localFormValue.total_floors"
               :min="1"
+              :max="150"
               placeholder="总层高"
               @update:value="handleFloorChange"
               class="number-input"
@@ -108,7 +110,8 @@
           <n-input-number
             v-model:value="localFormValue.size"
             placeholder="请输入建筑面积"
-            :min="0"
+            :min="1"
+            :max="10000"
             :precision="2"
             clearable
             @update:value="handleSizeChange"
@@ -125,6 +128,7 @@
             v-model:value="localFormValue.total_price"
             placeholder="请输入总价"
             :min="0"
+            :max="1000000000"
             :precision="2"
             clearable
             @update:value="handleTotalPriceChange"
@@ -145,6 +149,8 @@
               <n-input 
                 v-model:value="localFormValue.ladder_ratio" 
                 placeholder="请输入梯户比"
+                maxlength="50"
+                show-count
                 class="full-width"
               />
             </n-form-item>
@@ -153,6 +159,8 @@
               <n-input 
                 v-model:value="localFormValue.mortgage_info" 
                 placeholder="请输入抵押信息"
+                maxlength="200"
+                show-count
                 class="full-width"
               />
             </n-form-item>
@@ -161,14 +169,18 @@
               <n-input 
                 v-model:value="localFormValue.house_id" 
                 placeholder="请输入房源编号"
+                maxlength="50"
+                show-count
                 class="full-width"
               />
             </n-form-item>
 
-            <n-form-item label="贝壳编号" path="ke_code">
+            <n-form-item label="贝壳编号" path="platform_listing_id">
               <n-input 
-                v-model:value="localFormValue.ke_code" 
+                v-model:value="localFormValue.platform_listing_id" 
                 placeholder="请输入贝壳编号"
+                maxlength="50"
+                show-count
                 class="full-width"
               />
             </n-form-item>
@@ -177,6 +189,8 @@
               <n-input 
                 v-model:value="localFormValue.house_link" 
                 placeholder="请输入房源链接"
+                maxlength="500"
+                show-count
                 class="full-width"
               />
             </n-form-item>
@@ -285,6 +299,64 @@ const DATA_SOURCE_OPTIONS = [
   { label: 'API', value: 'api' }
 ]
 
+watch(() => props.show, async (newVal) => {
+  // console.log('表单显示状态变化:', newVal)
+  if (newVal) {
+    try {
+      // 打开弹窗时，先初始化部门列表和当前部门
+      if (!props.formValue?.id) {
+        // console.log('初始化部门信息')
+        await departmentStore.getDepartmentOptions()
+        await departmentStore.initCurrentDepartment()
+        localFormValue.city = departmentStore.currentDepartment
+        // console.log('初始化后的部门:', departmentStore.currentDepartment)
+      }
+
+      // 确保在加载小区之前已经有了当前部门
+      if (!departmentStore.currentDepartment) {
+        console.error('当前部门未初始化')
+        return
+      }
+
+      const params = {
+        city: departmentStore.currentDepartment
+      }
+      // console.log('加载小区参数:', params)
+      await loadCommunityOptions(params)
+      // console.log('初始加载小区结果:', communityOptions.value)
+    } catch (error) {
+      console.error('初始化或加载小区出错:', error)
+    }
+  }
+})
+
+// 监听部门变化
+watch(() => departmentStore.currentDepartment, async (newDepartment) => {
+  // console.log('部门变化:', newDepartment)
+  if (newDepartment) {
+    communityOptions.value = []
+    // 清空小区相关信息并更新部门
+    localFormValue.community_id = null
+    localFormValue.community_name = ''
+    localFormValue.region = ''
+    localFormValue.area = ''
+    localFormValue.city = newDepartment
+
+    // 重新加载当前部门的小区
+    try {
+      const params = {
+        city: newDepartment
+      }
+      // console.log('部门变化后加载小区参数:', params)
+      await loadCommunityOptions(params)
+      // console.log('部门变化后重新加载小区结果:', communityOptions.value)
+    } catch (error) {
+      // console.error('加载小区出错:', error)
+      message.error(error.message || '加载小区失败')
+    }
+  }
+})
+
 // 监听部门变化
 watch(() => departmentStore.currentDepartment, (newValue) => {
   if (!localFormValue.city) {
@@ -323,13 +395,9 @@ const renderLabel = (option) => {
 
 // 根据当前部门过滤小区选项
 const filteredCommunityOptions = computed(() => {
-  // console.log('当前部门:', departmentStore.currentDepartment)
-  // console.log('小区选项:', communityOptions.value)
   const filtered = communityOptions.value.filter(option => {
-    // console.log('比较:', option.city, departmentStore.currentDepartment)
     return option.city === departmentStore.currentDepartment
   })
-  // console.log('过滤后的小区:', filtered)
   return filtered
 })
 
@@ -344,8 +412,6 @@ const debounce = (fn, delay) => {
 
 // 处理小区搜索
 const handleCommunitySearch = debounce(async (query) => {
-  // console.log('搜索小区，关键词:', query)
-  // console.log('当前部门:', departmentStore.currentDepartment)
   if (!query) {
     communityOptions.value = []
     return
@@ -355,9 +421,7 @@ const handleCommunitySearch = debounce(async (query) => {
       name: query,
       city: departmentStore.currentDepartment
     }
-    // console.log('搜索小区参数:', params)
     await loadCommunityOptions(params)
-    // console.log('搜索结果:', communityOptions.value)
   } catch (error) {
     console.error('搜索小区出错:', error)
   }
@@ -365,17 +429,12 @@ const handleCommunitySearch = debounce(async (query) => {
 
 // 处理小区选择器获得焦点
 const handleCommunityFocus = async () => {
-  // console.log('小区选择器获得焦点')
-  // console.log('当前小区选项数量:', communityOptions.value.length)
-  // console.log('当前部门:', departmentStore.currentDepartment)
   if (communityOptions.value.length === 0) {
     try {
       const params = {
         city: departmentStore.currentDepartment
       }
-      // console.log('焦点获取时加载小区参数:', params)
       await loadCommunityOptions(params)
-      // console.log('加载小区结果:', communityOptions.value)
     } catch (error) {
       console.error('加载小区出错:', error)
     }
@@ -458,26 +517,22 @@ watch(() => departmentStore.currentDepartment, async (newDepartment) => {
 
 // 处理小区选择变化
 const handleCommunityChange = (communityId) => {
-  // console.log('选择小区变化:', communityId)
   if (communityId) {
     const selectedCommunity = communityOptions.value.find(
       option => option.value === communityId
     )
-    // console.log('选中的小区:', selectedCommunity)
     if (selectedCommunity) {
       localFormValue.community_id = parseInt(communityId)
       localFormValue.community_name = selectedCommunity.label
       localFormValue.region = selectedCommunity.region
       localFormValue.area = selectedCommunity.area
       localFormValue.city = selectedCommunity.city
-      // console.log('更新后的表单值:', localFormValue)
     }
   } else {
     localFormValue.community_id = null
     localFormValue.community_name = ''
     localFormValue.region = ''
     localFormValue.area = ''
-    // console.log('清空后的表单值:', localFormValue)
   }
 }
 
@@ -716,7 +771,110 @@ const rules = {
     message: '请输入户型',
     trigger: ['blur', 'change']
   },
-  // ... 其他验证规则
+  floor_number: {
+    validator(rule, value) {
+      if (value !== null && (value < -10 || value > 150)) {
+        return new Error('所在楼层必须在-10到150层之间')
+      }
+      return true
+    },
+    trigger: ['blur', 'change']
+  },
+  total_floors: {
+    validator(rule, value) {
+      if (value !== null && (value < 1 || value > 150)) {
+        return new Error('总楼层必须在1到150层之间')
+      }
+      return true
+    },
+    trigger: ['blur', 'change']
+  },
+  orientation: {
+    required: true,
+    message: '请选择朝向',
+    trigger: ['blur', 'change']
+  },
+  size: {
+    required: true,
+    validator(rule, value) {
+      if (!value) {
+        return new Error('请输入建筑面积')
+      }
+      if (value < 1 || value > 10000) {
+        return new Error('建筑面积必须在1-10000平方米之间')
+      }
+      return true
+    },
+    trigger: ['blur', 'change']
+  },
+  total_price: {
+    required: true,
+    validator(rule, value) {
+      if (!value) {
+        return new Error('请输入总价')
+      }
+      if (value < 0 || value > 1000000000) {
+        return new Error('总价必须在0-10亿元之间')
+      }
+      return true
+    },
+    trigger: ['blur', 'change']
+  },
+  ladder_ratio: {
+    validator(rule, value) {
+      if (value && value.length > 50) {
+        return new Error('梯户比不能超过50个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  mortgage_info: {
+    validator(rule, value) {
+      if (value && value.length > 200) {
+        return new Error('抵押信息不能超过200个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  house_id: {
+    validator(rule, value) {
+      if (value && value.length > 50) {
+        return new Error('房源编号不能超过50个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  platform_listing_id: {
+    validator(rule, value) {
+      if (value && value.length > 50) {
+        return new Error('贝壳编号不能超过50个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  house_link: {
+    validator(rule, value) {
+      if (value && value.length > 500) {
+        return new Error('房源链接不能超过500个字符')
+      }
+      return true
+    },
+    trigger: ['blur', 'input']
+  },
+  data_source: {
+    required: true,
+    message: '请选择信息来源',
+    trigger: ['blur', 'change']
+  },
+  city: {
+    required: true,
+    message: '请选择城市',
+    trigger: ['blur', 'change']
+  }
 }
 </script>
 

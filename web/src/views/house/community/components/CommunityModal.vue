@@ -16,7 +16,7 @@
       require-mark-placement="right-hanging"
     >
       <n-form-item label="小区名称" path="name">
-        <n-input v-model:value="localFormValue.name" placeholder="请输入小区名称" />
+        <n-input v-model:value="localFormValue.name" placeholder="请输入小区名称" maxlength="100" show-count />
       </n-form-item>
       
       <n-form-item label="城市" path="city">
@@ -30,13 +30,13 @@
       </n-form-item>
 
       <n-form-item label="所在区域" path="region">
-        <n-input v-model:value="localFormValue.region" placeholder="请输入所在区域" />
+        <n-input v-model:value="localFormValue.region" placeholder="请输入所在区域" maxlength="50" show-count />
       </n-form-item>
       <n-form-item label="所在商圈" path="area">
-        <n-input v-model:value="localFormValue.area" placeholder="请输入所在商圈" />
+        <n-input v-model:value="localFormValue.area" placeholder="请输入所在商圈" maxlength="50" show-count />
       </n-form-item>
       <n-form-item label="详细地址" path="address">
-        <n-input v-model:value="localFormValue.address" placeholder="请输入详细地址" />
+        <n-input v-model:value="localFormValue.address" placeholder="请输入详细地址" maxlength="200" show-count />
       </n-form-item>
       <n-form-item label="建筑类型" path="building_type">
         <n-select
@@ -63,6 +63,7 @@
           v-model:value="localFormValue.total_houses"
           placeholder="请输入房屋总数"
           :min="0"
+          :max="100000"
           :precision="0"
           clearable
         />
@@ -71,8 +72,8 @@
         <n-input-number
           v-model:value="localFormValue.building_year"
           placeholder="请输入建筑年代"
-          :min="1900"
-          :max="new Date().getFullYear()"
+          :min="1800"
+          :max="2100"
           :precision="0"
           clearable
         />
@@ -218,7 +219,16 @@ const rules = {
   name: {
     required: true,
     message: '请输入小区名称',
-    trigger: ['blur', 'input']
+    trigger: ['blur', 'input'],
+    validator(rule, value) {
+      if (!value) {
+        return new Error('请输入小区名称')
+      }
+      if (value.length > 100) {
+        return new Error('小区名称不能超过100个字符')
+      }
+      return true
+    }
   },
   city: {
     required: true,
@@ -228,12 +238,62 @@ const rules = {
   region: {
     required: true,
     message: '请输入所在区域',
-    trigger: ['blur', 'input']
+    trigger: ['blur', 'input'],
+    validator(rule, value) {
+      if (!value) {
+        return new Error('请输入所在区域')
+      }
+      if (value.length > 50) {
+        return new Error('区域名称不能超过50个字符')
+      }
+      return true
+    }
   },
   area: {
     required: true,
     message: '请输入所在商圈',
+    trigger: ['blur', 'input'],
+    validator(rule, value) {
+      if (!value) {
+        return new Error('请输入所在商圈')
+      }
+      if (value.length > 50) {
+        return new Error('商圈名称不能超过50个字符')
+      }
+      return true
+    }
+  },
+  address: {
+    validator(rule, value) {
+      if (value && value.length > 200) {
+        return new Error('地址不能超过200个字符')
+      }
+      return true
+    },
     trigger: ['blur', 'input']
+  },
+  building_type: {
+    required: true,
+    message: '请选择建筑类型',
+    trigger: ['blur', 'change']
+  },
+  total_houses: {
+    validator(rule, value) {
+      if (value !== null && (value < 0 || value > 100000)) {
+        return new Error('房屋总数必须在0-100000之间')
+      }
+      return true
+    },
+    trigger: ['blur', 'change']
+  },
+  building_year: {
+    validator(rule, value) {
+      if (value !== null && (value < 1800 || value > 2100)) {
+        return new Error('建筑年代必须在1800-2100之间')
+      }
+      return true
+    },
+    trigger: ['blur', 'change']
   }
 }
 
