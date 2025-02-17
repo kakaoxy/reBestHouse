@@ -22,6 +22,7 @@
               style="width: 200px"
               clearable
               @update:value="handleSearchKeywordChange"
+              @keydown.enter="loadData"
             />
             <n-button type="primary" @click="loadData">
               <template #icon>

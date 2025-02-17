@@ -99,21 +99,24 @@ export function useDealRecordCRUD(api) {
       key: 'total_price',
       width: 100,
       render: (row) => row.total_price ? `${row.total_price}万` : '-',
-      sorter: true
+      sorter: true,
+      sortOrder: queryParams.sort_by === 'total_price' ? queryParams.sort_direction : false
     },
     { 
       title: '成交时间',
       key: 'deal_date',
       width: 120,
       render: (row) => row.deal_date ? new Date(row.deal_date).toLocaleDateString() : '-',
-      sorter: true
+      sorter: true,
+      sortOrder: queryParams.sort_by === 'deal_date' ? queryParams.sort_direction : false
     },
     { 
       title: '单价',
       key: 'unit_price',
       width: 120,
       render: (row) => row.unit_price ? `${Math.round(row.unit_price)}元/㎡` : '-',
-      sorter: true
+      sorter: true,
+      sortOrder: queryParams.sort_by === 'unit_price' ? queryParams.sort_direction : false
     },
     { 
       title: '成交周期',
@@ -222,50 +225,40 @@ export function useDealRecordCRUD(api) {
   const loadData = async () => {
     try {
       loading.value = true
-      // 确保所有参数都被正确传递
       const params = {
-        ...queryParams,
         page: pagination.value.page,
-        page_size: pagination.value.pageSize
+        page_size: pagination.value.pageSize,
+        city: queryParams.city || cityStore.currentCity,
+        search_keyword: queryParams.search_keyword,
+        layout: queryParams.layout,
+        floor_info: queryParams.floor_info,
+        sort_by: queryParams.sort_by || 'deal_date',
+        sort_direction: queryParams.sort_direction || 'desc'
       }
 
-      // 移除空值参数
-      Object.keys(params).forEach(key => {
-        if (params[key] === null || params[key] === undefined || params[key] === '') {
-          delete params[key]
+      const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
+        if (key === 'page' || key === 'page_size' || 
+            (value !== undefined && value !== null && value !== '')) {
+          acc[key] = value
         }
-      })
+        return acc
+      }, {})
 
-
-      const res = await api.list(params)
-
-      if (res.code === 200) {
-        data.value = res.data.items.map(item => ({
-          ...item,
-          total_price: Number(item.total_price),
-          unit_price: Number(item.unit_price),
-          size: Number(item.size)
-        }))
-        
-        // 更新分页信息
-        const total = parseInt(res.data.total) || 0
-        const pageSize = parseInt(res.data.page_size) || pagination.value.pageSize
-        const page = parseInt(res.data.page) || pagination.value.page
-        
+      const res = await api.list(cleanParams)
+      
+      if (res?.code === 200 && res.data) {
+        data.value = res.data.items
         pagination.value = {
           ...pagination.value,
-          page,
-          pageSize,
-          total,
-          itemCount: total,
-          pageCount: Math.ceil(total / pageSize)
+          page: parseInt(res.data.page) || 1,
+          pageSize: parseInt(res.data.page_size) || 10,
+          total: parseInt(res.data.total) || 0,
+          itemCount: parseInt(res.data.total) || 0,
+          pageCount: Math.ceil((parseInt(res.data.total) || 0) / (parseInt(res.data.page_size) || 10))
         }
-      } else {
-        throw new Error(res.msg || '加载数据失败')
       }
     } catch (error) {
-
-      message.error(error.message || '加载数据失败')
+      message.error(error.message || '获取数据失败')
     } finally {
       loading.value = false
     }
@@ -302,11 +295,6 @@ export function useDealRecordCRUD(api) {
       tags: '',
       location: '',
       decoration: '',
-      created_at: null,
-      updated_at: null,
-      platform_house_id: '',
-      house_url: '',
-      layout_url: '',
       building_structure: null
     }
     showModal.value = true
@@ -461,14 +449,13 @@ export function useDealRecordCRUD(api) {
 
   // 排序处理
   const handleSorterChange = (sorter) => {
-    if (sorter) {
-      queryParams.sort_by = sorter.key
+    if (sorter && sorter.columnKey) {
+      queryParams.sort_by = sorter.columnKey
       queryParams.sort_direction = sorter.order === 'ascend' ? 'asc' : 'desc'
     } else {
       queryParams.sort_by = 'deal_date'
       queryParams.sort_direction = 'desc'
     }
-    pagination.value.page = 1  // 重置到第一页
     loadData()
   }
 
