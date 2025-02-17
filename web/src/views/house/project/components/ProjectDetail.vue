@@ -164,6 +164,7 @@
                         accept="image/*"
                         :custom-request="file => handleUpload(file, 'image', '交房材料')"
                         :show-file-list="false"
+                        ref="uploadRef"
                       >
                         <n-button type="primary">上传交房材料</n-button>
                       </n-upload>
@@ -175,6 +176,7 @@
                         :custom-request="file => handleUpload(file, 'image', '设计图')"
                         :show-file-list="false"
                         class="upload-button"
+                        ref="uploadRef"
                       >
                         <n-button type="primary">上传设计图</n-button>
                       </n-upload>
@@ -184,6 +186,7 @@
                         :custom-request="file => handleUpload(file, 'cad', 'CAD文件')"
                         :show-file-list="false"
                         class="upload-button"
+                        ref="uploadRef"
                       >
                         <n-button type="primary">上传CAD</n-button>
                       </n-upload>
@@ -193,6 +196,7 @@
                         :custom-request="file => handleUpload(file, 'document', '报价单')"
                         :show-file-list="false"
                         class="upload-button"
+                        ref="uploadRef"
                       >
                         <n-button type="primary">上传报价单</n-button>
                       </n-upload>
@@ -203,6 +207,7 @@
                         accept="image/*"
                         :custom-request="file => handleUpload(file, 'image', '现场照片')"
                         :show-file-list="false"
+                        ref="uploadRef"
                       >
                         <n-button type="primary">上传照片</n-button>
                       </n-upload>
@@ -271,15 +276,22 @@ const emit = defineEmits(['update:show', 'project-updated'])
 const message = useMessage()
 const dialog = useDialog()
 
-// 项目数据
+// 状态管理
 const project = ref(null)
-const opportunity = ref(null)
 const loading = ref(false)
-
-// 施工阶段相关
 const phases = ref([])
 const currentPhase = ref('delivery')
 const phaseMaterials = ref([])
+
+// 上传系统
+const uploadQueue = ref([])
+const selectedFiles = ref(new Set())
+const isUploading = ref(false)
+const lastDeleteTime = ref(0)
+
+// 唯一ID生成器
+const generateUploadId = () => 
+  Date.now().toString(36) + Math.random().toString(36).substr(2, 5)
 
 // 阶段选项
 const PHASE_OPTIONS = [
@@ -292,7 +304,7 @@ const PHASE_OPTIONS = [
   { label: '交付', value: 'completion' }
 ]
 
-// 监听显示状态变化
+// 监听显示状态
 watch(() => props.show, async (newVal) => {
   if (newVal && props.projectId) {
     await loadProjectDetail()
@@ -316,8 +328,8 @@ const loadProjectDetail = async () => {
     loading.value = false
   }
 }
-
-// 加载施工阶段信息
+const forceRefresh = ref(0)
+// 加载阶段信息
 const loadPhases = async () => {
   if (!props.projectId) return
   
@@ -339,7 +351,8 @@ const loadPhaseMaterials = async () => {
   try {
     const res = await projectApi.getMaterials({
       project_id: props.projectId,
-      phase: currentPhase.value
+      phase: currentPhase.value,
+      _t: forceRefresh.value // 添加时间戳避免缓存
     })
     phaseMaterials.value = res.data || []
   } catch (error) {
@@ -347,60 +360,161 @@ const loadPhaseMaterials = async () => {
   }
 }
 
-// 处理阶段切换
+
+// 增强的阶段切换处理
 const handlePhaseChange = async (phase) => {
-  if (!project.value) return
-  try {
-    const res = await projectApi.getMaterials({
-      project_id: props.projectId,
-      phase
-    })
-    phaseMaterials.value = res.data || []
-  } catch (error) {
-    message.error('获取材料失败')
+  currentPhase.value = phase
+  forceRefresh.value = Date.now()
+  await loadPhaseMaterials()
+  
+  // DOM强制更新
+  await nextTick()
+  await new Promise(resolve => requestAnimationFrame(resolve))
+}
+
+// 增强型上传处理器
+const handleUpload = async ({ file }, fileType, materialType) => {
+  if (!validateUploadPreconditions(file)) return
+
+  const uploadInfo = createUploadInfo(file, fileType, materialType)
+  addToUploadQueue(uploadInfo)
+
+  if (!isUploading.value) {
+    processUploadQueue()
   }
 }
 
-// 处理上传
-const handleUpload = async ({ file }, fileType, materialType) => {
+// 上传前验证
+const validateUploadPreconditions = (file) => {
   if (!project.value) {
     message.error('请先选择项目')
-    return
+    return false
   }
 
-  const formData = new FormData()
-  formData.append('file', file.file)
-  formData.append('project_id', project.value.id)
-  formData.append('phase', currentPhase.value)
-  formData.append('file_type', fileType)
-  formData.append('material_type', materialType)
+  if (selectedFiles.value.has(file.name)) {
+    message.warning('该文件已被选择')
+    return false
+  }
 
+  if (file.timestamp < lastDeleteTime.value) {
+    message.warning('文件已过期，请重新选择')
+    return false
+  }
+
+  return true
+}
+
+// 创建上传信息
+const createUploadInfo = (file, fileType, materialType) => ({
+  id: generateUploadId(),
+  file: file.file,
+  fileName: file.name,
+  fileType,
+  materialType,
+  phase: currentPhase.value,
+  projectId: project.value.id,
+  timestamp: Date.now()
+})
+
+// 添加到上传队列
+const addToUploadQueue = (uploadInfo) => {
+  selectedFiles.value.add(uploadInfo.fileName)
+  uploadQueue.value.push(uploadInfo)
+  console.log('文件加入队列:', uploadInfo.fileName)
+}
+
+// 处理上传队列
+const processUploadQueue = async () => {
+  isUploading.value = true
+  
   try {
-    await projectApi.uploadMaterial(formData)
-    message.success('上传成功')
-    // 刷新当前阶段的材料列表
-    handlePhaseChange(currentPhase.value)
-  } catch (error) {
-    message.error('上传失败')
+    while (uploadQueue.value.length > 0) {
+      const currentUpload = uploadQueue.value[0]
+      
+      if (shouldSkipUpload(currentUpload)) {
+        cleanupInvalidUpload(currentUpload)
+        continue
+      }
+
+      await performSingleUpload(currentUpload)
+      postUploadCleanup(currentUpload)
+    }
+  } finally {
+    isUploading.value = false
   }
 }
 
-// 初始化时加载第一个阶段的材料
-watch(project, (newProject) => {
-  if (newProject) {
-    handlePhaseChange(currentPhase.value)
-  }
-})
+// 检查是否需要跳过上传
+const shouldSkipUpload = (upload) => 
+  !selectedFiles.value.has(upload.fileName) ||
+  upload.timestamp < lastDeleteTime.value ||
+  upload.projectId !== props.projectId
 
-// 处理文件下载
-const handleDownload = (material) => {
-  if (material.file_url) {
-    window.open(material.file_url, '_blank')
+// 清理无效的上传任务
+const cleanupInvalidUpload = (upload) => {
+  uploadQueue.value.shift()
+  selectedFiles.value.delete(upload.fileName)
+  console.log('跳过无效上传:', upload.fileName)
+}
+
+// 执行单个文件上传
+const performSingleUpload = async (upload) => {
+  const formData = new FormData()
+  formData.append('file', upload.file)
+  formData.append('project_id', upload.projectId)
+  formData.append('phase', upload.phase)
+  formData.append('file_type', upload.fileType)
+  formData.append('material_type', upload.materialType)
+
+  try {
+    const res = await projectApi.uploadMaterial(formData)
+    message.success(`上传成功: ${upload.fileName}`)
+    
+    // 立即添加本地记录（可选）
+    if (res.data?.id) {
+      phaseMaterials.value = [
+        ...phaseMaterials.value,
+        {
+          id: res.data.id,
+          file_name: upload.fileName,
+          file_url: res.data.url,
+          material_type: upload.materialType,
+          created_at: new Date().toISOString()
+        }
+      ]
+    }
+  } catch (error) {
+    message.error(`上传失败: ${upload.fileName}`)
+    throw error
   }
+}
+
+// 上传后清理
+// 修改后的上传后清理逻辑
+const postUploadCleanup = async (upload) => {
+  uploadQueue.value.shift()
+  selectedFiles.value.delete(upload.fileName)
+  console.log('完成上传:', upload.fileName)
+  
+  // 强制刷新材料列表
+  forceRefresh.value = Date.now()
+  await loadPhaseMaterials()
+  
+  // 双重验证确保数据更新
+  if (phaseMaterials.value.some(m => m.file_name === upload.fileName)) return
+  await handlePhaseChange(currentPhase.value)
 }
 
 // 处理删除
-const handleDelete = (material) => {
+const handleDelete = async (material) => {
+  lastDeleteTime.value = Date.now()
+  
+  // 清理相关上传任务
+  uploadQueue.value = uploadQueue.value.filter(
+    item => item.fileName !== material.file_name
+  )
+  // selectedFiles.value.delete(material.file_name)
+
   const d = dialog.create({
     type: 'warning',
     title: '确认删除',
@@ -411,8 +525,7 @@ const handleDelete = (material) => {
       try {
         await projectApi.deleteMaterial(material.id)
         message.success('删除成功')
-        // 刷新当前阶段的材料列表
-        handlePhaseChange(currentPhase.value)
+        await handlePhaseChange(currentPhase.value)
       } catch (error) {
         message.error('删除失败：' + error.message)
       }
@@ -520,15 +633,18 @@ const saveDecorationCompany = async () => {
   }
 }
 
-// 处理显示状态更新
+// 修改组件卸载处理
 const handleUpdateShow = (value) => {
-  emit('update:show', value)
   if (!value) {
-    project.value = null
-    opportunity.value = null
-    phases.value = []
+    // 增加清理操作的可靠性
+    uploadQueue.value = []
+    selectedFiles.value.clear()
+    lastDeleteTime.value = 0
+    forceRefresh.value = 0
     phaseMaterials.value = []
+    currentPhase.value = 'delivery'
   }
+  emit('update:show', value)
 }
 
 // 格式化地址
