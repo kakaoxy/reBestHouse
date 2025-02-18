@@ -1,9 +1,12 @@
 [tool.poetry]
-name = "vue-fastapi-admin"
+name = "rebesthouse"
 version = "0.1.0"
-description = "Vue Fastapi admin"
-authors = ["mizhexiaoxiao <mizhexiaoxiao@gmail.com>"]
+description = "售前美化系统"
+authors = ["Bugco <bugcokaka@gmail.com>"]
 readme = "README.md"
+packages = [
+    { include = "app" }  # 关键：声明 app 目录为包
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -25,6 +28,7 @@ setuptools = "^70.0.0"
 uvicorn = "^0.30.1"
 h11 = "^0.14.0"
 aerich = "^0.7.2"
+pandas = "^2.2.3"
 
 [tool.black]
 line-length = 120
