@@ -74,20 +74,38 @@
               </n-spin>
             </div>
   
-            <!-- 更新右侧报告区域 -->
+            <!-- 更新报告区域 -->
             <div class="report-section">
               <h3 class="section-title">AI报告（基于DeepSeek R1模型）</h3>
               <n-card class="report-card" :bordered="false">
                 <div v-if="selectedOpportunity" class="report-content">
                   <div class="selected-info">
-                    <span class="label">已选择商机：</span>
-                    <span class="value">{{ selectedOpportunity.community_name }}</span>
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="label">已选择商机：</span>
+                        <span class="value">{{ selectedOpportunity.community_name }}</span>
+                      </div>
+                      <n-button
+                        type="primary"
+                        :loading="reportLoading"
+                        @click="generateReport"
+                        class="generate-btn"
+                      >
+                        {{ reportLoading ? '生成中...' : '生成AI报告' }}
+                      </n-button>
+                    </div>
                   </div>
-                  <div class="report-placeholder mt-4">
-                    <p>
-                      <span class="placeholder-text">报告内容 / 竞品小区管理区域</span>
-                      <span class="placeholder-hint">(占位符)</span>
-                    </p>
+                  <div class="report-body">
+                    <n-spin :show="reportLoading">
+                      <div v-if="reportContent" class="report-content-text">
+                        <div class="report-text" v-html="reportContent.replace(/\n/g, '<br>')"></div>
+                      </div>
+                      <div v-else class="report-placeholder">
+                        <p>
+                          <span class="placeholder-text">点击上方按钮生成AI分析报告</span>
+                        </p>
+                      </div>
+                    </n-spin>
                   </div>
                 </div>
                 <div v-else class="report-placeholder">
@@ -112,6 +130,8 @@
   import InvestmentCalculator from '@/components/InvestmentCalculator.vue'
   import { opportunityApi } from '@/api/house'
   import { ershoufangApi, dealRecordApi } from '@/api/house'
+  import { aiReportApi } from '@/api/ai'
+  import { useMessage } from 'naive-ui'
   
   const dummyText = '售前美化房源信息后台管理系统'
   const { t } = useI18n({ useScope: 'global' })
@@ -193,6 +213,43 @@
   // 处理商机卡片点击
   const handleOpportunityClick = (item) => {
     selectedOpportunity.value = item
+  }
+
+  const reportLoading = ref(false)
+  const reportContent = ref('')
+  const message = useMessage()
+
+  // 生成AI报告
+  const generateReport = async () => {
+    if (!selectedOpportunity.value) {
+      message.warning('请先选择一个商机')
+      return
+    }
+
+    reportLoading.value = true
+    try {
+      const res = await aiReportApi.generate({
+        community_name: selectedOpportunity.value.community_name,
+        layout: selectedOpportunity.value.layout,
+        floor: selectedOpportunity.value.floor,
+        area: selectedOpportunity.value.area,
+        total_price: selectedOpportunity.value.total_price,
+        listing_count: selectedOpportunity.value.listing_count || 0,
+        deal_count: selectedOpportunity.value.deal_count || 0
+      })
+      
+      if (res.code === 200) {
+        reportContent.value = res.data.content
+        message.success('报告生成成功')
+      } else {
+        throw new Error(res.message || '生成失败')
+      }
+    } catch (error) {
+      console.error('生成报告失败:', error)
+      message.error('生成报告失败，请稍后重试')
+    } finally {
+      reportLoading.value = false
+    }
   }
   
   

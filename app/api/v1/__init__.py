@@ -9,6 +9,7 @@ from .menus import menus_router
 from .roles import roles_router
 from .users import users_router
 from .house import router as house_router
+from .ai import router as ai_router  # 新增
 
 v1_router = APIRouter()
 
@@ -20,3 +21,4 @@ v1_router.include_router(apis_router, prefix="/api", dependencies=[DependPermiss
 v1_router.include_router(depts_router, prefix="/dept", dependencies=[DependPermisson])
 v1_router.include_router(auditlog_router, prefix="/auditlog", dependencies=[DependPermisson])
 v1_router.include_router(house_router, prefix="/house", tags=["house"], dependencies=[DependPermisson])
+v1_router.include_router(ai_router, prefix="/ai", tags=["ai"], dependencies=[DependPermisson])  # 新增
