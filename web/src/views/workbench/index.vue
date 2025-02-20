@@ -28,12 +28,6 @@
           :bordered="false"
           class="content-card"
         >
-          <!-- <template #header-extra>
-            <n-button text type="primary" class="more-btn">
-              {{ $t('views.workbench.label_more') }}
-            </n-button>
-          </template> -->
-          
           <div class="main-content">
             <!-- 左侧待评估列表 -->
             <div class="opportunity-list">
@@ -95,16 +89,14 @@
                     </div>
                   </div>
                   <div class="report-body">
-                    <n-spin :show="reportLoading">
-                      <div v-if="reportContent" class="report-content-text">
-                        <div class="report-text markdown-content" v-html="reportContent"></div>
-                      </div>
-                      <div v-else class="report-placeholder">
-                        <p>
-                          <span class="placeholder-text">点击上方按钮生成AI分析报告</span>
-                        </p>
-                      </div>
-                    </n-spin>
+                    <div v-if="reportContent" class="report-content-text">
+                      <div class="report-text markdown-content" v-html="marked(reportContent)"></div>
+                    </div>
+                    <div v-else class="report-placeholder">
+                      <p>
+                        <span class="placeholder-text">点击上方按钮生成AI分析报告</span>
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div v-else class="report-placeholder">
@@ -123,6 +115,7 @@
   </template>
   
   <script setup>
+  import { marked } from 'marked'
   import { useUserStore } from '@/store'
   import { useI18n } from 'vue-i18n'
   import { ref, onMounted, computed } from 'vue'
@@ -220,8 +213,6 @@
   const message = useMessage()
 
   // 生成AI报告
-  // ... existing code ...
-
   const generateReport = async () => {
     if (!selectedOpportunity.value) {
       message.warning('请先选择一个商机');
@@ -241,7 +232,7 @@
         headers: {
           'Accept': 'text/event-stream',
         },
-        responseType: 'text', // 修改为 text
+        responseType: 'text',
         timeout: 180000,
         onDownloadProgress: (progressEvent) => {
           const rawText = progressEvent.event.target.responseText;
@@ -251,7 +242,7 @@
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
-                const data = JSON.parse(line.slice(6)); // 修改为 slice(6)
+                const data = JSON.parse(line.slice(6));
                 if (data.content) {
                   newContent += data.content;
                   reportContent.value = newContent;
@@ -260,11 +251,10 @@
                   reportLoading.value = false;
                   message.success('报告生成成功');
                 }
-                if (data.error) {
+                if (data.error && !data.error.includes('data:')) { // 忽略包含 data: 的错误
                   throw new Error(data.error);
                 }
               } catch (e) {
-                // 忽略解析错误，继续处理下一行
                 console.debug('解析行数据时出现非关键错误:', e);
               }
             }
@@ -272,8 +262,11 @@
         }
       });
     } catch (err) {
-      console.error('生成报告失败:', err);
-      message.error(err.message === 'timeout of 180000ms exceeded' ? '生成报告超时，请稍后重试' : (err.message || '请求失败'));
+      // 只有在真正的错误情况下才显示错误消息
+      if (!err.message?.includes('data:')) {
+        console.error('生成报告失败:', err);
+        message.error(err.message === 'timeout of 180000ms exceeded' ? '生成报告超时，请稍后重试' : '请求失败');
+      }
       reportLoading.value = false;
     }
   };
@@ -488,6 +481,7 @@
 .markdown-content {
   color: #1d1d1f;
   font-size: 15px;
+  /* white-space: pre-line; */
 }
 
 .markdown-content :deep(strong),
