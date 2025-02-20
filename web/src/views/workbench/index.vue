@@ -262,8 +262,7 @@
         }
       });
     } catch (err) {
-      // 只有在真正的错误情况下才显示错误消息
-      if (!err.message?.includes('data:')) {
+      if (!err.message?.includes('data:') && !reportContent.value) {
         console.error('生成报告失败:', err);
         message.error(err.message === 'timeout of 180000ms exceeded' ? '生成报告超时，请稍后重试' : '请求失败');
       }

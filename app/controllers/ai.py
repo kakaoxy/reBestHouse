@@ -23,26 +23,54 @@ class AIReportController:
         async def generate():
             try:
                 # 添加商机查询日志
-                logging.info(f"正在查询商机ID: {data.opportunity_id}")
+                # logging.info(f"正在查询商机ID: {data.opportunity_id}")
                 opportunity = await Opportunity.get_or_none(id=data.opportunity_id).prefetch_related('community')
                 if not opportunity:
-                    logging.error(f"商机不存在，ID: {data.opportunity_id}")
+                    # logging.error(f"商机不存在，ID: {data.opportunity_id}")
                     raise HTTPException(status_code=404, detail="商机不存在")
 
                 # 添加数据统计日志
                 listing_count = await opportunity.community.houses.all().count()
                 deal_count = await opportunity.community.deal_records.all().count()
-                logging.info(f"商机统计数据 - 在售: {listing_count}, 成交: {deal_count}")
+                # logging.info(f"商机统计数据 - 在售: {listing_count}, 成交: {deal_count}")
 
                 # 构建提示词
-                prompt = f"""请对以下房产信息进行分析并生成投资建议报告：
+                # 获取在售房源数据
+                listing_houses = await opportunity.community.houses.all()
+                listing_details = [
+                    f"在售房源{i+1}: {house.layout}户型, {house.area}平米, "
+                    f"{house.floor or '--'}楼层, "
+                    f"{house.total_price}万元, "
+                    f"单价{house.unit_price or '--'}元/㎡"
+                    for i, house in enumerate(listing_houses)
+                ]
+
+                # 获取成交房源数据
+                deal_records = await opportunity.community.deal_records.all()
+                deal_details = [
+                    f"成交记录{i+1}: {record.layout}户型, {record.area}平米, "
+                    f"{record.floor_info or record.floor or '--'}楼层, "
+                    f"{record.total_price}万元, "
+                    f"单价{record.unit_price or '--'}元/㎡, "
+                    f"成交周期{record.deal_cycle or '--'}天, "
+                    f"成交时间{record.deal_date}"
+                    for i, record in enumerate(deal_records)
+                ]
+
+                prompt = f"""请对以下房产信息进行分析并生成投资建议报告，报告内容需要简单易懂说人话：
                 小区名称：{opportunity.community.name}
                 户型：{opportunity.layout or '--'}
                 楼层：{opportunity.floor or '--'}
                 面积：{opportunity.area or '--'}平方米
                 总价：{opportunity.total_price or '--'}万元
                 在售房源数：{listing_count}套
-                成交数量：{deal_count}套"""
+                成交数量：{deal_count}套
+
+                在售房源详情：
+                {chr(10).join(listing_details) if listing_details else "暂无在售房源"}
+
+                历史成交记录：
+                {chr(10).join(deal_details) if deal_details else "暂无成交记录"}"""
 
                 # 记录API请求数据
                 request_data = {
@@ -58,7 +86,7 @@ class AIReportController:
                         }
                     ]
                 }
-                logging.info(f"准备发送到Coze API的数据: {request_data}")
+                # logging.info(f"准备发送到Coze API的数据: {request_data}")
 
                 response = requests.post(
                     self.url,
