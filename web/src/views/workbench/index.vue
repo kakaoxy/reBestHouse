@@ -25,7 +25,6 @@
   
         <!-- 主要内容区域 -->
         <n-card
-
           :bordered="false"
           class="content-card"
         >
@@ -98,7 +97,7 @@
                   <div class="report-body">
                     <n-spin :show="reportLoading">
                       <div v-if="reportContent" class="report-content-text">
-                        <div class="report-text" v-html="reportContent.replace(/\n/g, '<br>')"></div>
+                        <div class="report-text markdown-content" v-html="reportContent"></div>
                       </div>
                       <div v-else class="report-placeholder">
                         <p>
@@ -132,6 +131,7 @@
   import { ershoufangApi, dealRecordApi } from '@/api/house'
   import { aiReportApi } from '@/api/ai'
   import { useMessage } from 'naive-ui'
+  import { request } from '@/utils'  // 确保导入 request
   
   const dummyText = '售前美化房源信息后台管理系统'
   const { t } = useI18n({ useScope: 'global' })
@@ -220,37 +220,65 @@
   const message = useMessage()
 
   // 生成AI报告
+  // ... existing code ...
+
   const generateReport = async () => {
     if (!selectedOpportunity.value) {
-      message.warning('请先选择一个商机')
-      return
+      message.warning('请先选择一个商机');
+      return;
     }
 
-    reportLoading.value = true
+    reportLoading.value = true;
+    reportContent.value = '';
+
     try {
-      const res = await aiReportApi.generate({
-        community_name: selectedOpportunity.value.community_name,
-        layout: selectedOpportunity.value.layout,
-        floor: selectedOpportunity.value.floor,
-        area: selectedOpportunity.value.area,
-        total_price: selectedOpportunity.value.total_price,
-        listing_count: selectedOpportunity.value.listing_count || 0,
-        deal_count: selectedOpportunity.value.deal_count || 0
-      })
-      
-      if (res.code === 200) {
-        reportContent.value = res.data.content
-        message.success('报告生成成功')
-      } else {
-        throw new Error(res.message || '生成失败')
-      }
-    } catch (error) {
-      console.error('生成报告失败:', error)
-      message.error('生成报告失败，请稍后重试')
-    } finally {
-      reportLoading.value = false
+      const response = await request({
+        url: 'ai/report/generate',
+        method: 'POST',
+        data: {
+          opportunity_id: selectedOpportunity.value.id,
+        },
+        headers: {
+          'Accept': 'text/event-stream',
+        },
+        responseType: 'text', // 修改为 text
+        timeout: 180000,
+        onDownloadProgress: (progressEvent) => {
+          const rawText = progressEvent.event.target.responseText;
+          const lines = rawText.split('\n');
+          
+          let newContent = '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6)); // 修改为 slice(6)
+                if (data.content) {
+                  newContent += data.content;
+                  reportContent.value = newContent;
+                }
+                if (data.done) {
+                  reportLoading.value = false;
+                  message.success('报告生成成功');
+                }
+                if (data.error) {
+                  throw new Error(data.error);
+                }
+              } catch (e) {
+                // 忽略解析错误，继续处理下一行
+                console.debug('解析行数据时出现非关键错误:', e);
+              }
+            }
+          }
+        }
+      });
+    } catch (err) {
+      console.error('生成报告失败:', err);
+      message.error(err.message === 'timeout of 180000ms exceeded' ? '生成报告超时，请稍后重试' : (err.message || '请求失败'));
+      reportLoading.value = false;
     }
-  }
+  };
+
+
   
   
   onMounted(() => {
@@ -305,6 +333,8 @@
   .content-card {
     border-radius: 16px;
     background: #ffffff;
+    height: calc(100vh - 200px); /* 减去顶部卡片和padding的高度 */
+    overflow: auto; /* 内容超出时显示滚动条 */
   }
   
   .main-content {
@@ -449,5 +479,34 @@
   font-size: 17px;
   font-weight: 600;
   margin-left: 8px;
+}
+.report-content-text {
+  padding: 20px;
+  line-height: 1.6;
+}
+
+.markdown-content {
+  color: #1d1d1f;
+  font-size: 15px;
+}
+
+.markdown-content :deep(strong),
+.markdown-content :deep(b) {
+  color: #000000;
+  font-weight: 600;
+}
+
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3) {
+  color: #1d1d1f;
+  font-weight: 600;
+  margin: 16px 0 8px;
+}
+
+.report-body {
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+  padding: 16px;
 }
 </style>
