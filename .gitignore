@@ -62,3 +62,4 @@ static/
 static/uploads/
 static/uploads/images/
 !static/uploads/images/.gitkeep
+.env

@@ -8,18 +8,27 @@ import logging
 import requests
 import json
 import asyncio
+import os
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
+
+print(os.getenv('COZE_API_KEY'))
+print(os.getenv('COZE_BOT_ID'))
 
 class AIReportController:
     def __init__(self):
         self.url = "https://api.coze.cn/v3/chat"
         self.headers = {
-            "Authorization": "Bearer pat_OvFpYuXNYoSi6iHIN4rBF6EUVy40i8DiBOpAbnXXUs1VOKsghsvApTnjCofyj4dG",
+            "Authorization": f"Bearer {os.getenv('COZE_API_KEY')}",
             "Content-Type": "application/json"
         }
-        self.bot_id = "7468925434710310912"
+        self.bot_id = os.getenv('COZE_BOT_ID')
 
     async def generate_report(self, data: AIReportRequest):
         """生成AI分析报告（流式响应）"""
+        print(data)
         async def generate():
             try:
                 # 添加商机查询日志
