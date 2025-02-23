@@ -14,8 +14,8 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
-print(os.getenv('COZE_API_KEY'))
-print(os.getenv('COZE_BOT_ID'))
+# print(os.getenv('COZE_API_KEY'))
+# print(os.getenv('COZE_BOT_ID'))
 
 class AIReportController:
     def __init__(self):
@@ -66,7 +66,7 @@ class AIReportController:
                     for i, record in enumerate(deal_records)
                 ]
 
-                prompt = f"""请对以下房产信息进行分析并生成投资建议报告，报告内容需要简单易懂说人话：
+                prompt = f"""请对以下房产信息进行分析并输出卖房建议报告，报告的用户是业主，主要目标是说服业主以合理价格进行委托，业主的目标是在3个月内完成销售，报告内容需要简单易懂说人话，逻辑清晰，理论依据充分，需要考虑市场趋势和房屋户型以及所在楼层的优缺点，目标销售周期要控制在3个月以内：
                 小区名称：{opportunity.community.name}
                 户型：{opportunity.layout or '--'}
                 楼层：{opportunity.floor or '--'}
