@@ -106,27 +106,56 @@ class AIReportController:
 
                 if response.status_code == 200:
                     event_type = None
+                    filter_active = False  # 添加过滤标记
+
                     for line in response.iter_lines():
-                        if line:
-                            try:
-                                sse_line = line.decode('utf-8').strip()
-                                if sse_line.startswith('event:'):
-                                    event_type = sse_line.split(':', 1)[1].strip()
-                                elif sse_line.startswith('data:'):
-                                    json_str = sse_line.split(':', 1)[1].strip()
-                                    if json_str:
-                                        response_data = json.loads(json_str)
-                                        if event_type == 'conversation.message.delta':
-                                            content = response_data.get('content', '')
-                                            if content:
-                                                # 只发送增量内容
-                                                yield f"data: {json.dumps({'content': content})}\n\n"
-                                        elif event_type == 'conversation.message.completed':
-                                            yield f"data: {json.dumps({'done': True})}\n\n"
-                                            break
-                            except json.JSONDecodeError as e:
-                                logging.error(f"解析响应数据失败: {e}")
+                        if filter_active:
+                            continue
+
+                        if not line:
+                            continue
+
+                        try:
+                            sse_line = line.decode('utf-8').strip()
+                            
+                            # 处理事件类型
+                            if sse_line.startswith('event:'):
+                                event_type = sse_line.split(':', 1)[1].strip()
                                 continue
+
+                            # 处理数据
+                            if sse_line.startswith('data:'):
+                                json_str = sse_line.split(':', 1)[1].strip()
+                                if json_str:
+                                    response_data = json.loads(json_str)
+                                    
+                                    # 处理系统消息
+                                    if response_data.get('msg_type') == 'generate_answer_finish':
+                                        filter_active = True
+                                        continue
+
+                                    # 处理 reasoning_content
+                                    if 'reasoning_content' in response_data:
+                                        content = response_data['reasoning_content']
+                                        if content:
+                                            yield f"data: {json.dumps({'content': content})}\n\n"
+                                    
+                                    # 处理普通内容
+                                    if event_type == 'conversation.message.delta':
+                                        content = response_data.get('content', '')
+                                        if isinstance(content, dict):
+                                            content = content.get('text', '')
+                                        if content and not filter_active:
+                                            yield f"data: {json.dumps({'content': content})}\n\n"
+                                    
+                                    # 处理完成事件
+                                    elif event_type == 'conversation.message.completed':
+                                        yield f"data: {json.dumps({'done': True})}\n\n"
+                                        break
+
+                        except json.JSONDecodeError as e:
+                            logging.error(f"解析响应数据失败: {e}")
+                            continue
                 else:
                     error_msg = f"API请求失败: {response.status_code}"
                     logging.error(error_msg)
