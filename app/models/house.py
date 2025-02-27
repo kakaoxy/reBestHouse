@@ -61,8 +61,17 @@ class Ershoufang(Model):
     ke_code = fields.CharField(max_length=100, null=True)  # 贝壳编号
     house_link = fields.CharField(max_length=1000, null=True)  # 房源链接
     city = fields.CharField(max_length=50)  # 城市
-    building_year = fields.IntField(null=True, validators=[MinValueValidator(1800), MaxValueValidator(2100)])  # 建筑年代
-    building_structure = fields.CharField(max_length=100, null=True)  # 楼栋结构
+    # 修改这两个字段的 null 参数为 True
+    building_year = fields.IntField(
+        null=True,  # 确保可以为空
+        validators=[MinValueValidator(1800), MaxValueValidator(2100)],
+        description='建筑年代'
+    )
+    building_structure = fields.CharField(
+        max_length=100,
+        null=True,  # 确保可以为空
+        description='楼栋结构'
+    )
     data_source = fields.CharField(max_length=50)  # 数据来源
     platform_listing_id = fields.CharField(max_length=100, null=True)  # 来源平台房源ID
     created_at = fields.DatetimeField(auto_now_add=True, description='创建时间')

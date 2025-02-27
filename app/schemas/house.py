@@ -5,6 +5,7 @@ from tortoise.contrib.pydantic import pydantic_model_creator
 from app.models.house import Community, Ershoufang, DealRecord
 import time
 from decimal import Decimal
+import pandas as pd
 
 # Community Schemas
 class CommunityBase(BaseModel):
@@ -104,6 +105,15 @@ class ErshoufangCreate(BaseModel):
     data_source: str = 'import'
     platform_listing_id: Optional[str] = None
     house_id: Optional[str] = None
+
+    @validator('building_year', 'building_structure', pre=True)
+    def handle_nan_values(cls, v):
+        if pd.isna(v) or v == 'nan' or v == '':
+            return None
+        return v
+
+    class Config:
+        arbitrary_types_allowed = True
 
 class ErshoufangUpdate(ErshoufangBase):
     community_id: Optional[int] = Field(None, description='小区ID')
