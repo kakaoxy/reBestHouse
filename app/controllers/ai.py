@@ -47,7 +47,7 @@ class AIReportController:
                 # 获取在售房源数据
                 listing_houses = await opportunity.community.houses.all()
                 listing_details = [
-                    f"在售房源{i+1}: {house.layout}户型, {house.area}平米, "
+                    f"在售房源{i+1}: {house.layout}户型, {house.area}平方米, "
                     f"{house.floor or '--'}楼层, "
                     f"{house.total_price}万元, "
                     f"单价{house.unit_price or '--'}元/㎡"
@@ -57,7 +57,7 @@ class AIReportController:
                 # 获取成交房源数据
                 deal_records = await opportunity.community.deal_records.all()
                 deal_details = [
-                    f"成交记录{i+1}: {record.layout}户型, {record.area}平米, "
+                    f"成交记录{i+1}: {record.layout}户型, {record.area}平方米, "
                     f"{record.floor_info or record.floor or '--'}楼层, "
                     f"{record.total_price}万元, "
                     f"单价{record.unit_price or '--'}元/㎡, "
@@ -134,19 +134,21 @@ class AIReportController:
                                         filter_active = True
                                         continue
 
-                                    # 处理 reasoning_content
+                                    # 处理 reasoning_content 部分
                                     if 'reasoning_content' in response_data:
                                         content = response_data['reasoning_content']
                                         if content:
-                                            yield f"data: {json.dumps({'content': content})}\n\n"
-                                    
+                                            # 标记为推理内容
+                                            yield f"data: {json.dumps({'content': content, 'isReasoning': True})}\n\n"
+                                
                                     # 处理普通内容
                                     if event_type == 'conversation.message.delta':
                                         content = response_data.get('content', '')
                                         if isinstance(content, dict):
                                             content = content.get('text', '')
                                         if content and not filter_active:
-                                            yield f"data: {json.dumps({'content': content})}\n\n"
+                                            # 确保每个响应都是一个完整的SSE消息
+                                            yield f"data: {json.dumps({'content': content, 'isReasoning': False})}\n\n"
                                     
                                     # 处理完成事件
                                     elif event_type == 'conversation.message.completed':
@@ -172,7 +174,8 @@ class AIReportController:
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
-                "Content-Type": "text/event-stream"
+                "Content-Type": "text/event-stream",
+                "X-Accel-Buffering": "no"  # 禁用Nginx缓冲
             }
         )
 

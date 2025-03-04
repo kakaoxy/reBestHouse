@@ -89,8 +89,11 @@
                     </div>
                   </div>
                   <div class="report-body">
+                    <!-- 在模板部分修改 -->
                     <div v-if="reportContent" class="report-content-text">
-                      <div class="report-text markdown-content" v-html="marked(reportContent)"></div>
+                      <div class="report-text markdown-content" 
+                           :class="{ 'report-loading-done': !reportLoading }"
+                           v-html="sanitizedContent"></div>
                     </div>
                     <div v-else class="report-placeholder">
                       <p>
@@ -118,7 +121,7 @@
   import { marked } from 'marked'
   import { useUserStore } from '@/store'
   import { useI18n } from 'vue-i18n'
-  import { ref, onMounted, computed } from 'vue'
+  import { ref, onMounted, computed, onUnmounted } from 'vue'
   import InvestmentCalculator from '@/components/InvestmentCalculator.vue'
   import { opportunityApi } from '@/api/house'
   import { ershoufangApi, dealRecordApi } from '@/api/house'
@@ -210,19 +213,53 @@
 
   const reportLoading = ref(false)
   const reportContent = ref('')
+  const displayContent = ref('') // 用于显示的内容，会有动画效果
   const message = useMessage()
-
+  const typingSpeed = 20 // 打字速度(ms)
+  let typingTimer = null
+  let contentBuffer = '' // 内容缓冲区
+  
+  // 模拟打字机效果
+  const typeWriter = (text) => {
+    clearTimeout(typingTimer)
+    
+    const fullText = text
+    let i = displayContent.value.length
+    
+    const type = () => {
+      if (i < fullText.length) {
+        displayContent.value = fullText.substring(0, i + 1)
+        i++
+        
+        // 自动滚动到底部
+        const reportBody = document.querySelector('.report-body')
+        if (reportBody) {
+          reportBody.scrollTop = reportBody.scrollHeight
+        }
+        
+        // 动态调整打字速度，根据内容长度
+        const speed = Math.max(5, typingSpeed - Math.floor(i / 100))
+        typingTimer = setTimeout(type, speed)
+      }
+    }
+    
+    type()
+  }
+  
   // 生成AI报告
   const generateReport = async () => {
     if (!selectedOpportunity.value) {
       message.warning('请先选择一个商机');
       return;
     }
-
+  
     reportLoading.value = true;
     reportContent.value = '';
-
+    displayContent.value = '';
+    contentBuffer = '';
+    
     try {
+      // 使用 request 方法发送请求
       const response = await request({
         url: 'ai/report/generate',
         method: 'POST',
@@ -243,16 +280,38 @@
             if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6));
-                if (data.content) {
+                
+                // 处理推理内容
+                if (data.reasoning_content) {
+                  // 使用特殊标记包装推理内容，以便在sanitizedContent中处理
+                  newContent += `<reasoning>${data.reasoning_content}</reasoning>`;
+                  reportContent.value = newContent;
+                  
+                  // 使用打字机效果更新显示内容
+                  typeWriter(reportContent.value);
+                } 
+                // 处理普通内容
+                else if (data.content) {
                   newContent += data.content;
                   reportContent.value = newContent;
+                  
+                  // 使用打字机效果更新显示内容
+                  typeWriter(reportContent.value);
                 }
+                
                 if (data.done) {
                   reportLoading.value = false;
                   message.success('报告生成成功');
+                  // 确保最终内容完全显示
+                  displayContent.value = reportContent.value;
                 }
-                if (data.error && !data.error.includes('data:')) { // 忽略包含 data: 的错误
-                  throw new Error(data.error);
+                if (data.error && !data.error.includes('data:')) {
+                  // 不直接抛出错误，而是记录到控制台
+                  console.error('生成报告时出现错误:', data.error);
+                  // 只有在没有内容时才显示错误消息
+                  if (!reportContent.value) {
+                    message.error('生成报告失败: ' + data.error);
+                  }
                 }
               } catch (e) {
                 console.debug('解析行数据时出现非关键错误:', e);
@@ -262,10 +321,23 @@
         }
       });
     } catch (err) {
-      if (!err.message?.includes('data:') && !reportContent.value) {
-        console.error('生成报告失败:', err);
-        message.error(err.message === 'timeout of 180000ms exceeded' ? '生成报告超时，请稍后重试' : '请求失败');
+      console.error('请求失败:', err);
+      
+      // 只有在没有生成任何内容时才显示错误消息
+      if (!reportContent.value) {
+        // 检查错误消息，避免显示 "OK" 相关的错误
+        const errorMsg = err.message || '';
+        if (errorMsg.toLowerCase() === 'ok' || errorMsg.toLowerCase().includes('ok')) {
+          console.log('忽略 OK 错误消息');
+        } else if (errorMsg === 'timeout of 180000ms exceeded') {
+          message.error('生成报告超时，请稍后重试');
+        } else if (errorMsg) {
+          message.error('请求失败: ' + errorMsg);
+        } else {
+          message.error('请求失败，请稍后重试');
+        }
       }
+      
       reportLoading.value = false;
     }
   };
@@ -276,6 +348,22 @@
   onMounted(() => {
     fetchPendingOpportunities()
   })
+  // 在 script 末尾添加
+  onUnmounted(() => {
+    clearTimeout(typingTimer);
+  });
+  // 在 script 部分添加计算属性
+  const sanitizedContent = computed(() => {
+    // 处理内容，移除可能导致错误图标的文本
+    let content = displayContent.value;
+    
+    // 替换可能导致错误图标的文本
+    content = content.replace(/\bOK\b/g, '完成');
+    content = content.replace(/\bok\b/g, '完成');
+    
+    // 将渲染后的内容返回
+    return marked(content);
+  });
   </script>
   <style scoped>
   .welcome-card {
@@ -477,12 +565,67 @@
   line-height: 1.6;
 }
 
+/* 修改打字机光标效果 - 在样式部分 */
 .markdown-content {
   color: #1d1d1f;
   font-size: 15px;
-  /* white-space: pre-line; */
+  position: relative; /* 添加相对定位 */
 }
 
+/* 修改光标样式，使其显示在文字后面而不是下方 */
+.markdown-content:after {
+  content: '|';
+  display: inline;
+  color: #0071e3;
+  animation: cursor-blink 1.2s infinite;
+  font-weight: bold;
+  position: relative; /* 使用相对定位 */
+  margin-left: 1px; /* 与文字保持一点距离 */
+}
+
+/* 当报告加载完成时隐藏光标 */
+.report-loading-done .markdown-content:after {
+  display: none;
+}
+
+/* 添加推理内容样式 */
+.reasoning-content {
+  color: #86868b !important; /* 灰色 */
+  font-size: 14px;
+  font-style: italic;
+  padding: 12px 16px;
+  background-color: #f5f5f7;
+  border-left: 4px solid #d2d2d7;
+  margin: 16px 0;
+  border-radius: 6px;
+}
+
+/* 确保推理内容中的所有元素都是灰色 */
+.reasoning-content :deep(*) {
+  color: #86868b !important;
+}
+
+/* 确保推理内容中的标题也是灰色 */
+.reasoning-content :deep(h1),
+.reasoning-content :deep(h2),
+.reasoning-content :deep(h3),
+.reasoning-content :deep(h4),
+.reasoning-content :deep(h5),
+.reasoning-content :deep(h6) {
+  color: #86868b !important;
+}
+
+/* 确保推理内容中的加粗文本也是灰色 */
+.reasoning-content :deep(strong),
+.reasoning-content :deep(b) {
+  color: #86868b !important;
+  font-weight: 600;
+}
+
+/* 为正常内容添加更明显的样式 */
+.markdown-content > :not(.reasoning-content) {
+  color: #1d1d1f;
+}
 .markdown-content :deep(strong),
 .markdown-content :deep(b) {
   color: #000000;
@@ -501,5 +644,18 @@
   max-height: calc(100vh - 400px);
   overflow-y: auto;
   padding: 16px;
+}
+
+/* 确保不会显示红色图标 */
+.markdown-content :deep(.n-icon-error),
+.markdown-content :deep(.n-icon-close),
+.markdown-content :deep(.error-icon) {
+  display: none !important;
+}
+
+/* 自定义成功图标样式 */
+.markdown-content :deep(.n-icon-success),
+.markdown-content :deep(.n-icon-check) {
+  color: #34c759 !important;
 }
 </style>
