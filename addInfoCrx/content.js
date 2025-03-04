@@ -215,10 +215,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             // 7. 成交价*（从totalPrice中）
             const chengjiaoElem = deal.querySelector('div.address > div.totalPrice > span');
             let chengjiaoPrice = chengjiaoElem ? chengjiaoElem.textContent.trim() : '';
+            // 如果成交价包含"暂无"等字样，则设为0
+            if (chengjiaoPrice.includes('暂无') || chengjiaoPrice === '') {
+                chengjiaoPrice = '0';
+            }
 
             // 8. 单价(元/平)（从unitPrice中）
             const danjiaElem = deal.querySelector('div.flood > div.unitPrice > span');
             let danjia = danjiaElem ? danjiaElem.textContent.trim() : '';
+            // 如果单价包含"暂无"等字样，则设为0
+            if (danjia.includes('暂无') || danjia === '') {
+                danjia = '0';
+            }
 
             // 9. 成交时间*（从dealDate中，替换点为斜杠）
             const timeElem = deal.querySelector('div.address > div.dealDate');
