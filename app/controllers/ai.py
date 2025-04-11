@@ -5,46 +5,55 @@ from app.core.crud import CRUDBase
 from app.schemas.ai import AIReportRequest
 from app.models.house import Opportunity
 import logging
-import requests
 import json
-import asyncio
 import os
 from dotenv import load_dotenv
+from openai import OpenAI
+
+
+# 初始化日志器
+logger = logging.getLogger(__name__)
 
 # 加载环境变量
 load_dotenv()
 
-# print(os.getenv('COZE_API_KEY'))
-# print(os.getenv('COZE_BOT_ID'))
-
 class AIReportController:
     def __init__(self):
-        self.url = "https://api.coze.cn/v3/chat"
-        self.headers = {
-            "Authorization": f"Bearer {os.getenv('COZE_API_KEY')}",
-            "Content-Type": "application/json"
+        # 完全按照官方文档初始化客户端
+        self.client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.getenv('OPENROUTER_API_KEY')
+        )
+        self.model = os.getenv('OPENROUTER_MODEL', 'deepseek/deepseek-r1-zero:free')
+        self.extra_headers = {
+            "HTTP-Referer": os.getenv('SITE_URL', 'https://hitoday.top'),
+            "X-Title": os.getenv('SITE_NAME', 'ReBestHouse')
         }
-        self.bot_id = os.getenv('COZE_BOT_ID')
+
+    
 
     async def generate_report(self, data: AIReportRequest):
-        """生成AI分析报告（流式响应）"""
-        print(data)
-        async def generate():
+        """生成AI分析报告（优化流式响应处理）"""
+        print(f"Starting report generation for opportunity: {data.opportunity_id}")
+        
+        async def generate(data: AIReportRequest):
             try:
-                # 添加商机查询日志
-                # logging.info(f"正在查询商机ID: {data.opportunity_id}")
+                # === 阶段1：获取商机和小区数据 ===
+                print("Fetching opportunity and community data...")
                 opportunity = await Opportunity.get_or_none(id=data.opportunity_id).prefetch_related('community')
                 if not opportunity:
-                    # logging.error(f"商机不存在，ID: {data.opportunity_id}")
-                    raise HTTPException(status_code=404, detail="商机不存在")
+                    error_msg = f"Opportunity not found: {data.opportunity_id}"
+                    logger.error(error_msg)
+                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                    return
 
-                # 添加数据统计日志
+                # === 阶段2：获取房源和成交数据 ===
+                print("Fetching listing and deal records...")
                 listing_count = await opportunity.community.houses.all().count()
                 deal_count = await opportunity.community.deal_records.all().count()
-                # logging.info(f"商机统计数据 - 在售: {listing_count}, 成交: {deal_count}")
-
-                # 构建提示词
-                # 获取在售房源数据
+                print(f"Found {listing_count} listings and {deal_count} deal records")
+                
+                # 保留原有数据获取方式
                 listing_houses = await opportunity.community.houses.all()
                 listing_details = [
                     f"在售房源{i+1}: {house.layout}户型, {house.area}平方米, "
@@ -54,7 +63,6 @@ class AIReportController:
                     for i, house in enumerate(listing_houses)
                 ]
 
-                # 获取成交房源数据
                 deal_records = await opportunity.community.deal_records.all()
                 deal_details = [
                     f"成交记录{i+1}: {record.layout}户型, {record.area}平方米, "
@@ -66,6 +74,7 @@ class AIReportController:
                     for i, record in enumerate(deal_records)
                 ]
 
+                # === 阶段3：构建提示词（保留原有结构和内容）===
                 prompt = f"""请对以下房产信息进行分析并输出卖房建议报告，报告的用户是业主，主要目标是说服业主以合理价格进行委托，业主的目标是在3个月内完成销售，报告内容需要简单易懂说人话，逻辑清晰，理论依据充分，需要考虑市场趋势和房屋户型以及所在楼层的优缺点，目标销售周期要控制在3个月以内：
                 小区名称：{opportunity.community.name}
                 户型：{opportunity.layout or '--'}
@@ -80,103 +89,77 @@ class AIReportController:
 
                 历史成交记录：
                 {chr(10).join(deal_details) if deal_details else "暂无成交记录"}"""
+                
+                logger.debug(f"Constructed prompt with length: {len(prompt)} characters")
 
-                # 记录API请求数据
-                request_data = {
-                    "bot_id": self.bot_id,
-                    "user_id": "system",
-                    "stream": True,
-                    "auto_save_history": True,
-                    "additional_messages": [
-                        {
-                            "role": "user",
-                            "content": prompt,
-                            "content_type": "text"
-                        }
+                # === 阶段4：调用OpenRouter API ===
+                print("Preparing to call OpenRouter API...")
+                try:
+                    messages = [
+                        {"role": "system", "content": "你是一个专业的房产经纪人，需要生成详细的卖房策略报告"},
+                        {"role": "user", "content": prompt}
                     ]
-                }
-                # logging.info(f"准备发送到Coze API的数据: {request_data}")
+                    
+                    stream = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        stream=True,
+                        extra_headers=self.extra_headers,
+                        extra_body={}
+                    )
+                    print("API request successfully sent")
+                except Exception as api_error:
+                    logger.error(f"API call failed: {str(api_error)}")
+                    yield f"data: {json.dumps({'error': f'API请求失败: {str(api_error)}'})}\n\n"
+                    return
 
-                response = requests.post(
-                    self.url,
-                    headers=self.headers,
-                    json=request_data,
-                    stream=True
-                )
-
-                if response.status_code == 200:
-                    event_type = None
-                    filter_active = False  # 添加过滤标记
-
-                    for line in response.iter_lines():
-                        if filter_active:
-                            continue
-
-                        if not line:
-                            continue
-
-                        try:
-                            sse_line = line.decode('utf-8').strip()
-                            
-                            # 处理事件类型
-                            if sse_line.startswith('event:'):
-                                event_type = sse_line.split(':', 1)[1].strip()
-                                continue
-
-                            # 处理数据
-                            if sse_line.startswith('data:'):
-                                json_str = sse_line.split(':', 1)[1].strip()
-                                if json_str:
-                                    response_data = json.loads(json_str)
-                                    
-                                    # 处理系统消息
-                                    if response_data.get('msg_type') == 'generate_answer_finish':
-                                        filter_active = True
-                                        continue
-
-                                    # 处理 reasoning_content 部分
-                                    if 'reasoning_content' in response_data:
-                                        content = response_data['reasoning_content']
-                                        if content:
-                                            # 标记为推理内容
-                                            yield f"data: {json.dumps({'content': content, 'isReasoning': True})}\n\n"
-                                
-                                    # 处理普通内容
-                                    if event_type == 'conversation.message.delta':
-                                        content = response_data.get('content', '')
-                                        if isinstance(content, dict):
-                                            content = content.get('text', '')
-                                        if content and not filter_active:
-                                            # 确保每个响应都是一个完整的SSE消息
-                                            yield f"data: {json.dumps({'content': content, 'isReasoning': False})}\n\n"
-                                    
-                                    # 处理完成事件
-                                    elif event_type == 'conversation.message.completed':
-                                        yield f"data: {json.dumps({'done': True})}\n\n"
-                                        break
-
-                        except json.JSONDecodeError as e:
-                            logging.error(f"解析响应数据失败: {e}")
-                            continue
-                else:
-                    error_msg = f"API请求失败: {response.status_code}"
-                    logging.error(error_msg)
-                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                # === 阶段5：优化后的流式响应处理 ===
+                print("Processing streaming response...")
+                chunk_counter = 0
+                
+                for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta:
+                        delta = chunk.choices[0].delta
+                        chunk_counter += 1
+                        
+                        # 合并content和reasoning字段
+                        response_data = {}
+                        if hasattr(delta, 'content') and delta.content:
+                            response_data['content'] = delta.content
+                        if hasattr(delta, 'reasoning') and delta.reasoning:
+                            response_data['reasoning'] = delta.reasoning
+                        
+                        # 只要有数据就立即发送
+                        if response_data:
+                            yield f"data: {json.dumps(response_data)}\n\n"
+                            print(f"{response_data}")
+                
+                yield f"data: {json.dumps({'done': True})}\n\n"
 
             except Exception as e:
-                error_msg = f"生成AI报告失败: {str(e)}"
-                logging.error(error_msg)
+                error_msg = f"生成报告时出现异常: {str(e)}"
+                logger.error(error_msg, exc_info=True)
                 yield f"data: {json.dumps({'error': error_msg})}\n\n"
 
+        # 返回流式响应（增加超时时间）
         return StreamingResponse(
-            generate(),
+            generate(data),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
-                "Content-Type": "text/event-stream",
-                "X-Accel-Buffering": "no"  # 禁用Nginx缓冲
+                "X-Accel-Buffering": "no"
             }
         )
 
+# 初始化控制器
+try:
+    ai_report_controller = AIReportController()
+    print("AIReportController initialization complete")
+except Exception as e:
+    logger.critical(f"Controller initialization failed: {str(e)}")
+    raise
+
+
+# 单例模式初始化
 ai_report_controller = AIReportController()

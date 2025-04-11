@@ -219,17 +219,30 @@
   let typingTimer = null
   let contentBuffer = '' // 内容缓冲区
   
-  // 模拟打字机效果
+  // 优化后的打字机效果
   const typeWriter = (text) => {
     clearTimeout(typingTimer)
     
     const fullText = text
     let i = displayContent.value.length
+    let batchSize = 10 // 每次渲染的字符数
+    let batchCount = 0
     
     const type = () => {
       if (i < fullText.length) {
-        displayContent.value = fullText.substring(0, i + 1)
-        i++
+        // 计算本次要渲染的字符数
+        const remaining = fullText.length - i
+        const currentBatch = Math.min(batchSize, remaining)
+        
+        // 更新显示内容
+        displayContent.value = fullText.substring(0, i + currentBatch)
+        i += currentBatch
+        batchCount++
+        
+        // 动态调整批处理大小
+        if (batchCount % 5 === 0) {
+          batchSize = Math.min(50, batchSize + 5) // 逐步增加批处理大小
+        }
         
         // 自动滚动到底部
         const reportBody = document.querySelector('.report-body')
@@ -237,8 +250,8 @@
           reportBody.scrollTop = reportBody.scrollHeight
         }
         
-        // 动态调整打字速度，根据内容长度
-        const speed = Math.max(5, typingSpeed - Math.floor(i / 100))
+        // 动态调整打字速度
+        const speed = Math.max(1, 20 - Math.floor(i / 200)) // 更快的基准速度
         typingTimer = setTimeout(type, speed)
       }
     }
@@ -282,19 +295,16 @@
                 const data = JSON.parse(line.slice(6));
                 
                 // 处理推理内容
-                if (data.reasoning_content) {
-                  // 使用特殊标记包装推理内容，以便在sanitizedContent中处理
-                  newContent += `<reasoning>${data.reasoning_content}</reasoning>`;
-                  reportContent.value = newContent;
-                  
-                  // 使用打字机效果更新显示内容
-                  typeWriter(reportContent.value);
-                } 
+                if (data.reasoning) {
+                  newContent += `<span class="reasoning-item">${data.reasoning}</span>`;
+                }
                 // 处理普通内容
-                else if (data.content) {
+                if (data.content) {
                   newContent += data.content;
+                }
+                
+                if (data.reasoning || data.content) {
                   reportContent.value = newContent;
-                  
                   // 使用打字机效果更新显示内容
                   typeWriter(reportContent.value);
                 }
@@ -352,6 +362,31 @@
   onUnmounted(() => {
     clearTimeout(typingTimer);
   });
+  // 配置marked支持数学公式
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+    // 添加数学公式支持
+    extensions: [{
+      name: 'math',
+      level: 'inline',
+      start(src) { return src.indexOf('$'); },
+      tokenizer(src, tokens) {
+        const match = src.match(/^\$+([^$\n]+?)\$+/);
+        if (match) {
+          return {
+            type: 'math',
+            raw: match[0],
+            text: match[1].trim()
+          };
+        }
+      },
+      renderer(token) {
+        return `<span class="math-formula">${token.text}</span>`;
+      }
+    }]
+  });
+
   // 在 script 部分添加计算属性
   const sanitizedContent = computed(() => {
     // 处理内容，移除可能导致错误图标的文本
@@ -361,8 +396,33 @@
     content = content.replace(/\bOK\b/g, '完成');
     content = content.replace(/\bok\b/g, '完成');
     
-    // 将渲染后的内容返回
-    return marked(content);
+    // 处理JSON内容（支持\box和\boxed两种格式）
+    content = content.replace(/\\box(?:ed)?\s*\{([\s\S]*?)\}/g, (match, jsonContent) => {
+      try {
+        // 尝试解析JSON
+        const jsonObj = JSON.parse(jsonContent);
+        // 格式化JSON为可读字符串
+        const formattedJson = JSON.stringify(jsonObj, null, 2)
+          .replace(/&/g, '&')
+          .replace(/</g, '<')
+          .replace(/>/g, '>');
+        return `<pre class="json-content">${formattedJson}</pre>`;
+      } catch (e) {
+        // 如果解析失败，保留原始内容
+        return match;
+      }
+    });
+    
+    // 临时替换$$公式$$为特殊标记，避免被marked处理
+    content = content.replace(/\$\$(.*?)\$\$/g, '【MATH】$1【/MATH】');
+    
+    // 使用marked渲染
+    let rendered = marked(content);
+    
+    // 将特殊标记恢复为$$公式$$
+    rendered = rendered.replace(/【MATH】(.*?)【\/MATH】/g, '$$$1$$');
+    
+    return rendered;
   });
   </script>
   <style scoped>
@@ -589,41 +649,41 @@
 }
 
 /* 添加推理内容样式 */
-.reasoning-content {
+.reasoning-item {
   color: #86868b !important; /* 灰色 */
   font-size: 14px;
   font-style: italic;
-  padding: 12px 16px;
+  padding: 2px 4px;
   background-color: #f5f5f7;
-  border-left: 4px solid #d2d2d7;
-  margin: 16px 0;
-  border-radius: 6px;
+  border-radius: 4px;
+  margin: 0 2px;
+  display: inline-block;
 }
 
 /* 确保推理内容中的所有元素都是灰色 */
-.reasoning-content :deep(*) {
+.reasoning-item :deep(*) {
   color: #86868b !important;
 }
 
 /* 确保推理内容中的标题也是灰色 */
-.reasoning-content :deep(h1),
-.reasoning-content :deep(h2),
-.reasoning-content :deep(h3),
-.reasoning-content :deep(h4),
-.reasoning-content :deep(h5),
-.reasoning-content :deep(h6) {
+.reasoning-item :deep(h1),
+.reasoning-item :deep(h2),
+.reasoning-item :deep(h3),
+.reasoning-item :deep(h4),
+.reasoning-item :deep(h5),
+.reasoning-item :deep(h6) {
   color: #86868b !important;
 }
 
 /* 确保推理内容中的加粗文本也是灰色 */
-.reasoning-content :deep(strong),
-.reasoning-content :deep(b) {
+.reasoning-item :deep(strong),
+.reasoning-item :deep(b) {
   color: #86868b !important;
   font-weight: 600;
 }
 
 /* 为正常内容添加更明显的样式 */
-.markdown-content > :not(.reasoning-content) {
+.markdown-content > :not(.reasoning-item) {
   color: #1d1d1f;
 }
 .markdown-content :deep(strong),
